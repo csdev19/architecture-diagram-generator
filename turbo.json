@@ -40,9 +40,6 @@
     "db:generate": {
       "cache": false,
       "env": ["DATABASE_URL"]
-    },
-    "test": {
-      "dependsOn": ["transit"]
     }
   }
 }

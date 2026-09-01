@@ -1,0 +1,89 @@
+---
+title: SVG Renderer
+description: One pure function that turns a config into SVG, identically in a browser and a Worker.
+---
+
+# SVG Renderer
+
+## Status
+
+| Field          | Value                 |
+| -------------- | --------------------- |
+| Status         | ✅ Complete           |
+| Completed      | 2026-09-01            |
+| Author         | Cristian Sotomayor    |
+| Parent Feature | [Diagram Tool](index) |
+| Related Issues | None                  |
+
+## What It Does
+
+Turns a validated `DiagramConfig` into a complete SVG document. It is a pure,
+deterministic string builder with no DOM and no Node built-ins, so the same
+function runs in the browser preview today and inside a Cloudflare Worker in
+phase 1. That shared implementation is what guarantees an exported image matches
+what the editor showed.
+
+## Implementation
+
+### Files Changed
+
+| Path                                       | Purpose                                                    |
+| ------------------------------------------ | ---------------------------------------------------------- |
+| `packages/domain/src/render/index.ts`      | `renderSVG` — composes the layers and fixes their order    |
+| `packages/domain/src/render/svg.ts`        | XML escaping, coordinate formatting, text-width estimation |
+| `packages/domain/src/render/background.ts` | Base fill and the grid pattern                             |
+| `packages/domain/src/render/group.ts`      | Group box, with its label punched through the top border   |
+| `packages/domain/src/render/node.ts`       | Tile, emoji, name and sublabel                             |
+| `packages/domain/src/render/edge.ts`       | Anchor geometry, line, arrowheads and labels               |
+| `packages/domain/tsdown.config.ts`         | Adds the `render` entry so the subpath export exists       |
+
+### Domain Model
+
+N/A — the renderer consumes the domain model rather than defining one.
+
+### Key Logic
+
+Each layer is a small pure function returning a string, and the composer
+concatenates them in a fixed order: background, groups, edges, nodes. That order
+is the whole layout contract — a group tint never covers an edge, and an edge
+never crosses over a tile. Edge anchors are computed from the side named in the
+config, offset clear of the tile, with the bottom side dropping further to clear
+the node's text. Coordinates round to two decimals so equal inputs always
+produce identical bytes.
+
+## Decisions
+
+| Decision                                      | Why                                                                                                                               | Alternatives Considered                                   |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| A string builder, not React components        | It must run in a Worker with no DOM. A React renderer would force a second implementation for the server, and the two would drift | React components rendered with `renderToStaticMarkup`     |
+| Deterministic output, no randomness or clocks | Snapshots stay meaningful, and phase 1 can cache renders keyed on content                                                         | Generating unique ids per render                          |
+| The group icon is its own element             | An emoji set in the label's 11px monospace face renders as an illegible smudge                                                    | Prefixing the icon onto the label string                  |
+| Text widths are estimated, not measured       | There is no text measurement outside a browser. Backing rects are sized from character count and overshoot slightly               | Shipping font metrics, or measuring in a headless browser |
+| Straight lines only                           | Straight edges plus a deliberate layout cover almost everything; orthogonal routing around obstacles is a rabbit hole             | Auto-routed orthogonal edges                              |
+
+## Gotchas & Warnings
+
+- ⚠️ Nothing in `render/` may import a DOM or Node API. That constraint is the reason the package can be reused by a Worker at all, and it is easy to break by accident.
+- ⚠️ Every interpolated string must pass through `escapeXml`. A raw `&` or `<` yields a document that fails to parse, and the failure is usually silent.
+- ⚠️ Fonts are system stacks today, so a server-side render in phase 1 will not match the browser until real font files are bundled. Colour emoji also do not rasterise reliably outside a browser — that is what the icon set in phase 1.5 is for.
+- ⚠️ The snapshot test passes trivially the first time it is written. When changing the renderer, look at the rendered output, do not just accept the new snapshot.
+
+## Dependencies
+
+None. The renderer imports only the domain's own constants and types.
+
+## Testing
+
+```bash
+# Unit tests
+bun run test --filter=@diagram-tool/domain
+
+# Manual testing
+# Open /editor and confirm the preview matches the exported PNG,
+# then check the SVG parses: xmllint --noout the exported file.
+```
+
+## Related
+
+- [Config Schema](config-schema) — the input contract
+- [Editor Page](editor-page) — the browser surface that consumes this

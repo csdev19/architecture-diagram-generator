@@ -35,9 +35,16 @@ here):
   so a `vars` block drifts from the single source of truth. Wrangler is pinned in the root catalog;
   keep `compatibility_date` current and identical across all `wrangler.jsonc`, and run
   `wrangler types` after editing one. Full rules in the hub link above.
-- **web-ui needs `dist/`:** `@diagram-tool/web-ui` exports point to built files. If you hit
-  "Cannot find module", run `bun run build` inside `packages/web-ui/`. `dist/` is committed; rebuild
-  after editing web-ui components.
+- **web-ui needs `dist/`:** `@diagram-tool/web-ui` resolves to `src/` under the `development`
+  condition and to `dist/` otherwise. `dist/` is **git-ignored** — `turbo run build` produces it
+  (`build` dependsOn `^build`), so a fresh clone builds it before the app. If you hit "Cannot find
+  module", run `bun run build` inside `packages/web-ui/`.
+- **web-ui must never import a stylesheet in `src/index.ts`:** one Tailwind build per app, owned by
+  the app. Consumers pull the theme via `@import "@diagram-tool/web-ui/styles.css"` (that export
+  points at `src/styles.css`). A side-effect CSS import there makes `vite-plugin-lib-inject-css`
+  ship a second `@layer utilities` inside `dist`, which loads after the app's and wins the cascade —
+  app-only responsive classes (`md:grid-cols-2`) then collapse in production builds while working in
+  dev. See [tailwind-v4-split-css-cascade](https://github.com/csdev19/general-knowledge/blob/main/web/tailwind-v4-split-css-cascade.md).
 
 ## Common Commands
 

@@ -40,6 +40,10 @@ export default defineConfig({
         {
           label: "Features",
           items: [
+            {
+              label: "Diagram Tool",
+              autogenerate: { directory: "features/diagram-tool" },
+            },
             { slug: "convex" },
             {
               label: "Convex",

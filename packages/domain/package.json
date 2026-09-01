@@ -17,6 +17,7 @@
   "type": "module",
   "exports": {
     "./constants": "./src/constants/index.ts",
+    "./render": "./src/render/index.ts",
     "./repositories": "./src/repositories/index.ts",
     "./schemas": "./src/schemas/index.ts",
     "./testing": "./src/testing/index.ts",
@@ -26,6 +27,7 @@
   "publishConfig": {
     "exports": {
       "./constants": "./dist/constants.mjs",
+      "./render": "./dist/render.mjs",
       "./repositories": "./dist/repositories.mjs",
       "./schemas": "./dist/schemas.mjs",
       "./testing": "./dist/testing.mjs",

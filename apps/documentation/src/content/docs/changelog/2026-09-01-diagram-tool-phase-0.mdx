@@ -1,0 +1,18 @@
+---
+title: "September 01, 2026 - Diagram tool, phase 0"
+description: Architecture diagrams as data — a validated config, a shared SVG renderer, and an /editor page that exports a PNG.
+date: 2026-09-01
+tags:
+  - changelog
+  - feature
+---
+
+✨ **Feature** — Diagrams are now data rather than drawings: a `DiagramConfig`
+describes the architecture and one pure renderer turns it into SVG, so the
+preview and the exported PNG can never disagree. The `/editor` page takes the
+config on the left and renders it on the right; validation reports every problem
+at once, naming the offending value and its fix, so a model can correct a config
+in a single retry. Phase 1 will reuse the same renderer inside a Worker and
+expose it to Claude over MCP.
+
+**Docs:** [Diagram Tool](/features/diagram-tool)

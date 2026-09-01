@@ -22,6 +22,10 @@ export * from "./components/alert-dialog";
 export * from "./lib/utils";
 export * from "./lib/normalize-markdown";
 
-import "./styles.css";
-
-// import "./components/markdown-content.css";
+// No stylesheet is imported here on purpose. One Tailwind build per app, owned
+// by the app: consumers pull the theme with `@import "@diagram-tool/web-ui/styles.css"`
+// (the export points at src/styles.css, compiled by the app's own Tailwind).
+// Importing it here made `vite-plugin-lib-inject-css` ship a second utilities
+// layer inside dist, which loads after the app's and silently wins the cascade —
+// app-only responsive classes (`md:grid-cols-2`) then collapse in production
+// builds while working in dev.

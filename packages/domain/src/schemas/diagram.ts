@@ -1,0 +1,252 @@
+import { z } from "zod";
+import {
+  ANCHOR_SIDES,
+  DIAGRAM_GEOMETRY,
+  DIAGRAM_LIMITS,
+  EDGE_STYLES,
+  GROUP_TONES,
+  TILE_VARIANTS,
+} from "../constants/diagram";
+
+/**
+ * `DiagramConfig` — the contract at the centre of the diagram tool. A model
+ * writes it, the editor edits it, the renderer draws it.
+ *
+ * Failure messages are written for the author, not the library: they name the
+ * offending value and the fix. Cross-field rules run in one `superRefine` so a
+ * single parse reports every problem at once, which lets a model correct them
+ * all in one retry instead of discovering them one turn at a time.
+ */
+
+/** Text that appears inside a tile: trimmed, non-empty, and short enough to fit. */
+const tileText = (field: string) =>
+  z
+    .string()
+    .trim()
+    .min(1, `${field} is required`)
+    .max(
+      DIAGRAM_LIMITS.TEXT_MAX,
+      `${field} must be at most ${DIAGRAM_LIMITS.TEXT_MAX} characters — abbreviate it to fit the tile`,
+    );
+
+export const diagramNodeSchema = z.object({
+  id: z.string().trim().min(1, "Node id is required"),
+  /** Centre of the tile, not its top-left corner. */
+  x: z.number(),
+  y: z.number(),
+  emoji: z.string().trim().min(1, "Node emoji is required"),
+  name: tileText("Node name"),
+  sub: z
+    .string()
+    .trim()
+    .max(
+      DIAGRAM_LIMITS.TEXT_MAX,
+      `Node sublabel must be at most ${DIAGRAM_LIMITS.TEXT_MAX} characters — abbreviate it to fit the tile`,
+    )
+    .default(""),
+  tile: z.enum(TILE_VARIANTS).default(TILE_VARIANTS.LIGHT),
+});
+
+export const diagramGroupSchema = z.object({
+  id: z.string().trim().min(1, "Group id is required"),
+  label: tileText("Group label"),
+  icon: z.string().default(""),
+  x: z.number(),
+  y: z.number(),
+  w: z.number().positive("Group width must be positive"),
+  h: z.number().positive("Group height must be positive"),
+  tone: z.enum(GROUP_TONES),
+  dashed: z.boolean().default(false),
+  /** `false` draws the border only — used for nested groups. */
+  filled: z.boolean().default(true),
+});
+
+export const diagramEdgeSchema = z.object({
+  from: z.string().trim().min(1, "Edge source is required"),
+  to: z.string().trim().min(1, "Edge target is required"),
+  out: z.enum(ANCHOR_SIDES),
+  inn: z.enum(ANCHOR_SIDES),
+  label: z.string().trim().optional(),
+  style: z.enum(EDGE_STYLES).default(EDGE_STYLES.SOLID),
+});
+
+const diagramConfigShape = z.object({
+  version: z.literal(1),
+  title: z.string().trim().min(1, "Title is required").default("diagram"),
+  canvas: z.object({
+    w: z
+      .number()
+      .min(
+        DIAGRAM_LIMITS.CANVAS_MIN_WIDTH,
+        `Canvas width must be at least ${DIAGRAM_LIMITS.CANVAS_MIN_WIDTH}px`,
+      )
+      .max(
+        DIAGRAM_LIMITS.CANVAS_MAX_WIDTH,
+        `Canvas width must be at most ${DIAGRAM_LIMITS.CANVAS_MAX_WIDTH}px`,
+      ),
+    h: z
+      .number()
+      .min(
+        DIAGRAM_LIMITS.CANVAS_MIN_HEIGHT,
+        `Canvas height must be at least ${DIAGRAM_LIMITS.CANVAS_MIN_HEIGHT}px`,
+      )
+      .max(
+        DIAGRAM_LIMITS.CANVAS_MAX_HEIGHT,
+        `Canvas height must be at most ${DIAGRAM_LIMITS.CANVAS_MAX_HEIGHT}px`,
+      ),
+  }),
+  groups: z
+    .array(diagramGroupSchema)
+    .max(DIAGRAM_LIMITS.MAX_GROUPS, `At most ${DIAGRAM_LIMITS.MAX_GROUPS} groups`),
+  nodes: z
+    .array(diagramNodeSchema)
+    .min(DIAGRAM_LIMITS.MIN_NODES, "A diagram needs at least one node")
+    .max(DIAGRAM_LIMITS.MAX_NODES, `At most ${DIAGRAM_LIMITS.MAX_NODES} nodes`),
+  edges: z
+    .array(diagramEdgeSchema)
+    .max(DIAGRAM_LIMITS.MAX_EDGES, `At most ${DIAGRAM_LIMITS.MAX_EDGES} edges`),
+});
+
+/** Reports the first duplicate of each repeated id in `items`. */
+const addDuplicateIdIssues = (
+  ctx: z.RefinementCtx,
+  items: ReadonlyArray<{ id: string }>,
+  field: "nodes" | "groups",
+) => {
+  const seen = new Set<string>();
+  const reported = new Set<string>();
+
+  items.forEach((item, index) => {
+    if (seen.has(item.id) && !reported.has(item.id)) {
+      reported.add(item.id);
+      ctx.addIssue({
+        code: "custom",
+        path: [field, index, "id"],
+        message: `${field}[${index}]: duplicate id "${item.id}" — every ${field === "nodes" ? "node" : "group"} id must be unique`,
+      });
+    }
+    seen.add(item.id);
+  });
+};
+
+export const diagramConfigSchema = diagramConfigShape.superRefine((config, ctx) => {
+  addDuplicateIdIssues(ctx, config.nodes, "nodes");
+  addDuplicateIdIssues(ctx, config.groups, "groups");
+
+  const nodeIds = new Set(config.nodes.map((node) => node.id));
+  const available = config.nodes.map((node) => node.id).join(", ");
+
+  config.edges.forEach((edge, index) => {
+    for (const endpoint of ["from", "to"] as const) {
+      const id = edge[endpoint];
+      if (!nodeIds.has(id)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["edges", index, endpoint],
+          message: `edges[${index}].${endpoint}: "${id}" does not exist. Available nodes: ${available}`,
+        });
+      }
+    }
+
+    if (edge.from === edge.to) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["edges", index],
+        message: `edges[${index}]: "${edge.from}" cannot connect to itself`,
+      });
+    }
+  });
+
+  const { CANVAS_MARGIN } = DIAGRAM_GEOMETRY;
+  config.nodes.forEach((node, index) => {
+    const outOfBounds =
+      node.x < CANVAS_MARGIN ||
+      node.y < CANVAS_MARGIN ||
+      node.x > config.canvas.w - CANVAS_MARGIN ||
+      node.y > config.canvas.h - CANVAS_MARGIN;
+
+    if (outOfBounds) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["nodes", index],
+        message:
+          `nodes[${index}] "${node.id}" sits at (${node.x}, ${node.y}), inside the ${CANVAS_MARGIN}px margin ` +
+          `of a ${config.canvas.w}x${config.canvas.h} canvas — move it in, or grow the canvas`,
+      });
+    }
+  });
+});
+
+/** Renders a Zod path as the author wrote it: `nodes[0].name`. */
+const formatPath = (path: PropertyKey[]): string =>
+  path.reduce<string>((acc, segment) => {
+    if (typeof segment === "number") return `${acc}[${segment}]`;
+    return acc ? `${acc}.${String(segment)}` : String(segment);
+  }, "");
+
+/**
+ * Turns a parse failure into messages an author — human or model — can act on.
+ *
+ * Cross-field messages already name their own location, so prefixing them again
+ * would read as `edges[0].to: edges[0].to: ...`; only messages that lack it get
+ * the path prepended.
+ */
+export const formatDiagramIssues = (error: z.ZodError): string[] =>
+  error.issues.map((issue) => {
+    const path = formatPath(issue.path as PropertyKey[]);
+    if (!path) return issue.message;
+    return issue.message.startsWith(path) ? issue.message : `${path}: ${issue.message}`;
+  });
+
+/**
+ * The front door to the contract: validate once, get either a config ready to
+ * render or every problem with it. Phase 1's `/validate` endpoint and the MCP
+ * `validate_diagram` tool are thin wrappers over this.
+ */
+export const validateDiagramConfig = (
+  input: unknown,
+): { ok: true; config: DiagramConfig } | { ok: false; errors: string[] } => {
+  const parsed = diagramConfigSchema.safeParse(input);
+  return parsed.success
+    ? { ok: true, config: parsed.data }
+    : { ok: false, errors: formatDiagramIssues(parsed.error) };
+};
+
+export type DiagramNode = z.infer<typeof diagramNodeSchema>;
+export type DiagramGroup = z.infer<typeof diagramGroupSchema>;
+export type DiagramEdge = z.infer<typeof diagramEdgeSchema>;
+export type DiagramConfig = z.infer<typeof diagramConfigSchema>;
+
+/** The authoring shape, before defaults are filled in. */
+export type DiagramConfigInput = z.input<typeof diagramConfigSchema>;
+
+/**
+ * The canonical example from the design docs. Doubles as the seed the editor
+ * loads on first visit, so there is one example to keep correct rather than two.
+ */
+export const EXAMPLE_DIAGRAM_CONFIG: DiagramConfigInput = {
+  version: 1,
+  title: "api-simple",
+  canvas: { w: 700, h: 360 },
+  groups: [
+    {
+      id: "cf",
+      label: "CLOUDFLARE",
+      icon: "☁️",
+      x: 240,
+      y: 60,
+      w: 420,
+      h: 240,
+      tone: GROUP_TONES.ORANGE,
+    },
+  ],
+  nodes: [
+    { id: "user", x: 110, y: 180, emoji: "🖥️", name: "User", sub: "browser" },
+    { id: "hono", x: 350, y: 180, emoji: "🔥", name: "Hono", sub: "http server" },
+    { id: "d1", x: 550, y: 180, emoji: "🗄️", name: "D1", sub: "sqlite", tile: TILE_VARIANTS.DARK },
+  ],
+  edges: [
+    { from: "user", to: "hono", out: "r", inn: "l", label: "HTTPS" },
+    { from: "hono", to: "d1", out: "r", inn: "l", label: "SQL" },
+  ],
+};

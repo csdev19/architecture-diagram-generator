@@ -7,6 +7,9 @@ export default defineConfig({
     types: "src/types/index.ts",
     schemas: "src/schemas/index.ts",
     repositories: "src/repositories/index.ts",
+    // Pure SVG renderer for a DiagramConfig. No DOM and no Node built-ins, so
+    // the browser preview and a server-side rasteriser share one implementation.
+    render: "src/render/index.ts",
     // Test fixtures (builders), consumed by other packages' tests as
     // `@diagram-tool/domain/testing`. tsdown owns the exports map via
     // `devExports`, so a subpath only survives if it is an entry here.
