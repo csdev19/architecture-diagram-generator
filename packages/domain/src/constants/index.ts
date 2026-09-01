@@ -19,3 +19,15 @@ export {
   type EdgeStyle,
   type AnchorSide,
 } from "./diagram";
+
+// Diagram brand icons
+export {
+  DIAGRAM_ICONS,
+  DIAGRAM_ICON_KEYS,
+  DIAGRAM_ICON_CONTRAST_MIN,
+  contrastRatio,
+  isValidDiagramIconKey,
+  resolveDiagramIconFill,
+  type DiagramIcon,
+  type DiagramIconKey,
+} from "./diagram-icons";

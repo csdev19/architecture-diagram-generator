@@ -100,6 +100,10 @@ export const DIAGRAM_GEOMETRY = {
   NODE_TEXT_BLOCK: 40,
   /** A node centre must stay at least this far from every canvas edge. */
   CANVAS_MARGIN: 60,
+  /** Rendered side of a brand icon, centred on the tile like the emoji it replaces. */
+  ICON_SIZE: 32,
+  /** simple-icons paths are authored in a square viewBox of this side. */
+  ICON_VIEWBOX: 24,
 } as const;
 
 export const DIAGRAM_TYPOGRAPHY = {

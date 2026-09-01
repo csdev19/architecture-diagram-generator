@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { DIAGRAM_COLORS, DIAGRAM_GEOMETRY } from "../../constants/diagram";
+import { DIAGRAM_COLORS, DIAGRAM_GEOMETRY, DIAGRAM_TYPOGRAPHY } from "../../constants/diagram";
+import { DIAGRAM_ICONS } from "../../constants/diagram-icons";
 import {
   EXAMPLE_DIAGRAM_CONFIG,
   type DiagramConfigInput,
   diagramConfigSchema,
 } from "../../schemas/diagram";
 import { renderSVG } from "../index";
+import { num } from "../svg";
 
 /** Runs an authoring-shape config through the schema, the way a consumer must. */
 const render = (input: DiagramConfigInput) => renderSVG(diagramConfigSchema.parse(input));
@@ -92,6 +94,59 @@ describe("renderSVG", () => {
 
       expect(svg).toContain(tileRect(DIAGRAM_COLORS.TILE_LIGHT_FILL));
       expect(svg).not.toContain(tileRect(DIAGRAM_COLORS.TILE_DARK_FILL));
+    });
+  });
+
+  describe("brand icons", () => {
+    it("draws the registry's path when a node names an iconKey", () => {
+      const svg = render(singleNode({ emoji: undefined, iconKey: "hono" }));
+
+      expect(svg).toContain(DIAGRAM_ICONS.hono.path);
+    });
+
+    it("lets an iconKey win over an emoji on the same node", () => {
+      const svg = render(singleNode({ emoji: "🔥", iconKey: "hono" }));
+
+      expect(svg).toContain(DIAGRAM_ICONS.hono.path);
+      expect(svg, "the emoji glyph is still drawn behind the mark").not.toContain("🔥");
+    });
+
+    it("draws a readable brand mark in its brand colour on a light tile", () => {
+      const svg = render(singleNode({ emoji: undefined, iconKey: "hono", tile: "light" }));
+
+      expect(svg).toContain(`fill="#${DIAGRAM_ICONS.hono.hex}"`);
+    });
+
+    it("drops a brand colour that would vanish on a light tile", () => {
+      // React's cyan scores 1.62 against white — legible only as a shape.
+      const svg = render(singleNode({ emoji: undefined, iconKey: "react", tile: "light" }));
+
+      expect(svg).toContain(DIAGRAM_ICONS.react.path);
+      expect(svg).not.toContain(`fill="#${DIAGRAM_ICONS.react.hex}"`);
+    });
+
+    it("draws a mark in the light tile colour on a dark tile", () => {
+      const svg = render(singleNode({ emoji: undefined, iconKey: "hono", tile: "dark" }));
+
+      expect(svg).toContain(DIAGRAM_ICONS.hono.path);
+      expect(svg).not.toContain(`fill="#${DIAGRAM_ICONS.hono.hex}"`);
+    });
+
+    it("scales the 24px mark to the geometry's icon size and centres it on the tile", () => {
+      const { ICON_SIZE, ICON_VIEWBOX } = DIAGRAM_GEOMETRY;
+      const svg = render(singleNode({ emoji: undefined, iconKey: "hono" }));
+
+      // The node sits at (350, 180), so the mark's top-left is half its size up and left.
+      expect(svg).toContain(`translate(${num(350 - ICON_SIZE / 2)} ${num(180 - ICON_SIZE / 2)})`);
+      expect(svg).toContain(`scale(${num(ICON_SIZE / ICON_VIEWBOX)})`);
+    });
+
+    it("leaves an emoji-only node exactly as it was", () => {
+      const svg = render(singleNode({ emoji: "🔥" }));
+
+      expect(svg).toContain("🔥");
+      expect(svg, "an emoji node must not carry an icon group").not.toContain("scale(");
+      expect(svg).toContain(`font-size="${DIAGRAM_TYPOGRAPHY.EMOJI_SIZE}"`);
     });
   });
 

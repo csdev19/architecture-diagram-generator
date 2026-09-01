@@ -1,4 +1,5 @@
 import { DIAGRAM_GEOMETRY, DIAGRAM_LIMITS, GROUP_TONES } from "../constants/diagram";
+import { DIAGRAM_ICON_KEYS } from "../constants/diagram-icons";
 
 /**
  * The authoring guide for a `DiagramConfig` — the text that turns "draw me the
@@ -63,9 +64,6 @@ Forgetting that text block is the most common cause of a cramped diagram.
 - \`sub\`: its role, lowercase, at most ${DIAGRAM_LIMITS.TEXT_MAX} characters —
   "orm / migrations".
 - \`tile: "dark"\` for only 2-3 key nodes; everything else stays light.
-- \`emoji\`: one evocative, distinct glyph per node. Client, server, database,
-  auth, packages, runtime, cloud and tooling all read better with different
-  glyphs.
 - Edge labels: short and technical. Protocol names stay as they are; other words
   follow the language the user is writing in.
 - Group \`tone\` is semantic, never a colour: \`${GROUP_TONES.ORANGE}\` for the
@@ -73,6 +71,21 @@ Forgetting that text block is the most common cause of a cramped diagram.
   \`${GROUP_TONES.GREEN}\` for external services and data, \`${GROUP_TONES.NEUTRAL}\`
   for anything else. The renderer owns the palette — pick meaning and let it
   choose the hex.
+
+## The mark inside a tile
+
+Every node shows one mark, and needs either an \`iconKey\` or an \`emoji\`. A node
+with neither is rejected; a node carrying both draws the icon.
+
+- \`iconKey\`: the technology's real logo, drawn in its brand colour. Prefer it
+  whenever the technology has a key below — a logo is recognised faster than any
+  glyph, and it is what makes a diagram look deliberate. Do not invent a key:
+  anything outside this list is rejected. The available keys are exactly:
+  ${DIAGRAM_ICON_KEYS.join(", ")}.
+- \`emoji\`: one evocative, distinct glyph, for everything with no key above —
+  human actors, generic clients, queues, concepts. Client, server, database,
+  auth, packages, runtime, cloud and tooling all read better with different
+  glyphs.
 
 ## Edge anchors
 
@@ -88,10 +101,13 @@ noticeably longer line.
 - Node ids and group ids must each be unique.
 - Every \`edge.from\` and \`edge.to\` must name a node that exists, and an edge
   cannot connect a node to itself.
+- Every node carries an \`iconKey\` from the list above or an \`emoji\`.
 
 ## Check before answering
 
 - Does every \`edge.from\` and \`edge.to\` name a node that exists?
+- Does every node have an \`iconKey\` or an \`emoji\`, and is every \`iconKey\` one
+  of the keys listed above?
 - Are any two node centres closer than 140px? Move them apart.
 - Is any \`name\` or \`sub\` longer than ${DIAGRAM_LIMITS.TEXT_MAX} characters? Abbreviate it.
 - Does the main flow read left to right without lines crossing? Reorder it.

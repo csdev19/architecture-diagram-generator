@@ -139,6 +139,90 @@ describe("diagramConfigSchema", () => {
   });
 });
 
+/**
+ * The phase-0 example frozen as a literal. `EXAMPLE_DIAGRAM_CONFIG` itself
+ * gained `iconKey`s in phase 1.5, so it can no longer stand as the guarantee
+ * that a config written before icons existed still parses. This copy can.
+ */
+const PHASE_0_CONFIG = {
+  version: 1,
+  title: "api-simple",
+  canvas: { w: 700, h: 360 },
+  groups: [
+    { id: "cf", label: "CLOUDFLARE", icon: "☁️", x: 240, y: 60, w: 420, h: 240, tone: "orange" },
+  ],
+  nodes: [
+    { id: "user", x: 110, y: 180, emoji: "🖥️", name: "User", sub: "browser" },
+    { id: "hono", x: 350, y: 180, emoji: "🔥", name: "Hono", sub: "http server" },
+    { id: "d1", x: 550, y: 180, emoji: "🗄️", name: "D1", sub: "sqlite", tile: "dark" },
+  ],
+  edges: [
+    { from: "user", to: "hono", out: "r", inn: "l", label: "HTTPS" },
+    { from: "hono", to: "d1", out: "r", inn: "l", label: "SQL" },
+  ],
+};
+
+/** A one-node config with the node's identity fields under the test's control. */
+const configWithNode = (node: Record<string, unknown>) => ({
+  version: 1,
+  canvas: { w: 700, h: 360 },
+  groups: [],
+  nodes: [{ id: "a", x: 200, y: 180, name: "Thing", ...node }],
+  edges: [],
+});
+
+describe("node icons", () => {
+  it("accepts a node identified by an iconKey alone", () => {
+    expect(diagramConfigSchema.safeParse(configWithNode({ iconKey: "react" })).success).toBe(true);
+  });
+
+  it("still accepts a node identified by an emoji alone", () => {
+    expect(diagramConfigSchema.safeParse(configWithNode({ emoji: "🔥" })).success).toBe(true);
+  });
+
+  it("accepts every config written before icons existed", () => {
+    expect(diagramConfigSchema.safeParse(PHASE_0_CONFIG).success).toBe(true);
+  });
+
+  it("leaves iconKey absent rather than defaulting it", () => {
+    const parsed = diagramConfigSchema.parse(configWithNode({ emoji: "🔥" }));
+    expect(parsed.nodes[0]?.iconKey).toBeUndefined();
+  });
+
+  it("tells the author to supply one of the two when a node has neither", () => {
+    const messages = messagesFor(configWithNode({}));
+
+    expect(messages.some((m) => m.includes("emoji") && m.includes("iconKey"))).toBe(true);
+    expect(
+      messages.some((m) => m.includes("guidelines")),
+      "the message never points at where the key list lives",
+    ).toBe(true);
+  });
+
+  it("names the offending node when it has neither", () => {
+    expect(messagesFor(configWithNode({ id: "orphan" })).some((m) => m.includes('"orphan"'))).toBe(
+      true,
+    );
+  });
+
+  it("rejects an iconKey that is not in the registry", () => {
+    const result = validateDiagramConfig(configWithNode({ iconKey: "not-a-framework" }));
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      // The message has to be actionable: it must name the field and offer keys.
+      expect(result.errors.some((e) => e.includes("nodes[0].iconKey"))).toBe(true);
+      expect(result.errors.some((e) => e.includes("react"))).toBe(true);
+    }
+  });
+
+  it("accepts a node carrying both an emoji and an iconKey", () => {
+    expect(
+      diagramConfigSchema.safeParse(configWithNode({ emoji: "🔥", iconKey: "hono" })).success,
+    ).toBe(true);
+  });
+});
+
 describe("validateDiagramConfig", () => {
   it("returns the parsed config, defaults filled in, when valid", () => {
     const result = validateDiagramConfig(EXAMPLE_DIAGRAM_CONFIG);
