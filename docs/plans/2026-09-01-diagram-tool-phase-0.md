@@ -72,13 +72,14 @@ turbo.json                                 remove the duplicated `test` task
 
 The two-pane layout depends on the first one, so it goes first.
 
-- [ ] Remove `import "./styles.css";` from `packages/web-ui/src/index.ts`.
-- [ ] Rebuild the package: `cd packages/web-ui && bun run build` (its `dist/` is
-      committed in this repo, unlike other packages).
-- [ ] Remove the duplicated `"test"` key in `turbo.json` (it appears twice).
-- [ ] Verify no duplicate utilities layer survives a production build (command
-      below — exactly one file may contain `.flex{`).
-- [ ] Confirm the existing pages still render (`bun run dev:fullstack-fn`).
+- [x] Remove `import "./styles.css";` from `packages/web-ui/src/index.ts`.
+- [x] Rebuild the package: `cd packages/web-ui && bun run build`. Its `dist/` is
+      git-ignored, so the rebuild only refreshes the local artifact — nothing to
+      commit. (`CLAUDE.md` claimed it was committed; that was stale, and is
+      corrected in this task.)
+- [x] Remove the duplicated `"test"` key in `turbo.json` (it appears twice).
+- [x] Verify no duplicate utilities layer survives a production build.
+- [x] Confirm the existing pages still render.
 
 ```bash
 bun run build --filter=fullstack-fn-only
@@ -86,6 +87,13 @@ for f in apps/fullstack-fn-only/dist/client/assets/*.css; do
   echo "$f: .flex x$(grep -oF '.flex{' "$f" | wc -l)"
 done
 ```
+
+**Measured.** Before: `main-*.css` 51.10 kB and `index-*.css` 51.58 kB — two full
+utilities layers. After: `index-*.css` keeps the one layer (`.flex{` x1, plus the
+`--background`/`--primary` theme vars and the `@media(min-width:48rem)` variants),
+while `main-*.css` drops to 4.73 kB carrying only `markdown-content.css`, the
+scoped component stylesheet that legitimately ships with the package (`.flex{`
+x0). Dev server serves `/` and `/auth/login` at 200 after the change.
 
 ## Task 2 — Diagram constants
 
