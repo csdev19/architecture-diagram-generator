@@ -1,0 +1,38 @@
+{
+  "common": {
+    "appName": "Monorepo Template",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "loading": "Cargando…",
+    "error": "Algo salió mal",
+    "retry": "Reintentar"
+  },
+  "nav": {
+    "home": "Inicio",
+    "todos": "Tareas",
+    "signIn": "Iniciar sesión",
+    "signOut": "Cerrar sesión"
+  },
+  "auth": {
+    "email": "Correo",
+    "password": "Contraseña",
+    "signIn": "Iniciar sesión",
+    "signUp": "Crear cuenta",
+    "signInTitle": "Bienvenido de nuevo",
+    "signUpTitle": "Crea tu cuenta"
+  },
+  "todos": {
+    "title": "Tareas",
+    "add": "Agregar tarea",
+    "placeholder": "¿Qué hay que hacer?",
+    "empty": "Aún no hay tareas",
+    "remaining": "{count, plural, =0 {Sin elementos} one {# elemento} other {# elementos}} restantes"
+  },
+  "language": {
+    "label": "Idioma",
+    "en": "Inglés",
+    "es": "Español"
+  }
+}
