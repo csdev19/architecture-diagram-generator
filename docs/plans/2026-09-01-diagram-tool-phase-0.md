@@ -76,14 +76,16 @@ The two-pane layout depends on the first one, so it goes first.
 - [ ] Rebuild the package: `cd packages/web-ui && bun run build` (its `dist/` is
       committed in this repo, unlike other packages).
 - [ ] Remove the duplicated `"test"` key in `turbo.json` (it appears twice).
-- [ ] Verify no duplicate utilities layer survives a production build:
-      `bash
-    bun run build --filter=fullstack-fn-only
-    for f in apps/fullstack-fn-only/dist/client/assets/*.css; do
-      echo "$f: .flex x$(grep -oF '.flex{' "$f" | wc -l)"
-    done   # exactly one file may contain .flex{
-    `
+- [ ] Verify no duplicate utilities layer survives a production build (command
+      below — exactly one file may contain `.flex{`).
 - [ ] Confirm the existing pages still render (`bun run dev:fullstack-fn`).
+
+```bash
+bun run build --filter=fullstack-fn-only
+for f in apps/fullstack-fn-only/dist/client/assets/*.css; do
+  echo "$f: .flex x$(grep -oF '.flex{' "$f" | wc -l)"
+done
+```
 
 ## Task 2 — Diagram constants
 
