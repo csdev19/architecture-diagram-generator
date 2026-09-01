@@ -101,7 +101,7 @@ starts until this proves out.
 - [ ] `POST /api/render`: reject without `Authorization: Bearer $RENDER_TOKEN`
       (add `RENDER_TOKEN` to the env schema, `.env`, `.env.example`); validate →
       `renderSVG` → `svgToPng(2x)` → store all three objects → `{ ok, id,
-    pngUrl, svgUrl, editUrl }` with `editUrl = /editor?d=<id>` on the request
+pngUrl, svgUrl, editUrl }` with `editUrl = /editor?d=<id>` on the request
       origin.
 - [ ] `GET /d/:file`: serve from R2 with the stored content type and
       `cache-control: public, max-age=31536000, immutable`; 404 on miss.
