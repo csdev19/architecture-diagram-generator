@@ -1,0 +1,46 @@
+---
+title: Diagram Tool
+description: Architecture diagrams as data — one config, one renderer, consistent output everywhere.
+---
+
+# Diagram Tool
+
+A diagram is not a drawing, it is data. A `DiagramConfig` describes groups,
+nodes and edges; one renderer turns it into SVG. Because a single function
+produces that SVG, the browser preview, the exported PNG and — from phase 1 —
+the image a model generates over MCP can never disagree.
+
+## Architecture Overview
+
+- Domain: `packages/domain/src/schemas/diagram.ts`, `packages/domain/src/constants/diagram.ts`
+- Renderer: `packages/domain/src/render/`
+- Infrastructure: N/A — phase 0 runs entirely in the browser
+- Web UI: `apps/fullstack-fn-only/src/routes/editor.tsx`, `apps/fullstack-fn-only/src/components/editor/`
+- Mobile: N/A
+- Desktop: N/A
+
+## Sub-Features
+
+| Feature                                      | Status | Date       | Summary                                                                       |
+| -------------------------------------------- | ------ | ---------- | ----------------------------------------------------------------------------- |
+| [Config Schema](config-schema)               | ✅     | 2026-09-01 | The `DiagramConfig` contract and the validation that makes it self-correcting |
+| [SVG Renderer](svg-renderer)                 | ✅     | 2026-09-01 | Pure, deterministic `renderSVG` shared by every surface                       |
+| [Editor Page](editor-page)                   | ✅     | 2026-09-01 | Two-pane `/editor` route: JSON in, preview and PNG out                        |
+| [Authoring Guidelines](authoring-guidelines) | ✅     | 2026-09-01 | The text that teaches a model to produce a well-positioned config             |
+| API Worker + MCP server                      | 📋     | —          | Phase 1: render server-side, store in R2, expose to Claude over MCP           |
+
+## Shared Decisions
+
+| Decision                                                 | Why                                                                                                                                                                                                                                |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Everything lives in `packages/domain`, not a new package | The hub's conventions put schemas in `domain/schemas`, constants in `domain/constants`, and define `domain` as the pure layer. `DiagramConfig` _is_ this product's domain model, so a separate package would have been the anomaly |
+| The renderer is a pure string builder, not React         | It has to run unchanged inside a Cloudflare Worker in phase 1. Two renderers would mean the PNG could disagree with the preview — the exact failure this design exists to prevent                                                  |
+| Colours are literal values, never theme tokens           | They are written into SVG attributes and must survive rasterisation outside a browser, where no stylesheet or CSS variable exists                                                                                                  |
+| Config authors choose semantics, never colour            | A group picks a `tone`; the renderer owns the palette. That is what keeps every diagram in one visual family, and it means a palette change re-styles every historical diagram                                                     |
+
+## Shared Gotchas
+
+- ⚠️ A node's `x`/`y` is the **centre** of its tile, not the top-left corner. Its name and sublabel occupy ~40px _below_ the tile, which is what vertical spacing has to clear.
+- ⚠️ Anything interpolated into the SVG must go through `escapeXml`. An unescaped `&` in a technology name produces a document that fails to parse, usually with no visible error.
+- ⚠️ The renderer must stay free of DOM and Node APIs. Anything needing `canvas`, `Image` or `document` belongs in the app, which is why PNG export lives there.
+- ⚠️ Never restate a colour, size or limit that already exists in `constants/diagram.ts`. The guidelines interpolate their numbers from it precisely so guidance cannot drift from validation.

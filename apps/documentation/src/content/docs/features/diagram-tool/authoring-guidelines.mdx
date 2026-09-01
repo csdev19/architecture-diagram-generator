@@ -1,0 +1,84 @@
+---
+title: Authoring Guidelines
+description: The single text that teaches a model to produce a well-positioned DiagramConfig.
+---
+
+# Authoring Guidelines
+
+## Status
+
+| Field          | Value                 |
+| -------------- | --------------------- |
+| Status         | ✅ Complete           |
+| Completed      | 2026-09-01            |
+| Author         | Cristian Sotomayor    |
+| Parent Feature | [Diagram Tool](index) |
+| Related Issues | None                  |
+
+## What It Does
+
+Holds the rules that turn "draw me the architecture of X" into a config that is
+valid _and_ well laid out — canvas sizing, the main flow reading left to right,
+minimum spacing, tone semantics, and a self-check to run before answering. In
+phase 1 the MCP `get_diagram_guidelines` tool returns this text verbatim, which
+is what lets any fresh Claude session use the tool well with no prior context.
+
+The canonical text lives in `packages/domain/src/render/guidelines.ts` and is
+deliberately not restated here — one source, or it drifts.
+
+## Implementation
+
+### Files Changed
+
+| Path                                       | Purpose                                                                        |
+| ------------------------------------------ | ------------------------------------------------------------------------------ |
+| `packages/domain/src/render/guidelines.ts` | The guidelines text, with every limit interpolated from the schema's constants |
+| `packages/domain/src/render/index.ts`      | Exports it alongside the renderer                                              |
+
+### Domain Model
+
+N/A.
+
+### Key Logic
+
+The text is a TypeScript string rather than a markdown asset, because a
+Cloudflare Worker has to return it in phase 1 and importing markdown needs
+bundler-specific raw-text loaders. Every number in it — character limits, node
+and edge maxima, canvas bounds, tile size, the canvas margin — is interpolated
+from `constants/diagram.ts` rather than typed out, so the guidance cannot state
+a limit that validation no longer enforces.
+
+## Decisions
+
+| Decision                                                             | Why                                                                                                                 | Alternatives Considered                                 |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| A TypeScript string, not a `.md` file                                | A Worker can return a string with zero bundler configuration; markdown needs a raw-text loader that is not portable | A `.md` asset exported through tsdown's `customExports` |
+| Limits are interpolated, not typed out                               | Guidance that contradicts validation is worse than no guidance. Interpolation makes drift impossible                | Writing the numbers as prose, guarded by a test         |
+| Not duplicated into this docs page                                   | Two copies of a rule set is exactly the drift the design avoids everywhere else                                     | Rendering the full text here for convenience            |
+| Layout advice asks for 70px of edge margin, validation enforces 60px | Guidance should aim inside the hard limit, not at it                                                                | Making both 60                                          |
+
+## Gotchas & Warnings
+
+- ⚠️ When a model makes the same layout mistake twice, add a rule here rather than fixing the output by hand. This file is what teaches the tool; correcting the symptom teaches nothing.
+- ⚠️ The interpolation is guarded by a test asserting there is no unresolved `${` and no `undefined` in the output. Removing that test makes a broken template silently shippable.
+- ⚠️ This text is consumed by a model, not a human reader. Prefer imperative, checkable rules over explanation.
+
+## Dependencies
+
+None.
+
+## Testing
+
+```bash
+# Unit tests
+bun run test --filter=@diagram-tool/domain
+
+# Manual testing
+# Ask Claude for a config in a fresh chat using this text, paste the result
+# into /editor, and confirm it validates and reads left to right on first try.
+```
+
+## Related
+
+- [Config Schema](config-schema) — the limits these guidelines restate for the model
+- [Editor Page](editor-page) — where a generated config is pasted

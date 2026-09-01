@@ -179,8 +179,8 @@ x0). Dev server serves `/` and `/auth/login` at 200 after the change.
 
 ## Task 6 — Verify and document
 
-- [ ] `bun run check-types && bun run lint && bun run test && bun run build`.
-- [ ] Production-build check that the two-pane layout survives (task 1's grep).
-- [ ] Document the feature in `apps/documentation` using the repo's
+- [x] `bun run check-types && bun run lint && bun run test && bun run build`.
+- [x] Production-build check that the two-pane layout survives (task 1's grep).
+- [x] Document the feature in `apps/documentation` using the repo's
       `feature-docs` skill, and add the changelog entry.
 - [ ] Open the PR against `main`.
