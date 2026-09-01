@@ -1,6 +1,6 @@
-import type { ITodoRepository } from "@monorepo-template/domain/repositories";
-import type { TodoBase } from "@monorepo-template/domain/schemas";
-import type { Result, PaginationQuery, PaginatedResult } from "@monorepo-template/domain/types";
+import type { ITodoRepository } from "@diagram-tool/domain/repositories";
+import type { TodoBase } from "@diagram-tool/domain/schemas";
+import type { Result, PaginationQuery, PaginatedResult } from "@diagram-tool/domain/types";
 
 export async function listTodos(params: {
   repo: ITodoRepository;

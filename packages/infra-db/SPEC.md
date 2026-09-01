@@ -1,4 +1,4 @@
-# @monorepo-template/infra-db — Package Spec
+# @diagram-tool/infra-db — Package Spec
 
 ```
 src/

@@ -1,5 +1,5 @@
 {
-  "extends": "@monorepo-template/config/tsconfig.web.json",
+  "extends": "@diagram-tool/config/tsconfig.web.json",
   "include": ["**/*.ts", "**/*.tsx"],
   "compilerOptions": {
     "baseUrl": ".",

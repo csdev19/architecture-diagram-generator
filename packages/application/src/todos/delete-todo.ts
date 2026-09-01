@@ -1,4 +1,4 @@
-import type { ITodoRepository } from "@monorepo-template/domain/repositories";
+import type { ITodoRepository } from "@diagram-tool/domain/repositories";
 
 export async function deleteTodo(
   repository: ITodoRepository,

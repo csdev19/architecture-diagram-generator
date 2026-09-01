@@ -1,6 +1,6 @@
 import { eq, and, count, desc } from "drizzle-orm";
-import type { ITodoRepository } from "@monorepo-template/domain/repositories";
-import type { CreateTodo, UpdateTodo, TodoBase } from "@monorepo-template/domain/schemas";
+import type { ITodoRepository } from "@diagram-tool/domain/repositories";
+import type { CreateTodo, UpdateTodo, TodoBase } from "@diagram-tool/domain/schemas";
 import { todoTable } from "../schema";
 import { mapTodoToDomain } from "../mappers/todo.mapper";
 import type { DatabaseClient } from "../client";

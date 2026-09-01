@@ -1,10 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { ApiResponse } from "@monorepo-template/domain/types";
-import type { TodoBase, PaginationQuery } from "@monorepo-template/domain/schemas";
-import { paginationQuerySchema } from "@monorepo-template/domain/schemas";
-import { createDatabaseClient } from "@monorepo-template/infra-db/client";
-import { TodoRepository } from "@monorepo-template/infra-db/repositories";
-import { listTodos as listTodosUseCase } from "@monorepo-template/application";
+import type { ApiResponse } from "@diagram-tool/domain/types";
+import type { TodoBase, PaginationQuery } from "@diagram-tool/domain/schemas";
+import { paginationQuerySchema } from "@diagram-tool/domain/schemas";
+import { createDatabaseClient } from "@diagram-tool/infra-db/client";
+import { TodoRepository } from "@diagram-tool/infra-db/repositories";
+import { listTodos as listTodosUseCase } from "@diagram-tool/application";
 import { getAuthSession } from "@/lib/auth/get-auth-session";
 import { env } from "@/env/server";
 
