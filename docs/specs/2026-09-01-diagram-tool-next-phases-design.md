@@ -120,7 +120,7 @@ React dedup config the hub warns about.
 ## Risks
 
 - **resvg-wasm inside the Vite/Workers dev loop.** The roadmap already called
-  this the place "donde se va el tiempo". Plan 02 sequences it as an isolated
+  this the place where the time disappears. Plan 02 sequences it as an isolated
   spike before anything depends on it.
 - **MCP adapter churn** — see key decision 4.
 - **`simple-icons` coverage gaps** (a needed logo missing or renamed). The
