@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthSignupRouteImport } from './routes/auth/signup'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
+import { Route as ApiRenderSpikeRouteImport } from './routes/api/render-spike'
 import { Route as AuthenticatedTodosIndexRouteImport } from './routes/_authenticated/todos/index'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
@@ -41,6 +42,11 @@ const AuthLoginRoute = AuthLoginRouteImport.update({
   path: '/auth/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiRenderSpikeRoute = ApiRenderSpikeRouteImport.update({
+  id: '/api/render-spike',
+  path: '/api/render-spike',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedTodosIndexRoute = AuthenticatedTodosIndexRouteImport.update({
   id: '/todos/',
   path: '/todos/',
@@ -55,6 +61,7 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/editor': typeof EditorRoute
+  '/api/render-spike': typeof ApiRenderSpikeRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -63,6 +70,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/editor': typeof EditorRoute
+  '/api/render-spike': typeof ApiRenderSpikeRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -73,6 +81,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/editor': typeof EditorRoute
+  '/api/render-spike': typeof ApiRenderSpikeRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -83,6 +92,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/editor'
+    | '/api/render-spike'
     | '/auth/login'
     | '/auth/signup'
     | '/api/auth/$'
@@ -91,6 +101,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/editor'
+    | '/api/render-spike'
     | '/auth/login'
     | '/auth/signup'
     | '/api/auth/$'
@@ -100,6 +111,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/editor'
+    | '/api/render-spike'
     | '/auth/login'
     | '/auth/signup'
     | '/api/auth/$'
@@ -110,6 +122,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   EditorRoute: typeof EditorRoute
+  ApiRenderSpikeRoute: typeof ApiRenderSpikeRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthSignupRoute: typeof AuthSignupRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -152,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/render-spike': {
+      id: '/api/render-spike'
+      path: '/api/render-spike'
+      fullPath: '/api/render-spike'
+      preLoaderRoute: typeof ApiRenderSpikeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/todos/': {
       id: '/_authenticated/todos/'
       path: '/todos'
@@ -185,6 +205,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   EditorRoute: EditorRoute,
+  ApiRenderSpikeRoute: ApiRenderSpikeRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthSignupRoute: AuthSignupRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
