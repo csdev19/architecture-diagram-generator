@@ -139,26 +139,26 @@ x0). Dev server serves `/` and `/auth/login` at 200 after the change.
 
 ## Task 4 — Renderer (test-first)
 
-- [ ] Write `packages/domain/src/render/__tests__/render.test.ts` first, red:
+- [x] Write `packages/domain/src/render/__tests__/render.test.ts` first, red:
   - snapshot of `renderSVG(exampleConfig)`;
   - a node named `A & B <C>` produces `&amp;` / `&lt;` and no raw `&`;
   - `tile: "dark"` emits the dark fill, `light` does not;
   - a `dashed` edge references the grey marker, `solid` the blue one;
   - two calls on one config return identical strings.
-- [ ] `render/svg.ts` — `escapeXml` plus small attribute helpers.
-- [ ] `render/background.ts` — base rect and the 26px grid `<pattern>`.
-- [ ] `render/group.ts` — rounded rect per `tone`, with the label drawn over the
+- [x] `render/svg.ts` — `escapeXml` plus small attribute helpers.
+- [x] `render/background.ts` — base rect and the 26px grid `<pattern>`.
+- [x] `render/group.ts` — rounded rect per `tone`, with the label drawn over the
       top border on a fill-coloured backing rect.
-- [ ] `render/node.ts` — 62x62 tile, centred emoji, name, monospace sublabel.
-- [ ] `render/edge.ts` — anchor geometry from `out`/`inn` (6px offset; +34px on
+- [x] `render/node.ts` — 62x62 tile, centred emoji, name, monospace sublabel.
+- [x] `render/edge.ts` — anchor geometry from `out`/`inn` (6px offset; +34px on
       `"b"` to clear the node text), line, marker, centred label.
-- [ ] `render/index.ts` — `renderSVG` composing the layers in order: background,
+- [x] `render/index.ts` — `renderSVG` composing the layers in order: background,
       groups, edges, nodes. Build a `Map` for node lookup (index access is
       `T | undefined` here).
-- [ ] Add `render: "src/render/index.ts"` to `packages/domain/tsdown.config.ts`,
+- [x] Add `render: "src/render/index.ts"` to `packages/domain/tsdown.config.ts`,
       then `cd packages/domain && bun run build` so tsdown regenerates the
       exports map.
-- [ ] Green, and `bun run check-types`.
+- [x] Green, and `bun run check-types`.
 
 ## Task 5 — The `/editor` page
 
