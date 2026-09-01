@@ -97,7 +97,7 @@ x0). Dev server serves `/` and `/auth/login` at 200 after the change.
 
 ## Task 2 — Diagram constants
 
-- [ ] `packages/domain/src/constants/diagram.ts`, following the four-part
+- [x] `packages/domain/src/constants/diagram.ts`, following the four-part
       constants pattern (const object → derived type → guard → JSDoc):
   - `GROUP_TONES` (`orange | blue | green | neutral`) + `GroupTone` +
     `isValidGroupTone`.
@@ -109,13 +109,13 @@ x0). Dev server serves `/` and `/auth/login` at 200 after the change.
     anchor offset 6, bottom-anchor offset 34, canvas margin 60.
   - `DIAGRAM_TYPOGRAPHY` — font families and sizes.
   - `DIAGRAM_COLORS` — background, grid line, tile light/dark, edge blue/grey.
-- [ ] Re-export from `packages/domain/src/constants/index.ts`.
-- [ ] Test that every `GroupTone` has an entry in `GROUP_TONE_INFO` and that the
+- [x] Re-export from `packages/domain/src/constants/index.ts`.
+- [x] Test that every `GroupTone` has an entry in `GROUP_TONE_INFO` and that the
       guard rejects an unknown value.
 
 ## Task 3 — Schema (test-first)
 
-- [ ] Write `packages/domain/src/schemas/__tests__/diagram.test.ts` first, red:
+- [x] Write `packages/domain/src/schemas/__tests__/diagram.test.ts` first, red:
   - accepts the minimal example config from design doc 01;
   - `edges[i].to` naming a missing node → message lists the available node ids;
   - duplicate node ids → message names the repeated id;
@@ -123,7 +123,7 @@ x0). Dev server serves `/` and `/auth/login` at 200 after the change.
   - a node outside the canvas margin → message names the node and the bound;
   - defaults applied (`sub: ""`, `tile: "light"`, `style: "solid"`,
     `filled: true`, `dashed: false`).
-- [ ] Implement `packages/domain/src/schemas/diagram.ts`:
+- [x] Implement `packages/domain/src/schemas/diagram.ts`:
   - `diagramNodeSchema`, `diagramGroupSchema`, `diagramEdgeSchema`,
     `diagramConfigSchema` (`version: z.literal(1)`, canvas 400–2400 x 300–2400,
     ≤12 groups, 1–40 nodes, ≤80 edges).
@@ -134,8 +134,8 @@ x0). Dev server serves `/` and `/auth/login` at 200 after the change.
     them: unique node ids, unique group ids, both edge endpoints resolve,
     `from !== to`, nodes inside the canvas margin.
   - Export `DiagramConfig`, `DiagramNode`, `DiagramGroup`, `DiagramEdge`.
-- [ ] Re-export from `packages/domain/src/schemas/index.ts`.
-- [ ] Green: `bun run test --filter=@diagram-tool/domain`.
+- [x] Re-export from `packages/domain/src/schemas/index.ts`.
+- [x] Green: `bun run test --filter=@diagram-tool/domain`.
 
 ## Task 4 — Renderer (test-first)
 

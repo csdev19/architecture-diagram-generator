@@ -15,3 +15,17 @@ export {
   type PaginationQuery,
   type PaginationMeta,
 } from "./pagination";
+
+// Diagram schemas
+export {
+  diagramConfigSchema,
+  diagramNodeSchema,
+  diagramGroupSchema,
+  diagramEdgeSchema,
+  EXAMPLE_DIAGRAM_CONFIG,
+  type DiagramConfig,
+  type DiagramConfigInput,
+  type DiagramNode,
+  type DiagramGroup,
+  type DiagramEdge,
+} from "./diagram";

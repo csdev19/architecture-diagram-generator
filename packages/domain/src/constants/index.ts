@@ -1,1 +1,21 @@
-// Domain constants will be added here
+// Diagram constants
+export {
+  GROUP_TONES,
+  GROUP_TONE_INFO,
+  TILE_VARIANTS,
+  EDGE_STYLES,
+  ANCHOR_SIDES,
+  DIAGRAM_GEOMETRY,
+  DIAGRAM_TYPOGRAPHY,
+  DIAGRAM_COLORS,
+  DIAGRAM_LIMITS,
+  isValidGroupTone,
+  isValidTileVariant,
+  isValidEdgeStyle,
+  isValidAnchorSide,
+  type GroupTone,
+  type GroupToneInfo,
+  type TileVariant,
+  type EdgeStyle,
+  type AnchorSide,
+} from "./diagram";
