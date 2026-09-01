@@ -8,7 +8,7 @@
  *
  *   - the customizer exits 0,
  *   - exactly the expected app directories survive,
- *   - no `@monorepo-template` scope leaks past the rename,
+ *   - no `@diagram-tool` scope leaks past the rename,
  *   - the root package.json scope is renamed,
  *   - the generated CI points at the pattern's app directory.
  *
@@ -25,7 +25,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 const ROOT = path.resolve(import.meta.dir, "..");
-const SCOPE = "@monorepo-template";
+const SCOPE = "@diagram-tool";
 
 // Every top-level app the pristine template ships. Anything not "kept" by a
 // case must be gone after customization.
@@ -170,7 +170,7 @@ describe("customizer produces a clean project per pattern", () => {
         expect(existsSync(path.join(dir, app)), `expected ${app} to be removed`).toBe(false);
       }
 
-      // 3. No leftover @monorepo-template scope anywhere.
+      // 3. No leftover @diagram-tool scope anywhere.
       const offenders = allFiles(dir).filter((f) => {
         try {
           return readFileSync(f, "utf-8").includes(SCOPE);

@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Button,
-} from "@monorepo-template/web-ui";
+} from "@diagram-tool/web-ui";
 import { useSignOut } from "@/hooks/use-session";
 import type { AuthSession } from "@/lib/auth/types";
 

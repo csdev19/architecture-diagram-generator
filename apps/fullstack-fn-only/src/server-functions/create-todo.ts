@@ -1,9 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { ApiResponse } from "@monorepo-template/domain/types";
-import type { TodoBase } from "@monorepo-template/domain/schemas";
-import { createTodoSchema } from "@monorepo-template/domain/schemas";
-import { createDatabaseClient } from "@monorepo-template/infra-db/client";
-import { TodoRepository } from "@monorepo-template/infra-db/repositories";
+import type { ApiResponse } from "@diagram-tool/domain/types";
+import type { TodoBase } from "@diagram-tool/domain/schemas";
+import { createTodoSchema } from "@diagram-tool/domain/schemas";
+import { createDatabaseClient } from "@diagram-tool/infra-db/client";
+import { TodoRepository } from "@diagram-tool/infra-db/repositories";
 import { getAuthSession } from "@/lib/auth/get-auth-session";
 import { env } from "@/env/server";
 

@@ -1,5 +1,5 @@
 {
-  "name": "@monorepo-template/infra-env",
+  "name": "@diagram-tool/infra-env",
   "type": "module",
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
@@ -23,7 +23,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@monorepo-template/config": "workspace:*",
+    "@diagram-tool/config": "workspace:*",
     "tsdown": "catalog:",
     "typescript": "catalog:"
   }
