@@ -162,19 +162,19 @@ x0). Dev server serves `/` and `/auth/login` at 200 after the change.
 
 ## Task 5 — The `/editor` page
 
-- [ ] `apps/fullstack-fn-only/src/lib/export-png.ts` — serialise the SVG, draw it
+- [x] `apps/fullstack-fn-only/src/lib/export-png.ts` — serialise the SVG, draw it
       to a canvas at 2x, trigger the download. Browser-only; no domain import
       beyond the SVG string.
-- [ ] `components/editor/json-input.tsx` — a labelled `Textarea` from the web-ui
+- [x] `components/editor/json-input.tsx` — a labelled `Textarea` from the web-ui
       barrel (label association matters: component tests select by accessible
       name), with the validation errors listed beneath it.
-- [ ] `components/editor/diagram-preview.tsx` — the SVG via
+- [x] `components/editor/diagram-preview.tsx` — the SVG via
       `dangerouslySetInnerHTML`, plus the export `Button`.
-- [ ] `routes/editor.tsx` — `createFileRoute("/editor")`, outside
+- [x] `routes/editor.tsx` — `createFileRoute("/editor")`, outside
       `_authenticated`. One state value (the raw text); parse → validate →
       render derived from it. Seed it with the example config so the page is
       useful on first load. Chrome uses theme classes only.
-- [ ] Manual check at `http://localhost:3002/editor`: valid config renders,
+- [x] Manual check at `http://localhost:3002/editor`: valid config renders,
       broken config shows actionable errors, PNG downloads and looks right.
 
 ## Task 6 — Verify and document

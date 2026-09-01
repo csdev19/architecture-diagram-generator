@@ -177,6 +177,41 @@ export const diagramConfigSchema = diagramConfigShape.superRefine((config, ctx) 
   });
 });
 
+/** Renders a Zod path as the author wrote it: `nodes[0].name`. */
+const formatPath = (path: PropertyKey[]): string =>
+  path.reduce<string>((acc, segment) => {
+    if (typeof segment === "number") return `${acc}[${segment}]`;
+    return acc ? `${acc}.${String(segment)}` : String(segment);
+  }, "");
+
+/**
+ * Turns a parse failure into messages an author — human or model — can act on.
+ *
+ * Cross-field messages already name their own location, so prefixing them again
+ * would read as `edges[0].to: edges[0].to: ...`; only messages that lack it get
+ * the path prepended.
+ */
+export const formatDiagramIssues = (error: z.ZodError): string[] =>
+  error.issues.map((issue) => {
+    const path = formatPath(issue.path as PropertyKey[]);
+    if (!path) return issue.message;
+    return issue.message.startsWith(path) ? issue.message : `${path}: ${issue.message}`;
+  });
+
+/**
+ * The front door to the contract: validate once, get either a config ready to
+ * render or every problem with it. Phase 1's `/validate` endpoint and the MCP
+ * `validate_diagram` tool are thin wrappers over this.
+ */
+export const validateDiagramConfig = (
+  input: unknown,
+): { ok: true; config: DiagramConfig } | { ok: false; errors: string[] } => {
+  const parsed = diagramConfigSchema.safeParse(input);
+  return parsed.success
+    ? { ok: true, config: parsed.data }
+    : { ok: false, errors: formatDiagramIssues(parsed.error) };
+};
+
 export type DiagramNode = z.infer<typeof diagramNodeSchema>;
 export type DiagramGroup = z.infer<typeof diagramGroupSchema>;
 export type DiagramEdge = z.infer<typeof diagramEdgeSchema>;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EXAMPLE_DIAGRAM_CONFIG, diagramConfigSchema } from "../diagram";
+import { EXAMPLE_DIAGRAM_CONFIG, diagramConfigSchema, validateDiagramConfig } from "../diagram";
 
 /** Every failure message produced by parsing `input`. */
 const messagesFor = (input: unknown): string[] => {
@@ -136,5 +136,62 @@ describe("diagramConfigSchema", () => {
     config.edges = [];
 
     expect(diagramConfigSchema.safeParse(config).success).toBe(false);
+  });
+});
+
+describe("validateDiagramConfig", () => {
+  it("returns the parsed config, defaults filled in, when valid", () => {
+    const result = validateDiagramConfig(EXAMPLE_DIAGRAM_CONFIG);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.config.nodes[0]?.tile).toBe("light");
+      expect(result.config.edges[0]?.style).toBe("solid");
+    }
+  });
+
+  it("returns every problem at once when invalid", () => {
+    const config = validConfig();
+    (config.edges as Array<Record<string, unknown>>)[0]!.to = "nope";
+    (config.nodes as Array<Record<string, unknown>>)[1]!.name = "x".repeat(27);
+
+    const result = validateDiagramConfig(config);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errors.some((e) => e.includes('"nope"'))).toBe(true);
+      expect(result.errors.some((e) => e.includes("abbreviate"))).toBe(true);
+    }
+  });
+
+  it("prefixes the path onto a message that does not already carry one", () => {
+    const config = validConfig();
+    (config.nodes as Array<Record<string, unknown>>)[0]!.name = "x".repeat(27);
+
+    const result = validateDiagramConfig(config);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errors.some((e) => e.startsWith("nodes[0].name: "))).toBe(true);
+    }
+  });
+
+  it("does not prefix a cross-field message that already names its location", () => {
+    const config = validConfig();
+    (config.edges as Array<Record<string, unknown>>)[0]!.to = "nope";
+
+    const result = validateDiagramConfig(config);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      const message = result.errors.find((e) => e.includes('"nope"'));
+      expect(message?.startsWith("edges[0].to: ")).toBe(true);
+      expect(message).not.toContain("edges[0].to: edges[0].to");
+    }
+  });
+
+  it("reports a non-object input without throwing", () => {
+    const result = validateDiagramConfig("not a config");
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors.length).toBeGreaterThan(0);
   });
 });

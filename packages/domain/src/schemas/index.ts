@@ -22,6 +22,8 @@ export {
   diagramNodeSchema,
   diagramGroupSchema,
   diagramEdgeSchema,
+  validateDiagramConfig,
+  formatDiagramIssues,
   EXAMPLE_DIAGRAM_CONFIG,
   type DiagramConfig,
   type DiagramConfigInput,
