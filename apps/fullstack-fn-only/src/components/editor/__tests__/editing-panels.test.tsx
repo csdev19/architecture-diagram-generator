@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { EXAMPLE_DIAGRAM_CONFIG } from "@diagram-tool/domain/schemas";
+import { EXAMPLE_RESOLVED_DIAGRAM } from "@diagram-tool/domain/schemas";
 import { beforeEach, describe, expect, it } from "vitest";
 import { EditorPage } from "../editor-page";
 import { facingSides } from "../pointer-geometry";
@@ -14,7 +14,7 @@ const stubScreenCTM = () => {
 
 const canvas = () => screen.getByTestId("diagram-canvas");
 const configText = () => screen.getByLabelText<HTMLTextAreaElement>(/diagram config/i).value;
-const parsed = () => JSON.parse(configText()) as typeof EXAMPLE_DIAGRAM_CONFIG;
+const parsed = () => JSON.parse(configText()) as typeof EXAMPLE_RESOLVED_DIAGRAM;
 const nodeById = (id: string) => parsed().nodes.find((node) => node.id === id);
 
 const openTab = (name: RegExp) => fireEvent.click(screen.getByRole("tab", { name }));

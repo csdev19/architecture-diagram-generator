@@ -1,4 +1,4 @@
-import { EXAMPLE_DIAGRAM_CONFIG, validateDiagramConfig } from "@diagram-tool/domain/schemas";
+import { EXAMPLE_RESOLVED_DIAGRAM, validateResolvedDiagram } from "@diagram-tool/domain/schemas";
 import { describe, expect, it } from "vitest";
 import {
   addEdge,
@@ -12,7 +12,7 @@ import {
   updateNodeFields,
 } from "../use-diagram-editing";
 
-const seed = () => JSON.stringify(EXAMPLE_DIAGRAM_CONFIG, null, 2);
+const seed = () => JSON.stringify(EXAMPLE_RESOLVED_DIAGRAM, null, 2);
 
 /** The config a piece of editor text represents, for asserting on. */
 const parse = (text: string) => JSON.parse(text) as Record<string, any>;
@@ -76,7 +76,7 @@ describe("moveNode", () => {
   it("stays valid after a move inside the canvas", () => {
     const after = moveNode(seed(), "hono", 300, 200);
 
-    expect(validateDiagramConfig(parse(after)).ok).toBe(true);
+    expect(validateResolvedDiagram(parse(after)).ok).toBe(true);
   });
 });
 
@@ -116,7 +116,7 @@ describe("updateNodeFields", () => {
     const after = updateNodeFields(seed(), "hono", { name: "x".repeat(40) });
 
     expect(nodeById(after, "hono").name).toHaveLength(40);
-    expect(validateDiagramConfig(parse(after)).ok).toBe(false);
+    expect(validateResolvedDiagram(parse(after)).ok).toBe(false);
   });
 });
 
@@ -136,7 +136,7 @@ describe("addNode", () => {
 
     expect(parse(after).nodes).toHaveLength(parse(before).nodes.length + 1);
     expect(parse(after).nodes.slice(0, -1)).toEqual(parse(before).nodes);
-    expect(validateDiagramConfig(parse(after)).ok).toBe(true);
+    expect(validateResolvedDiagram(parse(after)).ok).toBe(true);
   });
 
   it("snaps the point it is given, like every other write of a coordinate", () => {
@@ -152,7 +152,7 @@ describe("addNode", () => {
 
     expect(parse(after).nodes.at(-1)).toMatchObject({ x: -897, y: 4004 });
     expect(parse(after).canvas, "addNode re-introduced a fixed frame").toBeUndefined();
-    expect(validateDiagramConfig(parse(after)).ok).toBe(true);
+    expect(validateResolvedDiagram(parse(after)).ok).toBe(true);
   });
 });
 
@@ -194,7 +194,7 @@ describe("addEdge", () => {
   it("produces a config the schema still accepts", () => {
     const after = addEdge(seed(), { from: "user", to: "d1", out: "b", inn: "b" });
 
-    expect(validateDiagramConfig(parse(after)).ok).toBe(true);
+    expect(validateResolvedDiagram(parse(after)).ok).toBe(true);
   });
 });
 
@@ -220,7 +220,6 @@ describe("updateEdgeFields", () => {
   const twoWay = () =>
     JSON.stringify(
       {
-        version: 1,
         title: "t",
         boundaries: [],
         nodes: [
@@ -273,7 +272,7 @@ describe("round-tripping", () => {
   it("re-prints with two-space indentation, like the seed", () => {
     const after = moveNode(seed(), "hono", 300, 200);
 
-    expect(after).toContain('\n  "version": 1');
+    expect(after).toContain('\n  "title": "api-simple"');
     expect(after.split("\n").length).toBeGreaterThan(10);
   });
 });

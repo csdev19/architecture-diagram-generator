@@ -1,11 +1,11 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { EXAMPLE_DIAGRAM_CONFIG } from "@diagram-tool/domain/schemas";
+import { EXAMPLE_RESOLVED_DIAGRAM } from "@diagram-tool/domain/schemas";
 import { describe, expect, it } from "vitest";
 import { EditorPage } from "../editor-page";
 import { arrangeNodes } from "../use-diagram-editing";
 
-const seed = () => JSON.stringify(EXAMPLE_DIAGRAM_CONFIG, null, 2);
-const parse = (text: string) => JSON.parse(text) as typeof EXAMPLE_DIAGRAM_CONFIG;
+const seed = () => JSON.stringify(EXAMPLE_RESOLVED_DIAGRAM, null, 2);
+const parse = (text: string) => JSON.parse(text) as typeof EXAMPLE_RESOLVED_DIAGRAM;
 const configText = () => screen.getByLabelText<HTMLTextAreaElement>(/diagram config/i).value;
 
 describe("arrangeNodes", () => {

@@ -1,10 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { EXAMPLE_DIAGRAM_CONFIG, diagramConfigSchema } from "@diagram-tool/domain/schemas";
+import { EXAMPLE_RESOLVED_DIAGRAM, resolvedDiagramSchema } from "@diagram-tool/domain/schemas";
 import { beforeEach, describe, expect, it } from "vitest";
 import { EditorPage } from "../editor-page";
 import { hitTestNode } from "../pointer-geometry";
 
-const config = diagramConfigSchema.parse(EXAMPLE_DIAGRAM_CONFIG);
+const config = resolvedDiagramSchema.parse(EXAMPLE_RESOLVED_DIAGRAM);
 
 /**
  * jsdom implements no SVG geometry, so `getScreenCTM` is stubbed with an
@@ -24,9 +24,9 @@ const stubScreenCTM = (matrix: Partial<DOMMatrix> = {}) => {
 
 const canvas = () => screen.getByTestId("diagram-canvas");
 const configText = () => screen.getByLabelText<HTMLTextAreaElement>(/diagram config/i).value;
-const parsed = () => JSON.parse(configText()) as typeof EXAMPLE_DIAGRAM_CONFIG;
+const parsed = () => JSON.parse(configText()) as typeof EXAMPLE_RESOLVED_DIAGRAM;
 const nodeIn = (text: string, id: string) =>
-  (JSON.parse(text) as typeof EXAMPLE_DIAGRAM_CONFIG).nodes.find((node) => node.id === id);
+  (JSON.parse(text) as typeof EXAMPLE_RESOLVED_DIAGRAM).nodes.find((node) => node.id === id);
 
 /** A full press-move-release over the canvas, in viewBox coordinates. */
 const drag = (from: { x: number; y: number }, to: { x: number; y: number }) => {

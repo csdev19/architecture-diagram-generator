@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent } from "react";
 import { DIAGRAM_GEOMETRY } from "@diagram-tool/domain/constants";
 import { contentFrame, renderSVG } from "@diagram-tool/domain/render";
-import type { DiagramConfig } from "@diagram-tool/domain/schemas";
+import type { ResolvedDiagram } from "@diagram-tool/domain/schemas";
 import {
   clientToViewBox,
   hitTestBoundary,
@@ -43,7 +43,7 @@ import type { StageInsets } from "@/components/editor/use-stage-view";
 
 interface DiagramStageProps {
   /** The last config that validated. `null` before there is one. */
-  config: DiagramConfig | null;
+  config: ResolvedDiagram | null;
   tool: EditorTool;
   onToolChange: (tool: EditorTool) => void;
   selection: Selection;

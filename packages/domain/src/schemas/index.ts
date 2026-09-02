@@ -18,16 +18,16 @@ export {
 
 // Diagram schemas
 export {
-  diagramConfigSchema,
+  resolvedDiagramSchema,
   diagramNodeSchema,
   diagramBoundarySchema,
   diagramEdgeSchema,
   deriveEdgeIds,
-  validateDiagramConfig,
+  validateResolvedDiagram,
   formatDiagramIssues,
-  EXAMPLE_DIAGRAM_CONFIG,
-  type DiagramConfig,
-  type DiagramConfigInput,
+  EXAMPLE_RESOLVED_DIAGRAM,
+  type ResolvedDiagram,
+  type ResolvedDiagramInput,
   type DiagramNode,
   type DiagramBoundary,
   type DiagramEdge,

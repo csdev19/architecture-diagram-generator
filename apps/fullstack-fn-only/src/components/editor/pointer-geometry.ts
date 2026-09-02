@@ -1,6 +1,6 @@
 import { ANCHOR_SIDES, DIAGRAM_GEOMETRY } from "@diagram-tool/domain/constants";
 import type { AnchorSide } from "@diagram-tool/domain/constants";
-import type { DiagramConfig, DiagramBoundary, DiagramNode } from "@diagram-tool/domain/schemas";
+import type { ResolvedDiagram, DiagramBoundary, DiagramNode } from "@diagram-tool/domain/schemas";
 
 /**
  * Turning a pointer into a node.
@@ -22,7 +22,7 @@ export interface Point {
  * Searched back to front because the renderer draws nodes in array order, so
  * the last one painted is the one visually on top of any overlap.
  */
-export const hitTestNode = (config: DiagramConfig, point: Point): DiagramNode | undefined => {
+export const hitTestNode = (config: ResolvedDiagram, point: Point): DiagramNode | undefined => {
   const half = DIAGRAM_GEOMETRY.TILE_SIZE / 2;
 
   for (let index = config.nodes.length - 1; index >= 0; index -= 1) {
@@ -46,7 +46,7 @@ export const hitTestNode = (config: DiagramConfig, point: Point): DiagramNode | 
  * they read as surfaces; clicking one and getting nothing would be the surprise.
  */
 export const hitTestBoundary = (
-  config: DiagramConfig,
+  config: ResolvedDiagram,
   point: Point,
 ): DiagramBoundary | undefined => {
   for (let index = config.boundaries.length - 1; index >= 0; index -= 1) {

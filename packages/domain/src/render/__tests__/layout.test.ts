@@ -1,18 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { DIAGRAM_GEOMETRY } from "../../constants/diagram";
 import {
-  EXAMPLE_DIAGRAM_CONFIG,
-  diagramConfigSchema,
-  validateDiagramConfig,
-  type DiagramConfigInput,
+  EXAMPLE_RESOLVED_DIAGRAM,
+  resolvedDiagramSchema,
+  validateResolvedDiagram,
+  type ResolvedDiagramInput,
 } from "../../schemas/diagram";
 import { layoutDiagram } from "../layout";
 
-const layout = (input: DiagramConfigInput) => layoutDiagram(diagramConfigSchema.parse(input));
+const layout = (input: ResolvedDiagramInput) => layoutDiagram(resolvedDiagramSchema.parse(input));
 
 /** A chain of nodes joined by solid edges, which is the shape layout is for. */
-const chain = (ids: string[], extra: Partial<DiagramConfigInput> = {}): DiagramConfigInput => ({
-  version: 1,
+const chain = (ids: string[], extra: Partial<ResolvedDiagramInput> = {}): ResolvedDiagramInput => ({
   boundaries: [],
   nodes: ids.map((id, index) => ({ id, x: 100 + index, y: 100, emoji: "🔥", name: id })),
   edges: ids.slice(1).map((id, index) => ({
@@ -148,13 +147,13 @@ describe("layoutDiagram", () => {
     const result = layout(chain(["a", "b", "c", "d", "e", "f"]));
 
     expect(result.canvas, "layout re-introduced a fixed canvas").toBeUndefined();
-    expect(validateDiagramConfig(result).ok, "layout produced a config it rejects").toBe(true);
+    expect(validateResolvedDiagram(result).ok, "layout produced a config it rejects").toBe(true);
   });
 
   it("produces a config the schema accepts, for the canonical example too", () => {
-    const result = layoutDiagram(diagramConfigSchema.parse(EXAMPLE_DIAGRAM_CONFIG));
+    const result = layoutDiagram(resolvedDiagramSchema.parse(EXAMPLE_RESOLVED_DIAGRAM));
 
-    expect(validateDiagramConfig(result).ok).toBe(true);
+    expect(validateResolvedDiagram(result).ok).toBe(true);
   });
 
   it("is deterministic", () => {
@@ -180,7 +179,7 @@ describe("layoutDiagram", () => {
   });
 
   it("leaves everything that is not a position alone", () => {
-    const before = diagramConfigSchema.parse(EXAMPLE_DIAGRAM_CONFIG);
+    const before = resolvedDiagramSchema.parse(EXAMPLE_RESOLVED_DIAGRAM);
     const after = layoutDiagram(before);
 
     expect(after.edges).toEqual(before.edges);
@@ -194,14 +193,13 @@ describe("layoutDiagram", () => {
 
   it("handles a single node without a flow to hang it off", () => {
     const result = layout({
-      version: 1,
       canvas: { w: 700, h: 360 },
       boundaries: [],
       nodes: [{ id: "solo", x: 300, y: 200, emoji: "🔥", name: "Solo" }],
       edges: [],
     });
 
-    expect(validateDiagramConfig(result).ok).toBe(true);
+    expect(validateResolvedDiagram(result).ok).toBe(true);
     expect(positionOf(result, "solo")).toEqual({
       x: DIAGRAM_GEOMETRY.LAYOUT_ORIGIN,
       y: DIAGRAM_GEOMETRY.LAYOUT_ORIGIN,

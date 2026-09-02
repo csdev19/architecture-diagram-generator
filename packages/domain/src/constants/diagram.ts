@@ -33,6 +33,32 @@ export type BoundaryTone = ObjectProperties<typeof BOUNDARY_TONES>;
 export const isValidBoundaryTone = (value: unknown): value is BoundaryTone =>
   Object.values(BOUNDARY_TONES).includes(value as BoundaryTone);
 
+/**
+ * How much room a derived boundary leaves around what it encloses.
+ *
+ * Named rather than numeric, like every other visual choice in the format: the
+ * author says how tightly the box should read and the renderer owns the pixels.
+ * This is what replaces resizing a grouped boundary by hand — its rectangle is
+ * computed from its members, so there is nothing to drag.
+ */
+export const BOUNDARY_PADDINGS = {
+  TIGHT: "tight",
+  NORMAL: "normal",
+  LOOSE: "loose",
+} as const;
+
+export type BoundaryPadding = ObjectProperties<typeof BOUNDARY_PADDINGS>;
+
+export const isValidBoundaryPadding = (value: unknown): value is BoundaryPadding =>
+  Object.values(BOUNDARY_PADDINGS).includes(value as BoundaryPadding);
+
+/** Whitespace a derived boundary leaves on each side, per padding. */
+export const BOUNDARY_PADDING_SIZE: Record<BoundaryPadding, number> = {
+  [BOUNDARY_PADDINGS.TIGHT]: 30,
+  [BOUNDARY_PADDINGS.NORMAL]: 60,
+  [BOUNDARY_PADDINGS.LOOSE]: 90,
+};
+
 /** Border, fill and label colour for each boundary tone. */
 export interface BoundaryToneInfo {
   border: string;
@@ -190,6 +216,8 @@ export const DIAGRAM_COLORS = {
  */
 export const DIAGRAM_LIMITS = {
   MAX_BOUNDARIES: 12,
+  /** Groups are the relation, not the box: a diagram may name as many as boxes. */
+  MAX_GROUPS: 12,
   MIN_NODES: 1,
   MAX_NODES: 40,
   MAX_EDGES: 80,

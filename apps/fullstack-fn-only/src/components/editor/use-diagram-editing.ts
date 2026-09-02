@@ -3,8 +3,8 @@ import type { Dispatch, SetStateAction } from "react";
 import { DIAGRAM_GEOMETRY } from "@diagram-tool/domain/constants";
 import type { CanvasTone } from "@diagram-tool/domain/constants";
 import { layoutDiagram } from "@diagram-tool/domain/render";
-import { deriveEdgeIds, validateDiagramConfig } from "@diagram-tool/domain/schemas";
-import type { DiagramConfigInput } from "@diagram-tool/domain/schemas";
+import { deriveEdgeIds, validateResolvedDiagram } from "@diagram-tool/domain/schemas";
+import type { ResolvedDiagramInput } from "@diagram-tool/domain/schemas";
 
 /**
  * Every visual edit, expressed as a transformation of the editor's text.
@@ -28,8 +28,8 @@ export const snapToGrid = (value: number): number => {
   return snapped === 0 ? 0 : snapped;
 };
 
-type NodeInput = DiagramConfigInput["nodes"][number];
-type EdgeInput = DiagramConfigInput["edges"][number];
+type NodeInput = ResolvedDiagramInput["nodes"][number];
+type EdgeInput = ResolvedDiagramInput["edges"][number];
 
 /** A partial node update. An `undefined` value removes the field entirely. */
 export type NodePatch = Partial<NodeInput>;
@@ -157,7 +157,7 @@ export const removeNode = (text: string, id: string): string =>
     return true;
   });
 
-type BoundaryInput = DiagramConfigInput["boundaries"][number];
+type BoundaryInput = ResolvedDiagramInput["boundaries"][number];
 
 /** A partial boundary update. An `undefined` value removes the field entirely. */
 export type BoundaryPatch = Partial<BoundaryInput>;
@@ -350,7 +350,7 @@ export const removeEdge = (text: string, id: string): string =>
  */
 export const arrangeNodes = (text: string): string =>
   editConfig(text, (config) => {
-    const validated = validateDiagramConfig(config);
+    const validated = validateResolvedDiagram(config);
     if (!validated.ok) return false;
     if (!Array.isArray(config.nodes)) return false;
 

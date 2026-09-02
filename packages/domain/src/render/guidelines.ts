@@ -8,7 +8,7 @@ import { FRAME_PADDING } from "./frame";
 import { DIAGRAM_ICON_KEYS } from "../constants/diagram-icons";
 
 /**
- * The authoring guide for a `DiagramConfig` — the text that turns "draw me the
+ * The authoring guide for a `ResolvedDiagram` — the text that turns "draw me the
  * architecture of X" into a well-positioned config.
  *
  * This is the single source. Phase 1's MCP `get_diagram_guidelines` tool
@@ -23,9 +23,9 @@ import { DIAGRAM_ICON_KEYS } from "../constants/diagram-icons";
  * Every limit is interpolated from the constants the schema enforces, so the
  * guidance cannot drift from what validation actually accepts.
  */
-export const DIAGRAM_GUIDELINES = `# DiagramConfig v1 — authoring guidelines
+export const DIAGRAM_GUIDELINES = `# ResolvedDiagram v1 — authoring guidelines
 
-You are generating a \`DiagramConfig\` for an architecture diagram.
+You are generating a \`ResolvedDiagram\` for an architecture diagram.
 Return ONLY the JSON object — no markdown fence, no commentary.
 
 ## Process

@@ -2,21 +2,20 @@ import { describe, expect, it } from "vitest";
 import { DIAGRAM_COLORS, DIAGRAM_GEOMETRY, DIAGRAM_TYPOGRAPHY } from "../../constants/diagram";
 import { DIAGRAM_ICONS } from "../../constants/diagram-icons";
 import {
-  EXAMPLE_DIAGRAM_CONFIG,
-  type DiagramConfigInput,
-  diagramConfigSchema,
+  EXAMPLE_RESOLVED_DIAGRAM,
+  type ResolvedDiagramInput,
+  resolvedDiagramSchema,
 } from "../../schemas/diagram";
 import { renderSVG } from "../index";
 import { num } from "../svg";
 
 /** Runs an authoring-shape config through the schema, the way a consumer must. */
-const render = (input: DiagramConfigInput) => renderSVG(diagramConfigSchema.parse(input));
+const render = (input: ResolvedDiagramInput) => renderSVG(resolvedDiagramSchema.parse(input));
 
 /** A one-node canvas, so a test can isolate a single rendered element. */
 const singleNode = (
-  node: Partial<DiagramConfigInput["nodes"][number]> = {},
-): DiagramConfigInput => ({
-  version: 1,
+  node: Partial<ResolvedDiagramInput["nodes"][number]> = {},
+): ResolvedDiagramInput => ({
   canvas: { w: 700, h: 360 },
   boundaries: [],
   nodes: [{ id: "n1", x: 350, y: 180, emoji: "🔥", name: "Hono", ...node }],
@@ -25,7 +24,7 @@ const singleNode = (
 
 describe("renderSVG", () => {
   it("matches the reference rendering of the canonical example", () => {
-    expect(render(EXAMPLE_DIAGRAM_CONFIG)).toMatchSnapshot();
+    expect(render(EXAMPLE_RESOLVED_DIAGRAM)).toMatchSnapshot();
   });
 
   it("sizes the root element from the canvas", () => {
@@ -39,7 +38,7 @@ describe("renderSVG", () => {
   });
 
   it("is deterministic", () => {
-    expect(render(EXAMPLE_DIAGRAM_CONFIG)).toBe(render(EXAMPLE_DIAGRAM_CONFIG));
+    expect(render(EXAMPLE_RESOLVED_DIAGRAM)).toBe(render(EXAMPLE_RESOLVED_DIAGRAM));
   });
 
   describe("escaping", () => {
@@ -52,7 +51,6 @@ describe("renderSVG", () => {
 
     it("escapes XML metacharacters in an edge label", () => {
       const svg = render({
-        version: 1,
         canvas: { w: 700, h: 360 },
         boundaries: [],
         nodes: [
@@ -67,7 +65,6 @@ describe("renderSVG", () => {
 
     it("escapes XML metacharacters in a boundary label", () => {
       const svg = render({
-        version: 1,
         canvas: { w: 700, h: 360 },
         boundaries: [{ id: "g", label: "R&D", x: 100, y: 60, w: 400, h: 240, tone: "blue" }],
         nodes: [{ id: "n1", x: 350, y: 180, emoji: "🔥", name: "Hono" }],
@@ -151,8 +148,7 @@ describe("renderSVG", () => {
   });
 
   describe("edge styles", () => {
-    const twoNodes = (style: "solid" | "dashed"): DiagramConfigInput => ({
-      version: 1,
+    const twoNodes = (style: "solid" | "dashed"): ResolvedDiagramInput => ({
       canvas: { w: 700, h: 360 },
       boundaries: [],
       nodes: [
@@ -182,7 +178,7 @@ describe("renderSVG", () => {
 
   describe("layer order", () => {
     it("draws boundaries behind edges, and edges behind nodes", () => {
-      const svg = render(EXAMPLE_DIAGRAM_CONFIG);
+      const svg = render(EXAMPLE_RESOLVED_DIAGRAM);
 
       const boundary = svg.indexOf("CLOUDFLARE");
       const edge = svg.indexOf("HTTPS");

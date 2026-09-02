@@ -1,5 +1,5 @@
 import { DIAGRAM_GEOMETRY, EDGE_STYLES } from "../constants/diagram";
-import type { DiagramConfig, DiagramNode } from "../schemas/diagram";
+import type { ResolvedDiagram, DiagramNode } from "../schemas/diagram";
 
 /**
  * Auto-layout: coordinates derived from topology rather than typed by hand.
@@ -27,7 +27,7 @@ const { LAYOUT_ORIGIN, LAYOUT_COLUMN_GAP, NODE_SPACING } = DIAGRAM_GEOMETRY;
  * column right of the furthest-right thing that feeds it — computed with a
  * queue so a cycle cannot recurse forever.
  */
-const assignColumns = (config: DiagramConfig): Map<string, number> => {
+const assignColumns = (config: ResolvedDiagram): Map<string, number> => {
   const ids = new Set(config.nodes.map((node) => node.id));
   const flow = config.edges.filter(
     (edge) => edge.style === EDGE_STYLES.SOLID && ids.has(edge.from) && ids.has(edge.to),
@@ -82,7 +82,7 @@ const assignColumns = (config: DiagramConfig): Map<string, number> => {
  * column of whatever it attaches to so it reads as hanging off that node.
  * Where several nodes want the same cell, they stack downward.
  */
-export const layoutDiagram = (config: DiagramConfig): DiagramConfig => {
+export const layoutDiagram = (config: ResolvedDiagram): ResolvedDiagram => {
   if (config.nodes.length === 0) return config;
 
   const column = assignColumns(config);

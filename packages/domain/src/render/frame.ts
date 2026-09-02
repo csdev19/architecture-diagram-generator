@@ -1,5 +1,5 @@
 import { DIAGRAM_GEOMETRY, DIAGRAM_TYPOGRAPHY } from "../constants/diagram";
-import type { DiagramConfig, DiagramBoundary, DiagramNode } from "../schemas/diagram";
+import type { ResolvedDiagram, DiagramBoundary, DiagramNode } from "../schemas/diagram";
 import { estimateMonoWidth } from "./svg";
 
 /**
@@ -35,7 +35,7 @@ export const FRAME_PADDING = 60;
  * The frame a config with nothing in it gets.
  *
  * The schema requires at least one node, so this is unreachable through
- * `validateDiagramConfig` — it exists so the function is total rather than
+ * `validateResolvedDiagram` — it exists so the function is total rather than
  * returning something meaningless like a zero-sized document.
  */
 const EMPTY_FRAME: DiagramFrame = { x: 0, y: 0, w: 400, h: 300 };
@@ -96,7 +96,7 @@ const union = (a: Bounds, b: Bounds): Bounds => ({
  * document: `renderSVG` has to be byte-stable for snapshots to mean anything
  * and for a render cache to be able to key on content.
  */
-export const contentFrame = (config: DiagramConfig): DiagramFrame => {
+export const contentFrame = (config: ResolvedDiagram): DiagramFrame => {
   const all = [...config.nodes.map(nodeBounds), ...config.boundaries.map(boundaryBounds)];
   const first = all[0];
   if (!first) return EMPTY_FRAME;
@@ -118,5 +118,5 @@ export const contentFrame = (config: DiagramConfig): DiagramFrame => {
  * The frame to draw a config in: the author's fixed one if they declared it,
  * otherwise the one its own contents imply.
  */
-export const resolveFrame = (config: DiagramConfig): DiagramFrame =>
+export const resolveFrame = (config: ResolvedDiagram): DiagramFrame =>
   config.canvas ? { x: 0, y: 0, w: config.canvas.w, h: config.canvas.h } : contentFrame(config);
