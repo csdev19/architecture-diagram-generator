@@ -1,0 +1,26 @@
+---
+title: "September 01, 2026 - Diagram tool, brand icons"
+description: Nodes can show a technology's real logo via iconKey, with emoji staying a valid fallback.
+date: 2026-09-01
+tags:
+  - changelog
+  - feature
+---
+
+✨ **Feature** — A node can now name an `iconKey` and get the technology's real
+logo instead of an emoji: `iconKey: "react"` draws the React mark, in the React
+colour. The marks come from `simple-icons`, which ships every logo as a path
+string and a hex — plain data, no loader and no DOM — so the renderer draws them
+inside a Cloudflare Worker exactly as it does in the browser, which is what
+phase 1 needs. Emoji stay valid and remain the right answer for human actors and
+generic components; a node needs one of the two, and an icon wins when both are
+present.
+
+The available keys are interpolated into the authoring guidelines from the
+registry itself, so a model always sees the list that validation will actually
+accept. Brand colours are used only where they are legible: several are designed
+for a logo on its own background and disappear on a tile — Better Auth's white
+scores 1.00 against white — so the renderer measures contrast and substitutes a
+readable fill, keeping the mark's shape to carry the identity.
+
+**Docs:** [SVG Renderer](/features/diagram-tool/svg-renderer)

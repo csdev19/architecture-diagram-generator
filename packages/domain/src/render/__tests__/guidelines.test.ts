@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DIAGRAM_GEOMETRY, DIAGRAM_LIMITS, GROUP_TONES } from "../../constants/diagram";
+import { DIAGRAM_ICON_KEYS } from "../../constants/diagram-icons";
 import { DIAGRAM_GUIDELINES } from "../guidelines";
 
 /**
@@ -23,6 +24,17 @@ describe("DIAGRAM_GUIDELINES", () => {
     for (const tone of Object.values(GROUP_TONES)) {
       expect(DIAGRAM_GUIDELINES, `guidelines never mention the "${tone}" tone`).toContain(tone);
     }
+  });
+
+  it("names every icon key the schema accepts", () => {
+    for (const key of DIAGRAM_ICON_KEYS) {
+      expect(DIAGRAM_GUIDELINES, `guidelines never mention the "${key}" icon key`).toContain(key);
+    }
+  });
+
+  it("explains that a node needs one of the two marks", () => {
+    expect(DIAGRAM_GUIDELINES).toContain("iconKey");
+    expect(DIAGRAM_GUIDELINES).toContain("emoji");
   });
 
   it("tells the model to return JSON and nothing else", () => {

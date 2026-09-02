@@ -45,6 +45,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "simple-icons": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

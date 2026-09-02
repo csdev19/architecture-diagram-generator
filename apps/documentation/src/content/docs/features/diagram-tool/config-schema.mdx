@@ -27,19 +27,22 @@ can usually fix it without a human stepping in.
 
 ### Files Changed
 
-| Path                                       | Purpose                                                                                          |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| `packages/domain/src/constants/diagram.ts` | Tones, tile variants, edge styles, anchor sides, geometry, typography, colours and schema limits |
-| `packages/domain/src/schemas/diagram.ts`   | The Zod schema, its cross-field rules, `validateDiagramConfig`, and the canonical example        |
-| `packages/domain/src/schemas/index.ts`     | Barrel export                                                                                    |
-| `packages/domain/src/constants/index.ts`   | Barrel export                                                                                    |
+| Path                                             | Purpose                                                                                          |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `packages/domain/src/constants/diagram.ts`       | Tones, tile variants, edge styles, anchor sides, geometry, typography, colours and schema limits |
+| `packages/domain/src/constants/diagram-icons.ts` | The curated `simple-icons` registry, the icon key union, and the fill-legibility rule            |
+| `packages/domain/src/schemas/diagram.ts`         | The Zod schema, its cross-field rules, `validateDiagramConfig`, and the canonical example        |
+| `packages/domain/src/schemas/index.ts`           | Barrel export                                                                                    |
+| `packages/domain/src/constants/index.ts`         | Barrel export                                                                                    |
 
 ### Domain Model
 
 `DiagramConfig` is the aggregate: a `canvas`, plus arrays of `DiagramGroup`,
 `DiagramNode` and `DiagramEdge`. Groups and nodes are positioned rectangles;
 an edge is a reference between two node ids plus the sides it leaves and enters.
-All four are plain inferred types — data, no behaviour.
+All four are plain inferred types — data, no behaviour. A node identifies itself
+with either an `iconKey` from the brand registry or an `emoji`; both fields are
+optional on their own, and a node-level rule requires at least one of them.
 
 ### Key Logic
 
@@ -53,13 +56,16 @@ list of strings.
 
 ## Decisions
 
-| Decision                                     | Why                                                                                                                                                          | Alternatives Considered                                       |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------- |
-| One `superRefine` for all cross-field rules  | A model that receives three errors at once fixes them in one retry; one error per turn burns three turns                                                     | A chain of `.refine()` calls, which stop at the first failure |
-| Messages state the fix, not the rule         | "`edges[3].to`: \"d2\" does not exist. Available nodes: user, hono, d1" is actionable; a raw Zod path is not                                                 | Default Zod messages                                          |
-| Enums come from the constant objects         | `z.enum(GROUP_TONES)` keeps one source; re-listing the literals creates a second that drifts                                                                 | Inline string unions                                          |
-| Text fields chain `.trim()` before `.min(1)` | `.min(1)` alone accepts a string of spaces                                                                                                                   | Trimming at the call site                                     |
-| No overlap detection between nodes           | A deliberately tight diagram would trip it, and a false rejection is worse than a cramped render. Spacing guidance lives in the authoring guidelines instead | A hard minimum-distance rule                                  |
+| Decision                                                                        | Why                                                                                                                                                                                                   | Alternatives Considered                                                        |
+| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| One `superRefine` for all cross-field rules                                     | A model that receives three errors at once fixes them in one retry; one error per turn burns three turns                                                                                              | A chain of `.refine()` calls, which stop at the first failure                  |
+| Messages state the fix, not the rule                                            | "`edges[3].to`: \"d2\" does not exist. Available nodes: user, hono, d1" is actionable; a raw Zod path is not                                                                                          | Default Zod messages                                                           |
+| Enums come from the constant objects                                            | `z.enum(GROUP_TONES)` keeps one source; re-listing the literals creates a second that drifts                                                                                                          | Inline string unions                                                           |
+| Text fields chain `.trim()` before `.min(1)`                                    | `.min(1)` alone accepts a string of spaces                                                                                                                                                            | Trimming at the call site                                                      |
+| No overlap detection between nodes                                              | A deliberately tight diagram would trip it, and a false rejection is worse than a cramped render. Spacing guidance lives in the authoring guidelines instead                                          | A hard minimum-distance rule                                                   |
+| `emoji` relaxed to optional rather than kept required                           | Requiring both would force a meaningless glyph onto every node that already has a logo. Requiring neither would let a node render blank. One-of-the-two is the only rule that is both honest and safe | Keeping `emoji` required and treating `iconKey` as decoration                  |
+| The emoji-or-iconKey rule sits on the node schema, not the config `superRefine` | It travels with `diagramNodeSchema` wherever a single node is parsed — the editor's field-level mutations in phase 2 included                                                                         | Adding it to the config-level `superRefine` beside the other cross-field rules |
+| Icon keys derive from the registry via `z.enum(DIAGRAM_ICON_KEYS)`              | A hand-written union would drift the moment an icon is added. Zod's own message lists every valid key, which is exactly the correction a model needs                                                  | A `z.string().refine(isValidDiagramIconKey)` with a custom message             |
 
 ## Gotchas & Warnings
 
@@ -67,10 +73,14 @@ list of strings.
 - ⚠️ Validation rejects a node centre closer than 60px to a canvas edge, but the guidelines ask for 70px. That gap is intentional — it leaves room before the hard limit.
 - ⚠️ `version` is a literal `1`. A future shape change means a new version and an explicit migration, not a widened schema.
 - ⚠️ Whitespace-only text passes `.min(1)` without the `.trim()` in front of it. Every user-facing string field needs both.
+- ⚠️ A node carrying **both** `emoji` and `iconKey` is valid, and the renderer draws the icon. The emoji is not a fallback the renderer will ever reach — it only matters if the `iconKey` is later removed by hand.
+- ⚠️ `EXAMPLE_DIAGRAM_CONFIG` now uses `iconKey` on two of its three nodes, so it can no longer stand as the regression that pre-icon configs still parse. The schema test keeps a frozen phase-0 literal for that.
 
 ## Dependencies
 
-None beyond `zod`, already in the workspace catalog.
+`zod`, already in the workspace catalog, plus `simple-icons` (CC0-1.0) — see
+[SVG Renderer](svg-renderer) for why a data-only icon package is admissible in
+the domain.
 
 ## Testing
 

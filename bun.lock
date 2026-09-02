@@ -95,6 +95,7 @@
       "name": "@diagram-tool/domain",
       "version": "1.0.0",
       "dependencies": {
+        "simple-icons": "catalog:",
         "zod": "catalog:",
       },
       "devDependencies": {
@@ -194,6 +195,7 @@
     "@vitejs/plugin-react": "5.1.2",
     "better-auth": "1.4.18",
     "jsdom": "^26.1.0",
+    "simple-icons": "16.29.0",
     "tailwindcss": "4.1.18",
     "tsdown": "0.18.4",
     "typescript": "5.9.3",
@@ -2331,6 +2333,8 @@
     "siginfo": ["siginfo@2.0.0", "", {}, "sha512-ybx0WO1/8bSBLEWXZvEd7gMW3Sn3JFlW3TvX1nREbDLRNQNaeNN8WK0meBwPdAaOI7TtRRRJn/Es1zhrrCHu7g=="],
 
     "signal-exit": ["signal-exit@4.1.0", "", {}, "sha512-bzyZ1e88w9O1iNJbKnOlvYTrWPDl46O1bG0D3XInv+9tkPrxrN8jUUTiFlDkkmKWgn1M6CfIA13SuGqOa9Korw=="],
+
+    "simple-icons": ["simple-icons@16.29.0", "", {}, "sha512-4H94f5ZgcCcgJroc902TFlFdgPu2IU2eD7+WebN2Z14xKYrKHeJ4UQcZwzgSuH4Rgzw+jp7sbHl40NefuIEYsg=="],
 
     "sisteransi": ["sisteransi@1.0.5", "", {}, "sha512-bLGGlR1QxBcynn2d5YmDX4MGjlZvy2MRBDRNHLJ8VI6l6+9FUiyTFNJ0IveOSP0bcXgVDPRcfGqA0pjaqUpfVg=="],
 

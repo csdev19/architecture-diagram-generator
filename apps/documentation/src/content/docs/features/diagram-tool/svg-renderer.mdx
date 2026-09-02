@@ -33,7 +33,7 @@ what the editor showed.
 | `packages/domain/src/render/svg.ts`        | XML escaping, coordinate formatting, text-width estimation |
 | `packages/domain/src/render/background.ts` | Base fill and the grid pattern                             |
 | `packages/domain/src/render/group.ts`      | Group box, with its label punched through the top border   |
-| `packages/domain/src/render/node.ts`       | Tile, emoji, name and sublabel                             |
+| `packages/domain/src/render/node.ts`       | Tile, brand mark or emoji, name and sublabel               |
 | `packages/domain/src/render/edge.ts`       | Anchor geometry, line, arrowheads and labels               |
 | `packages/domain/tsdown.config.ts`         | Adds the `render` entry so the subpath export exists       |
 
@@ -51,26 +51,40 @@ config, offset clear of the tile, with the bottom side dropping further to clear
 the node's text. Coordinates round to two decimals so equal inputs always
 produce identical bytes.
 
+A node's mark is a brand logo when it names an `iconKey`, and its emoji
+otherwise. `simple-icons` authors every mark as one path in a 24x24 box, so the
+renderer wraps it in a `<g>` translated to where the mark's top-left corner
+belongs and scaled up to `ICON_SIZE`. The fill is not simply the brand hex:
+`resolveDiagramIconFill` measures the brand colour's WCAG contrast against the
+tile and substitutes a legible one when the mark would otherwise disappear.
+
 ## Decisions
 
-| Decision                                      | Why                                                                                                                               | Alternatives Considered                                   |
-| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| A string builder, not React components        | It must run in a Worker with no DOM. A React renderer would force a second implementation for the server, and the two would drift | React components rendered with `renderToStaticMarkup`     |
-| Deterministic output, no randomness or clocks | Snapshots stay meaningful, and phase 1 can cache renders keyed on content                                                         | Generating unique ids per render                          |
-| The group icon is its own element             | An emoji set in the label's 11px monospace face renders as an illegible smudge                                                    | Prefixing the icon onto the label string                  |
-| Text widths are estimated, not measured       | There is no text measurement outside a browser. Backing rects are sized from character count and overshoot slightly               | Shipping font metrics, or measuring in a headless browser |
-| Straight lines only                           | Straight edges plus a deliberate layout cover almost everything; orthogonal routing around obstacles is a rabbit hole             | Auto-routed orthogonal edges                              |
+| Decision                                       | Why                                                                                                                                                                                                                                                                          | Alternatives Considered                                                                                  |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| A string builder, not React components         | It must run in a Worker with no DOM. A React renderer would force a second implementation for the server, and the two would drift                                                                                                                                            | React components rendered with `renderToStaticMarkup`                                                    |
+| Deterministic output, no randomness or clocks  | Snapshots stay meaningful, and phase 1 can cache renders keyed on content                                                                                                                                                                                                    | Generating unique ids per render                                                                         |
+| The group icon is its own element              | An emoji set in the label's 11px monospace face renders as an illegible smudge                                                                                                                                                                                               | Prefixing the icon onto the label string                                                                 |
+| Text widths are estimated, not measured        | There is no text measurement outside a browser. Backing rects are sized from character count and overshoot slightly                                                                                                                                                          | Shipping font metrics, or measuring in a headless browser                                                |
+| Straight lines only                            | Straight edges plus a deliberate layout cover almost everything; orthogonal routing around obstacles is a rabbit hole                                                                                                                                                        | Auto-routed orthogonal edges                                                                             |
+| `simple-icons` as the source of brand marks    | It ships every logo as plain data — a path string and a hex — so it needs no loader, no DOM and no bundler magic, which is what makes it usable inside a Worker. CC0-1.0 also sidesteps the brand-kit question for personal use                                              | A hand-maintained folder of `.svg` assets, which would need a raw-text loader and manual updates         |
+| A brand colour is used only when it is legible | Brand palettes are designed for logos on their own backgrounds. Better Auth's white scores 1.00 against a white tile and Drizzle's lime 1.25 — both invisible. The mark's shape carries the identity, so substituting a readable fill loses far less than an unreadable logo | Using the brand hex unconditionally; darkening the hue toward the contrast floor instead of replacing it |
+| A dark tile always draws its mark in white     | Only a minority of marks keep enough contrast on `#0f172a`, and the ones that fail — GitHub's near-black scores 1.00 — vanish entirely. One rule beats a marginal brand-fidelity gain on the two or three tiles a diagram is allowed to darken                               | Applying the same contrast test in both directions                                                       |
 
 ## Gotchas & Warnings
 
 - ⚠️ Nothing in `render/` may import a DOM or Node API. That constraint is the reason the package can be reused by a Worker at all, and it is easy to break by accident.
 - ⚠️ Every interpolated string must pass through `escapeXml`. A raw `&` or `<` yields a document that fails to parse, and the failure is usually silent.
-- ⚠️ Fonts are system stacks today, so a server-side render in phase 1 will not match the browser until real font files are bundled. Colour emoji also do not rasterise reliably outside a browser — that is what the icon set in phase 1.5 is for.
+- ⚠️ Fonts are system stacks today, so a server-side render in phase 1 will not match the browser until real font files are bundled. Colour emoji also do not rasterise reliably outside a browser, which is why `iconKey` is preferred wherever a technology has a mark.
 - ⚠️ The snapshot test passes trivially the first time it is written. When changing the renderer, look at the rendered output, do not just accept the new snapshot.
+- ⚠️ Not every `simple-icons` path starts with an absolute `M` — `cloudflareworkers` opens with a relative `m`, which is identical for a first command but breaks any check that assumes uppercase.
+- ⚠️ `iconKey` beats `emoji` silently. A node with both renders only the icon, so a config that "ignores" its emoji is behaving correctly.
 
 ## Dependencies
 
-None. The renderer imports only the domain's own constants and types.
+`simple-icons` (CC0-1.0), imported as data only. It is side-effect free, so
+only the marks named in `constants/diagram-icons.ts` reach a bundle. Everything
+else comes from the domain's own constants and types.
 
 ## Testing
 

@@ -7,6 +7,7 @@ import {
   GROUP_TONES,
   TILE_VARIANTS,
 } from "../constants/diagram";
+import { DIAGRAM_ICON_KEYS } from "../constants/diagram-icons";
 
 /**
  * `DiagramConfig` — the contract at the centre of the diagram tool. A model
@@ -29,23 +30,43 @@ const tileText = (field: string) =>
       `${field} must be at most ${DIAGRAM_LIMITS.TEXT_MAX} characters — abbreviate it to fit the tile`,
     );
 
-export const diagramNodeSchema = z.object({
-  id: z.string().trim().min(1, "Node id is required"),
-  /** Centre of the tile, not its top-left corner. */
-  x: z.number(),
-  y: z.number(),
-  emoji: z.string().trim().min(1, "Node emoji is required"),
-  name: tileText("Node name"),
-  sub: z
-    .string()
-    .trim()
-    .max(
-      DIAGRAM_LIMITS.TEXT_MAX,
-      `Node sublabel must be at most ${DIAGRAM_LIMITS.TEXT_MAX} characters — abbreviate it to fit the tile`,
-    )
-    .default(""),
-  tile: z.enum(TILE_VARIANTS).default(TILE_VARIANTS.LIGHT),
-});
+export const diagramNodeSchema = z
+  .object({
+    id: z.string().trim().min(1, "Node id is required"),
+    /** Centre of the tile, not its top-left corner. */
+    x: z.number(),
+    y: z.number(),
+    /** Fallback mark for a technology with no logo in the registry. */
+    emoji: z.string().trim().min(1, "Node emoji must not be empty").optional(),
+    /** A brand mark from the icon registry. Takes precedence over `emoji`. */
+    iconKey: z.enum(DIAGRAM_ICON_KEYS).optional(),
+    name: tileText("Node name"),
+    sub: z
+      .string()
+      .trim()
+      .max(
+        DIAGRAM_LIMITS.TEXT_MAX,
+        `Node sublabel must be at most ${DIAGRAM_LIMITS.TEXT_MAX} characters — abbreviate it to fit the tile`,
+      )
+      .default(""),
+    tile: z.enum(TILE_VARIANTS).default(TILE_VARIANTS.LIGHT),
+  })
+  /**
+   * A node has to show something. The rule lives on the node rather than in the
+   * config-level `superRefine` so it travels with the schema wherever a single
+   * node is parsed — the editor's field-level mutations included.
+   */
+  .superRefine((node, ctx) => {
+    if (node.emoji || node.iconKey) return;
+
+    ctx.addIssue({
+      code: "custom",
+      message:
+        `"${node.id}" has neither emoji nor iconKey — a node must show one of the two. ` +
+        `Use iconKey when the technology has a brand mark; the authoring guidelines list every ` +
+        `available key. Otherwise pick an emoji.`,
+    });
+  });
 
 export const diagramGroupSchema = z.object({
   id: z.string().trim().min(1, "Group id is required"),
@@ -241,9 +262,19 @@ export const EXAMPLE_DIAGRAM_CONFIG: DiagramConfigInput = {
     },
   ],
   nodes: [
+    // A generic actor has no brand mark, so it keeps an emoji — which is the
+    // fallback existing to be used, not a leftover.
     { id: "user", x: 110, y: 180, emoji: "🖥️", name: "User", sub: "browser" },
-    { id: "hono", x: 350, y: 180, emoji: "🔥", name: "Hono", sub: "http server" },
-    { id: "d1", x: 550, y: 180, emoji: "🗄️", name: "D1", sub: "sqlite", tile: TILE_VARIANTS.DARK },
+    { id: "hono", x: 350, y: 180, iconKey: "hono", name: "Hono", sub: "http server" },
+    {
+      id: "d1",
+      x: 550,
+      y: 180,
+      iconKey: "cloudflare",
+      name: "D1",
+      sub: "sqlite",
+      tile: TILE_VARIANTS.DARK,
+    },
   ],
   edges: [
     { from: "user", to: "hono", out: "r", inn: "l", label: "HTTPS" },

@@ -12,7 +12,7 @@ the image a model generates over MCP can never disagree.
 
 ## Architecture Overview
 
-- Domain: `packages/domain/src/schemas/diagram.ts`, `packages/domain/src/constants/diagram.ts`
+- Domain: `packages/domain/src/schemas/diagram.ts`, `packages/domain/src/constants/diagram.ts`, `packages/domain/src/constants/diagram-icons.ts`
 - Renderer: `packages/domain/src/render/`
 - Infrastructure: N/A — phase 0 runs entirely in the browser
 - Web UI: `apps/fullstack-fn-only/src/routes/editor.tsx`, `apps/fullstack-fn-only/src/components/editor/`
@@ -31,12 +31,13 @@ the image a model generates over MCP can never disagree.
 
 ## Shared Decisions
 
-| Decision                                                 | Why                                                                                                                                                                                                                                |
-| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Everything lives in `packages/domain`, not a new package | The hub's conventions put schemas in `domain/schemas`, constants in `domain/constants`, and define `domain` as the pure layer. `DiagramConfig` _is_ this product's domain model, so a separate package would have been the anomaly |
-| The renderer is a pure string builder, not React         | It has to run unchanged inside a Cloudflare Worker in phase 1. Two renderers would mean the PNG could disagree with the preview — the exact failure this design exists to prevent                                                  |
-| Colours are literal values, never theme tokens           | They are written into SVG attributes and must survive rasterisation outside a browser, where no stylesheet or CSS variable exists                                                                                                  |
-| Config authors choose semantics, never colour            | A group picks a `tone`; the renderer owns the palette. That is what keeps every diagram in one visual family, and it means a palette change re-styles every historical diagram                                                     |
+| Decision                                                          | Why                                                                                                                                                                                                                                                    |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Everything lives in `packages/domain`, not a new package          | The hub's conventions put schemas in `domain/schemas`, constants in `domain/constants`, and define `domain` as the pure layer. `DiagramConfig` _is_ this product's domain model, so a separate package would have been the anomaly                     |
+| The renderer is a pure string builder, not React                  | It has to run unchanged inside a Cloudflare Worker in phase 1. Two renderers would mean the PNG could disagree with the preview — the exact failure this design exists to prevent                                                                      |
+| Colours are literal values, never theme tokens                    | They are written into SVG attributes and must survive rasterisation outside a browser, where no stylesheet or CSS variable exists                                                                                                                      |
+| Config authors choose semantics, never colour                     | A group picks a `tone` and a node picks an `iconKey`; the renderer owns the palette and decides what is legible on which tile. That is what keeps every diagram in one visual family, and it means a palette change re-styles every historical diagram |
+| Anything a model must choose from is interpolated from its source | Tone names, every limit and the full icon key list reach the authoring guidelines from the constants that enforce them. Guidance that contradicts validation is worse than no guidance                                                                 |
 
 ## Shared Gotchas
 

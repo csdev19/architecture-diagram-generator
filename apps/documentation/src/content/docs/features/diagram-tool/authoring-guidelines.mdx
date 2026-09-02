@@ -48,20 +48,26 @@ and edge maxima, canvas bounds, tile size, the canvas margin — is interpolated
 from `constants/diagram.ts` rather than typed out, so the guidance cannot state
 a limit that validation no longer enforces.
 
+The same wiring carries the icon registry: the "mark inside a tile" section
+joins `DIAGRAM_ICON_KEYS` into its key list, so adding an icon advertises it to
+every model on the next build with no edit here.
+
 ## Decisions
 
-| Decision                                                             | Why                                                                                                                 | Alternatives Considered                                 |
-| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| A TypeScript string, not a `.md` file                                | A Worker can return a string with zero bundler configuration; markdown needs a raw-text loader that is not portable | A `.md` asset exported through tsdown's `customExports` |
-| Limits are interpolated, not typed out                               | Guidance that contradicts validation is worse than no guidance. Interpolation makes drift impossible                | Writing the numbers as prose, guarded by a test         |
-| Not duplicated into this docs page                                   | Two copies of a rule set is exactly the drift the design avoids everywhere else                                     | Rendering the full text here for convenience            |
-| Layout advice asks for 70px of edge margin, validation enforces 60px | Guidance should aim inside the hard limit, not at it                                                                | Making both 60                                          |
+| Decision                                                             | Why                                                                                                                                              | Alternatives Considered                                             |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| A TypeScript string, not a `.md` file                                | A Worker can return a string with zero bundler configuration; markdown needs a raw-text loader that is not portable                              | A `.md` asset exported through tsdown's `customExports`             |
+| Limits are interpolated, not typed out                               | Guidance that contradicts validation is worse than no guidance. Interpolation makes drift impossible                                             | Writing the numbers as prose, guarded by a test                     |
+| Not duplicated into this docs page                                   | Two copies of a rule set is exactly the drift the design avoids everywhere else                                                                  | Rendering the full text here for convenience                        |
+| Layout advice asks for 70px of edge margin, validation enforces 60px | Guidance should aim inside the hard limit, not at it                                                                                             | Making both 60                                                      |
+| The full icon key list is interpolated, not summarised               | A model cannot guess which brands are curated. Listing all of them costs a few dozen tokens and removes the entire class of invented-key retries | Naming a handful of examples and letting validation reject the rest |
 
 ## Gotchas & Warnings
 
 - ⚠️ When a model makes the same layout mistake twice, add a rule here rather than fixing the output by hand. This file is what teaches the tool; correcting the symptom teaches nothing.
 - ⚠️ The interpolation is guarded by a test asserting there is no unresolved `${` and no `undefined` in the output. Removing that test makes a broken template silently shippable.
 - ⚠️ This text is consumed by a model, not a human reader. Prefer imperative, checkable rules over explanation.
+- ⚠️ A drift test asserts every key in `DIAGRAM_ICON_KEYS` appears in the text. Adding an icon without rebuilding the guidelines fails that test rather than silently shipping a key no model knows about.
 
 ## Dependencies
 
