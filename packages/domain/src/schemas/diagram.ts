@@ -35,43 +35,62 @@ const tileText = (field: string) =>
       `${field} must be at most ${DIAGRAM_LIMITS.TEXT_MAX} characters — abbreviate it to fit the tile`,
     );
 
+/**
+ * Everything a node is, apart from where it sits.
+ *
+ * Exported as a raw shape rather than a schema because the document format
+ * needs the same fields without `x`/`y`, and Zod cannot `.omit()` from a schema
+ * that carries a refinement. One shape, two schemas, no chance of the two
+ * drifting on what a node's name may be.
+ */
+export const nodeIdentityShape = {
+  id: z.string().trim().min(1, "Node id is required"),
+  /** Fallback mark for a technology with no logo in the registry. */
+  emoji: z.string().trim().min(1, "Node emoji must not be empty").optional(),
+  /** A brand mark from the icon registry. Takes precedence over `emoji`. */
+  iconKey: z.enum(DIAGRAM_ICON_KEYS).optional(),
+  name: tileText("Node name"),
+  sub: z
+    .string()
+    .trim()
+    .max(
+      DIAGRAM_LIMITS.TEXT_MAX,
+      `Node sublabel must be at most ${DIAGRAM_LIMITS.TEXT_MAX} characters — abbreviate it to fit the tile`,
+    )
+    .default(""),
+  tile: z.enum(TILE_VARIANTS).default(TILE_VARIANTS.LIGHT),
+};
+
+/**
+ * A node has to show something.
+ *
+ * The rule travels with the node rather than living in a config-level
+ * `superRefine`, so it holds wherever a single node is parsed — the editor's
+ * field-level mutations included.
+ */
+export const requireNodeMark = (
+  node: { id: string; emoji?: string | undefined; iconKey?: string | undefined },
+  ctx: z.RefinementCtx,
+): void => {
+  if (node.emoji || node.iconKey) return;
+
+  ctx.addIssue({
+    code: "custom",
+    message:
+      `"${node.id}" has neither emoji nor iconKey — a node must show one of the two. ` +
+      `Use iconKey when the technology has a brand mark; the authoring guidelines list every ` +
+      `available key. Otherwise pick an emoji.`,
+  });
+};
+
 export const diagramNodeSchema = z
   .object({
-    id: z.string().trim().min(1, "Node id is required"),
+    ...nodeIdentityShape,
     /** Centre of the tile, not its top-left corner. */
     x: z.number(),
     y: z.number(),
-    /** Fallback mark for a technology with no logo in the registry. */
-    emoji: z.string().trim().min(1, "Node emoji must not be empty").optional(),
-    /** A brand mark from the icon registry. Takes precedence over `emoji`. */
-    iconKey: z.enum(DIAGRAM_ICON_KEYS).optional(),
-    name: tileText("Node name"),
-    sub: z
-      .string()
-      .trim()
-      .max(
-        DIAGRAM_LIMITS.TEXT_MAX,
-        `Node sublabel must be at most ${DIAGRAM_LIMITS.TEXT_MAX} characters — abbreviate it to fit the tile`,
-      )
-      .default(""),
-    tile: z.enum(TILE_VARIANTS).default(TILE_VARIANTS.LIGHT),
   })
-  /**
-   * A node has to show something. The rule lives on the node rather than in the
-   * config-level `superRefine` so it travels with the schema wherever a single
-   * node is parsed — the editor's field-level mutations included.
-   */
-  .superRefine((node, ctx) => {
-    if (node.emoji || node.iconKey) return;
-
-    ctx.addIssue({
-      code: "custom",
-      message:
-        `"${node.id}" has neither emoji nor iconKey — a node must show one of the two. ` +
-        `Use iconKey when the technology has a brand mark; the authoring guidelines list every ` +
-        `available key. Otherwise pick an emoji.`,
-    });
-  });
+  .superRefine(requireNodeMark);
 
 export const diagramBoundarySchema = z.object({
   id: z.string().trim().min(1, "Boundary id is required"),
