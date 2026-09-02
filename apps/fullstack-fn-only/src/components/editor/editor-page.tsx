@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { EXAMPLE_DIAGRAM_CONFIG, validateDiagramConfig } from "@diagram-tool/domain/schemas";
 import type { DiagramConfig } from "@diagram-tool/domain/schemas";
 import { renderSVG } from "@diagram-tool/domain/render";
-import { GROUP_TONES, TILE_VARIANTS } from "@diagram-tool/domain/constants";
+import { BOUNDARY_TONES, TILE_VARIANTS } from "@diagram-tool/domain/constants";
 import { downloadConfig, downloadSvg, downloadSvgAsPng } from "@/lib/export-png";
 import { DiagramPanel } from "@/components/editor/diagram-panel";
 import { DiagramStage } from "@/components/editor/diagram-stage";
@@ -241,7 +241,7 @@ export function EditorPage() {
       shown.config.groups.map((group) => group.id),
     );
 
-    edit.addGroup({ id, label: "GROUP", tone: GROUP_TONES.NEUTRAL, ...box });
+    edit.addGroup({ id, label: "GROUP", tone: BOUNDARY_TONES.NEUTRAL, ...box });
     changeTool(EDITOR_TOOLS.SELECT);
     handleSelect({ kind: "group", id });
   };

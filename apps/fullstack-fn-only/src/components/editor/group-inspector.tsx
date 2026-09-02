@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { DIAGRAM_LIMITS, GROUP_TONES, GROUP_TONE_INFO } from "@diagram-tool/domain/constants";
-import type { GroupTone } from "@diagram-tool/domain/constants";
+import { DIAGRAM_LIMITS, BOUNDARY_TONES, BOUNDARY_TONE_INFO } from "@diagram-tool/domain/constants";
+import type { BoundaryTone } from "@diagram-tool/domain/constants";
 import type { DiagramGroup } from "@diagram-tool/domain/schemas";
 import { cn } from "@diagram-tool/web-ui";
 import { EditorInput, MicroLabel, MonoText } from "@/components/editor/editor-chrome";
@@ -24,11 +24,11 @@ interface GroupInspectorProps {
 const { TEXT_MAX } = DIAGRAM_LIMITS;
 
 /** What each tone is *for*. The hex is the renderer's business. */
-const TONE_MEANINGS: Record<GroupTone, string> = {
-  [GROUP_TONES.ORANGE]: "Cloud or runtime",
-  [GROUP_TONES.BLUE]: "Tooling, monorepo, build",
-  [GROUP_TONES.GREEN]: "External services and data",
-  [GROUP_TONES.NEUTRAL]: "Anything else",
+const TONE_MEANINGS: Record<BoundaryTone, string> = {
+  [BOUNDARY_TONES.ORANGE]: "Cloud or runtime",
+  [BOUNDARY_TONES.BLUE]: "Tooling, monorepo, build",
+  [BOUNDARY_TONES.GREEN]: "External services and data",
+  [BOUNDARY_TONES.NEUTRAL]: "Anything else",
 };
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
@@ -76,7 +76,7 @@ export function GroupInspector({ group, onChange }: GroupInspectorProps) {
 
       <Field label="Tone" hint="Pick what the boundary is. The renderer picks the colour.">
         <div role="group" aria-label="Tone" className="space-y-1">
-          {Object.values(GROUP_TONES).map((tone) => (
+          {Object.values(BOUNDARY_TONES).map((tone) => (
             <button
               key={tone}
               type="button"
@@ -95,8 +95,8 @@ export function GroupInspector({ group, onChange }: GroupInspectorProps) {
                 aria-hidden
                 className="size-4 shrink-0 rounded-[5px] border"
                 style={{
-                  backgroundColor: GROUP_TONE_INFO[tone].fill,
-                  borderColor: GROUP_TONE_INFO[tone].border,
+                  backgroundColor: BOUNDARY_TONE_INFO[tone].fill,
+                  borderColor: BOUNDARY_TONE_INFO[tone].border,
                 }}
               />
               {TONE_MEANINGS[tone]}

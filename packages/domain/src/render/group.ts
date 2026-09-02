@@ -1,4 +1,4 @@
-import { DIAGRAM_GEOMETRY, DIAGRAM_TYPOGRAPHY, GROUP_TONE_INFO } from "../constants/diagram";
+import { DIAGRAM_GEOMETRY, DIAGRAM_TYPOGRAPHY, BOUNDARY_TONE_INFO } from "../constants/diagram";
 import type { DiagramGroup } from "../schemas/diagram";
 import { escapeXml, num } from "./svg";
 
@@ -22,8 +22,8 @@ const ICON_GAP = 5;
  * border rather than inside the box, so the border appears to break around it.
  */
 export const renderGroup = (group: DiagramGroup, paper: string): string => {
-  const tone = GROUP_TONE_INFO[group.tone];
-  const labelSize = DIAGRAM_TYPOGRAPHY.GROUP_LABEL_SIZE;
+  const tone = BOUNDARY_TONE_INFO[group.tone];
+  const labelSize = DIAGRAM_TYPOGRAPHY.BOUNDARY_LABEL_SIZE;
 
   const box =
     `<rect x="${num(group.x)}" y="${num(group.y)}" width="${num(group.w)}" height="${num(group.h)}" ` +

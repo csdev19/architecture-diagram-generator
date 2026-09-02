@@ -1,4 +1,9 @@
-import { CANVAS_TONES, DIAGRAM_GEOMETRY, DIAGRAM_LIMITS, GROUP_TONES } from "../constants/diagram";
+import {
+  CANVAS_TONES,
+  DIAGRAM_GEOMETRY,
+  DIAGRAM_LIMITS,
+  BOUNDARY_TONES,
+} from "../constants/diagram";
 import { FRAME_PADDING } from "./frame";
 import { DIAGRAM_ICON_KEYS } from "../constants/diagram-icons";
 
@@ -81,9 +86,9 @@ that frame is then cropped. Leave it out unless the user asked for a size.)
   \`${CANVAS_TONES.BLUE}\` as blueprint paper; the rest are neutral.
 - Edge labels: short and technical. Protocol names stay as they are; other words
   follow the language the user is writing in.
-- Group \`tone\` is semantic, never a colour: \`${GROUP_TONES.ORANGE}\` for the
-  primary cloud or runtime, \`${GROUP_TONES.BLUE}\` for tooling and the monorepo,
-  \`${GROUP_TONES.GREEN}\` for external services and data, \`${GROUP_TONES.NEUTRAL}\`
+- Group \`tone\` is semantic, never a colour: \`${BOUNDARY_TONES.ORANGE}\` for the
+  primary cloud or runtime, \`${BOUNDARY_TONES.BLUE}\` for tooling and the monorepo,
+  \`${BOUNDARY_TONES.GREEN}\` for external services and data, \`${BOUNDARY_TONES.NEUTRAL}\`
   for anything else. The renderer owns the palette — pick meaning and let it
   choose the hex.
 
@@ -113,7 +118,7 @@ noticeably longer line.
 
 - \`version\` must be 1.
 - Coordinates are unbounded. Nothing is rejected for being too far out.
-- At most ${DIAGRAM_LIMITS.MAX_GROUPS} groups, ${DIAGRAM_LIMITS.MIN_NODES}-${DIAGRAM_LIMITS.MAX_NODES} nodes, at most ${DIAGRAM_LIMITS.MAX_EDGES} edges.
+- At most ${DIAGRAM_LIMITS.MAX_BOUNDARIES} groups, ${DIAGRAM_LIMITS.MIN_NODES}-${DIAGRAM_LIMITS.MAX_NODES} nodes, at most ${DIAGRAM_LIMITS.MAX_EDGES} edges.
 - Node ids and group ids must each be unique.
 - Every \`edge.from\` and \`edge.to\` must name a node that exists, and an edge
   cannot connect a node to itself.

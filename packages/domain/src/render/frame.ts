@@ -78,7 +78,7 @@ const nodeBounds = (node: DiagramNode): Bounds => {
 const groupBounds = (group: DiagramGroup): Bounds => ({
   minX: group.x,
   maxX: group.x + group.w,
-  minY: group.y - DIAGRAM_TYPOGRAPHY.GROUP_LABEL_SIZE,
+  minY: group.y - DIAGRAM_TYPOGRAPHY.BOUNDARY_LABEL_SIZE,
   maxY: group.y + group.h,
 });
 

@@ -4,7 +4,7 @@ import {
   CANVAS_TONES,
   DIAGRAM_LIMITS,
   EDGE_STYLES,
-  GROUP_TONES,
+  BOUNDARY_TONES,
   TILE_VARIANTS,
 } from "../constants/diagram";
 import { DIAGRAM_ICON_KEYS } from "../constants/diagram-icons";
@@ -76,7 +76,7 @@ export const diagramGroupSchema = z.object({
   y: z.number(),
   w: z.number().positive("Group width must be positive"),
   h: z.number().positive("Group height must be positive"),
-  tone: z.enum(GROUP_TONES),
+  tone: z.enum(BOUNDARY_TONES),
   dashed: z.boolean().default(false),
   /** `false` draws the border only — used for nested groups. */
   filled: z.boolean().default(true),
@@ -116,7 +116,7 @@ const diagramConfigShape = z.object({
   background: z.enum(CANVAS_TONES).optional(),
   groups: z
     .array(diagramGroupSchema)
-    .max(DIAGRAM_LIMITS.MAX_GROUPS, `At most ${DIAGRAM_LIMITS.MAX_GROUPS} groups`),
+    .max(DIAGRAM_LIMITS.MAX_BOUNDARIES, `At most ${DIAGRAM_LIMITS.MAX_BOUNDARIES} groups`),
   nodes: z
     .array(diagramNodeSchema)
     .min(DIAGRAM_LIMITS.MIN_NODES, "A diagram needs at least one node")
@@ -240,7 +240,7 @@ export const EXAMPLE_DIAGRAM_CONFIG: DiagramConfigInput = {
       y: 60,
       w: 420,
       h: 240,
-      tone: GROUP_TONES.ORANGE,
+      tone: BOUNDARY_TONES.ORANGE,
     },
   ],
   nodes: [
