@@ -1,0 +1,101 @@
+---
+title: Stack
+description: Every load-bearing dependency, what it does here, and why it is in the tree.
+---
+
+# Stack
+
+Read this to decide whether the project's foundations suit you. One thing to
+know first: this repo was scaffolded from a personal monorepo template, so a
+large part of the tree was **inherited, not chosen for the diagram tool**. Rows
+below say which is which, because "why it was picked" is a different answer for
+each, and a stack list without that distinction is misleading.
+
+Versions are as declared in the manifests, not as resolved in the lockfile.
+Shared versions come from the workspace `catalog` in the root `package.json`,
+which is why most rows show an exact pin.
+
+## Runtime and monorepo
+
+| Technology             | Role here                                                     | Why                                                                                                                            |
+| ---------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **Bun** `1.3.4`        | Package manager, script runner and local runtime              | Template default. Workspaces plus the version `catalog` come from it, which is what keeps one Zod and one Vite across packages |
+| **Turborepo** `^2.6.3` | Task graph — `build`, `test`, `check-types`, `lint`           | Template default. `build` depends on `^build`, which is what makes `web-ui`'s `dist/` exist before an app consumes it          |
+| **TypeScript** `5.9.3` | The whole codebase                                            | Template default                                                                                                               |
+| **Cloudflare Workers** | Deploy target for the app (`wrangler.jsonc`, `nodejs_compat`) | Chosen by the "fullstack serverFn only" pattern: a single Worker, no separate API Worker and no proxy                          |
+
+The layering is DDD/hexagonal and enforced by convention, not tooling:
+`domain <- application <- infra-*`, and only apps wire them together. `domain`
+is a leaf, so importing it can never transitively pull in server code.
+
+## The diagram tool itself
+
+This is the part chosen for this product. It is deliberately tiny.
+
+| Technology                 | Role here                                           | Why                                                                                                                                                        |
+| -------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Zod** `4.3.6`            | The `DiagramConfig` contract and all its validation | Already the template's schema layer. `superRefine` gives cross-field rules that report every problem in one parse, which is what lets a model self-correct |
+| **simple-icons** `16.29.0` | Brand logo path data for the 20 `iconKey` values    | CC0-1.0 and consumable as plain data — a path string and a hex — with no loader and no DOM, so it survives inside a Worker                                 |
+
+No diagram library, no SVG builder, no layout engine: `renderSVG` and
+`layoutDiagram` are hand-written in `packages/domain/src/render/`. The reasoning
+is in the [Diagram Tool](/features/diagram-tool/) shared decisions — chiefly that
+the renderer must run unchanged in a Cloudflare Worker, and that two renderers
+would let the exported image disagree with the preview.
+
+## Application
+
+| Technology                     | Role here                                           | Why                                                                           |
+| ------------------------------ | --------------------------------------------------- | ----------------------------------------------------------------------------- |
+| **TanStack Start** `^1.141.1`  | The app framework; server logic lives in serverFns  | The pattern's defining choice — one deployable, no API Worker to keep in sync |
+| **TanStack Router** `^1.141.1` | File-based routing, including `/editor`             | Comes with Start                                                              |
+| **TanStack Query** `^5.90.12`  | Data loading and cache invalidation                 | Template default; used by the inherited Todo example, not by the editor       |
+| **TanStack Form** `^1.23.5`    | Auth forms                                          | Template default; unused by the diagram tool                                  |
+| **React** `19.2.3`             | UI                                                  | Template default                                                              |
+| **Vite** `7.3.1`               | Dev server and build, via `@cloudflare/vite-plugin` | Comes with Start; the Cloudflare plugin is what runs the Worker locally       |
+
+## Data and auth — inherited, unused by the diagram tool
+
+The editor is entirely client-side and touches none of this. It is listed
+because it is in the tree and it builds.
+
+| Technology                                | Role here                                  | Why                                     |
+| ----------------------------------------- | ------------------------------------------ | --------------------------------------- |
+| **Drizzle ORM** `^0.45.1` + `drizzle-kit` | Schema, migrations, repositories           | Template default                        |
+| **Neon serverless** `^1.0.2` (+ `ws`)     | Postgres over HTTP/WebSocket from a Worker | Template default — Postgres, **not D1** |
+| **better-auth** `1.4.18`                  | Sessions and the `/api/auth/*` route       | Template default                        |
+
+## UI
+
+| Technology                                                                                               | Role here                                                          | Why                                                                                                                     |
+| -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| **Tailwind CSS** `4.1.18`                                                                                | All app styling                                                    | Template default. One Tailwind build per app, owned by the app — `web-ui` must never import a stylesheet from its entry |
+| **shadcn/ui** + **@base-ui/react** `^1.0.0`                                                              | Component primitives in `packages/web-ui`                          | Template default; the tokens in `web-ui/src/styles.css` are stock shadcn defaults, unmodified                           |
+| **lucide-react**, **sonner**, **cva**, **clsx**, **tailwind-merge**, **tw-animate-css**, **next-themes** | Icons, toasts, variants, class merging, animation, theme switching | Template defaults, standard shadcn companions                                                                           |
+
+`@diagram-tool/web-ui` resolves to `src/` under the `development` condition and
+to `dist/` otherwise, and `dist/` is git-ignored — a fresh clone must build it
+before the app. See [web-ui Package](/web-ui-package).
+
+## Build, quality and docs
+
+| Technology                                          | Role here                                       | Why                                                                                  |
+| --------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------ |
+| **tsdown** `0.18.4`                                 | Builds the `packages/*` libraries to `dist/`    | Template default                                                                     |
+| **vite-plugin-dts**, **vite-plugin-lib-inject-css** | `web-ui`'s types and per-component CSS          | Template default                                                                     |
+| **oxlint** `^1.34.0` + **oxfmt** `^0.19.0`          | Lint and format                                 | Template default                                                                     |
+| **husky** `^9.1.7` + **lint-staged** `^16.1.2`      | Pre-commit lint and format                      | Template default                                                                     |
+| **Vitest** `^4.1.9`                                 | Tests in `domain`, `web-ui` and the app         | Template default                                                                     |
+| **jsdom** + **Testing Library**                     | The app's component tests, added for the editor | Needed for drag-and-drop tests; jsdom has no `PointerEvent`, so the rig polyfills it |
+| **Astro** `^5.6.1` + **Starlight** `^0.37.6`        | This documentation site                         | Template default; `astro-mermaid` and `sharp` come with it                           |
+
+## Known rough edges
+
+- The root `db:*` scripts invoke `dotenvx`, which is **not declared** in any
+  manifest. It resolves today only because it is present transitively.
+- `apps/documentation` pins `zod@3.24.4` while everything else is on the
+  catalog's `4.3.6`. The docs app shares no code with the rest of the workspace,
+  so the two versions coexist without conflict, but the pin is undocumented and
+  nothing records why it is held back.
+- The template's Todo CRUD example, auth pages and database layer are still
+  present and still build. They are not part of the diagram tool.

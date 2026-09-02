@@ -8,13 +8,30 @@ export default defineConfig({
   integrations: [
     mermaid(),
     starlight({
-      title: "Monorepo Template",
+      title: "Diagram Tool",
       lastUpdated: true,
-      social: [{ icon: "github", label: "GitHub", href: "https://github.com/withastro/starlight" }],
+      social: [
+        {
+          icon: "github",
+          label: "GitHub",
+          href: "https://github.com/csdev19/architecture-diagram-generator",
+        },
+      ],
       sidebar: [
         {
           label: "Getting Started",
           items: [{ slug: "index" }],
+        },
+        {
+          label: "Briefings",
+          items: [
+            { slug: "briefings" },
+            { slug: "briefings/pitch" },
+            { slug: "briefings/roadmap" },
+            { slug: "briefings/ai-briefing" },
+            { slug: "briefings/stack" },
+            { slug: "briefings/design-brief" },
+          ],
         },
         {
           label: "Architecture",

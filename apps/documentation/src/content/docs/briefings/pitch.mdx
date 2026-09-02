@@ -1,0 +1,83 @@
+---
+title: Pitch
+description: Why this project exists — architecture diagrams a model can write and a person can then drag into shape.
+---
+
+# Pitch
+
+You are explaining your stack to someone. Maybe it is a README, maybe an
+onboarding doc, maybe a slide. You know exactly what the picture should look
+like: a row of boxes for the request path, a tinted region for the cloud
+provider, a dashed line for the thing that happens out of band. Drawing it takes
+forty minutes. Changing one box later takes another twenty, because you have to
+reopen whatever you drew it in and remember how it was built.
+
+So most people do one of three things. They draw it by hand in a canvas tool,
+which looks good and is miserable to keep current. They write it in a text
+diagramming language, which stays current but produces a layout the tool chose,
+not the one they wanted. Or they ask an AI, and get back either a description of
+a diagram or a picture where the boxes say roughly the right words in roughly
+the wrong places. Each of those is a fine tool having a bad time with this one
+job: a diagram that has to be both **specific** and **maintained**.
+
+## What it is
+
+A diagram here is not a drawing. It is a JSON document — a canvas, some tinted
+groups, a set of nodes with real brand logos, and edges between them — and a
+single function turns that document into an SVG. That is the whole idea. The
+document is small enough for a model to write correctly and structured enough
+for a person to edit afterwards.
+
+```json
+{
+  "version": 1,
+  "title": "api-simple",
+  "canvas": { "w": 700, "h": 360 },
+  "groups": [{ "id": "cf", "label": "CLOUDFLARE", "icon": "☁️",
+               "x": 240, "y": 60, "w": 420, "h": 240, "tone": "orange" }],
+  "nodes": [
+    { "id": "user", "x": 110, "y": 180, "emoji": "🖥️", "name": "User", "sub": "browser" },
+    { "id": "hono", "x": 350, "y": 180, "iconKey": "hono", "name": "Hono", "sub": "http server" }
+  ],
+  "edges": [{ "from": "user", "to": "hono", "out": "r", "inn": "l", "label": "HTTPS" }]
+}
+```
+
+Paste that into `/editor` and the diagram appears. Drag a tile and the JSON
+rewrites itself.
+
+## Why it is built this way
+
+**A model can write this, and be told when it is wrong.** The schema does not
+just reject bad input, it explains it: which node sits inside the canvas margin,
+which edge points at an id that does not exist, and what the available ids are.
+Every problem is reported at once, so a model fixes them in one pass instead of
+discovering them one turn at a time.
+
+**The text is the only source of truth, always.** Dragging a tile is not a
+different mode from typing — a drag parses the JSON, moves the node, and prints
+the JSON back. There is no hidden canvas state that the document can drift away
+from, which means the file you save reopens as exactly the diagram you left.
+
+**One renderer, so nothing can disagree.** The preview in the browser and the
+exported image come out of the same pure function. There is no second drawing
+path that could quietly render something else.
+
+**You choose meaning; the palette is not yours to pick.** A group gets a `tone`
+— orange for the cloud provider, blue for tooling — and a node gets an
+`iconKey`. The renderer owns every colour and works out what stays legible on a
+dark tile. That is why diagrams made months apart still look like a set, and why
+changing the palette restyles all of them at once.
+
+## Who it is for
+
+Developers who write about their own systems and want the picture to survive the
+next refactor — and who are already working with an AI assistant that could
+produce the config in the first place.
+
+**Who it is not for, honestly.** Anyone who needs freeform drawing: this renders
+boxes, groups and orthogonal edges, and nothing else. Anyone who needs a
+finished product today — it runs locally from a clone, nothing is published or
+deployed, there is no release, and the schema can still change. And anyone
+expecting the AI half to be automatic: today you paste a config into the editor
+yourself. Having a model hand one over directly is designed, not built.

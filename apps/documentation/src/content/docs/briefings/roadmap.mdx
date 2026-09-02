@@ -1,0 +1,65 @@
+---
+title: Roadmap
+description: What is built, what is in review, and what is committed but not started.
+---
+
+# Roadmap
+
+**Last reviewed: 2026-09-02.** Status was determined from pull request state —
+`gh pr list --state merged` and `--state open` — not from the plan documents in
+`docs/plans/`, which record intent and lag reality. There are no git tags and no
+releases, so PR state is the only ground truth here.
+
+## Shipped
+
+Merged to `main`. Two PRs, both on 2026-09-01.
+
+| Capability            | What it means                                                                                                                                                        | Landed in |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| Monorepo customised   | The template reduced to the "fullstack serverFn only" pattern — one TanStack Start app on Workers, no API Worker — with the architecture and docs rewritten to match | PR #1     |
+| The diagram contract  | `DiagramConfig` in `packages/domain`: the Zod schema, its author-facing error messages, the geometry and palette constants, and the authoring guidelines string      | PR #2     |
+| The renderer          | `renderSVG` — a pure, deterministic string builder with no DOM or Node APIs, so it can run unchanged inside a Worker                                                 | PR #2     |
+| A read-only `/editor` | Two panes: JSON on the left, live preview on the right, with SVG and 2x PNG export done in the browser                                                               | PR #2     |
+
+## In flight
+
+Three branches are open at once. They are not a queue — #5 builds on #3, while
+#4 is independent.
+
+| Work                                   | State                                                                                                                                                                                              | What gates it                                                                                             |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **Brand logos** (PR #3)                | A 20-key `iconKey` registry built on `simple-icons`, plus a WCAG contrast rule that picks a legible fill per tile. Technologies with no entry keep an emoji                                        | Review only                                                                                               |
+| **Visual editing** (PR #5)             | Tiles drag and snap, a click opens an inspector, edges are drawn by clicking two tiles, and **Arrange** re-places nodes from the topology. Every edit is a text-to-text transformation of the JSON | Stacked on #3, so it merges second. One open question in review: native `<select>` vs the design system's |
+| **Worker rasterisation spike** (PR #4) | Deliberately Task 1 of the API plan and nothing else: proof that `@resvg/resvg-wasm` renders inside the Worker, behind a throwaway route                                                           | Scope was capped on purpose; the rest of that plan is paused (below)                                      |
+
+The spike settled the one question that blocked the whole server-side phase:
+Cloudflare Workers refuse runtime WebAssembly compilation, so the wasm has to be
+a **bundled import** compiled at deploy. Fetching the binary and instantiating it
+fails with "Wasm code generation disallowed by embedder". The assets binding
+stays viable for data — which is how fonts will load — but never for code.
+
+## Next
+
+Committed direction, not started. This is the whole of it — there is no backlog
+beyond this list, and nothing here has a date.
+
+**Finish the server-side render and the MCP server** (`docs/plans/2026-09-01-diagram-tool-next-phases-02-api-mcp.md`,
+Tasks 2–6). Paused by an explicit decision on 2026-09-01 in favour of building
+the visual editor first. It matters because it is the half of the original
+thesis that does not exist yet: today a person pastes a config into the editor
+by hand, and the point of the project is that a model hands one over directly.
+The remaining tasks are font embedding, an R2 store with REST endpoints, loading
+a saved diagram by id in the editor, the MCP endpoint itself, and deployment.
+
+Two of those cannot be done from the repo alone: the store needs a Cloudflare
+account with a bucket and a secret, and registering the MCP server as a
+connector is a manual step in the Claude interface. That is why the phase was
+paused rather than pushed through.
+
+**Known smaller gaps**, recorded so they are not rediscovered:
+
+- Auto-layout re-places nodes but leaves group boxes where they were, so
+  **Arrange** breaks a hand-composed grouped diagram. `layoutDiagram` would need
+  to recompute each group's box from the nodes it contains.
+- The icon registry has 20 keys. Anything outside it falls back to an emoji,
+  which works as designed but is the obvious thing to grow with use.
