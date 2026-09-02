@@ -1,0 +1,42 @@
+---
+title: "September 02, 2026 - The editor edits a document"
+description: The editor's text becomes the v2 document, every gesture writes to exactly one half of it, and the layout is pinned before anything can re-flow.
+date: 2026-09-02
+tags:
+  - changelog
+  - feature
+---
+
+✨ **Feature** — the textarea holds a `DiagramDocument` now. It is still the
+only state on the page, and every gesture still parses it, mutates raw JSON and
+prints it back — what changed is where a gesture writes.
+
+- Dragging a tile writes `layout.nodes`. It touches nothing in `content`.
+- Renaming one writes `content.nodes`. It touches nothing in `layout`.
+- An edge's label and style are content; the sides it leaves and arrives at are
+  layout, and the edges panel now edits the two through separate handlers.
+- Arrange is the smallest mutation in the editor: it deletes `layout.nodes` and
+  hands placement back to auto-layout.
+
+The seed is content-only, which is the demonstration that a document with no
+geometry in it draws a complete diagram.
+
+🧲 **Layout is materialised on first touch.** Auto-layout is a function of the
+whole document, so supplying a position for one tile can legally move the tiles
+that had none — correct for a document, wrong for a gesture. The first touch
+that could re-flow the drawing writes down what is already on screen, and from
+then on the picture only changes where it is told to.
+
+↩️ **Escape restores the text the gesture began with**, not just the coordinate
+that moved. A drag settles the layout before it moves anything, so putting one
+number back would leave the rest of its work in place.
+
+🧹 **Deleting tidies up after itself.** A deleted element takes its layout
+entries with it — a key naming something that is gone is a validation error, not
+a silent drop — and a group left with no node is dissolved rather than reported,
+with its boundary handed the rectangle it had on screen a moment earlier.
+
+📐 **A grouped boundary has padding, not a rectangle.** Its geometry is derived
+from what it frames, so the inspector offers `tight` / `normal` / `loose`
+instead of four number fields it could not honour. A boundary you drew yourself
+belongs to no group and keeps its rectangle.
