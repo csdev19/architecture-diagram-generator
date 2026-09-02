@@ -4,7 +4,7 @@ import { renderBackground, renderGridPattern } from "./background";
 import { renderEdge, renderEdgeMarkers } from "./edge";
 import { resolveFrame } from "./frame";
 import type { DiagramFrame } from "./frame";
-import { renderGroup } from "./group";
+import { renderBoundary } from "./boundary";
 import { renderNode } from "./node";
 import { num } from "./svg";
 
@@ -36,8 +36,8 @@ export interface RenderOptions {
  * what the editor showed. `options` changes only the framing — which part of
  * the drawing is in view — never the drawing.
  *
- * Layer order matters — background, then groups, then edges, then nodes — so a
- * group tint never covers an edge and an edge never crosses over a tile.
+ * Layer order matters — background, then boundaries, then edges, then nodes — so a
+ * boundary tint never covers an edge and an edge never crosses over a tile.
  */
 export const renderSVG = (config: DiagramConfig, options: RenderOptions = {}): string => {
   const frame = options.frame ?? resolveFrame(config);
@@ -49,7 +49,7 @@ export const renderSVG = (config: DiagramConfig, options: RenderOptions = {}): s
   const paper = CANVAS_TONE_INFO[config.background ?? CANVAS_TONES.GREY];
 
   const defs = `<defs>${renderGridPattern()}${renderEdgeMarkers()}</defs>`;
-  const groups = config.groups.map((group) => renderGroup(group, paper)).join("");
+  const boundaries = config.boundaries.map((boundary) => renderBoundary(boundary, paper)).join("");
   const edges = config.edges.map((edge) => renderEdge(edge, nodeById, paper)).join("");
   const nodes = config.nodes.map(renderNode).join("");
 
@@ -59,7 +59,7 @@ export const renderSVG = (config: DiagramConfig, options: RenderOptions = {}): s
     `font-family="${DIAGRAM_TYPOGRAPHY.NAME_FAMILY}">` +
     defs +
     (options.background === false ? "" : renderBackground(frame, paper)) +
-    groups +
+    boundaries +
     edges +
     nodes +
     `</svg>`

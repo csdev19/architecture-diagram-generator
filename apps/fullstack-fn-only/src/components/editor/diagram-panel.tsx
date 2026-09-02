@@ -47,7 +47,7 @@ export function DiagramPanel({ config, onBackgroundChange }: DiagramPanelProps) 
       <div className="space-y-1.5">
         <span className="block text-[12.5px] font-medium text-ed-text">Paper</span>
 
-        <div role="group" aria-label="Paper" className="flex gap-2">
+        <div role="boundary" aria-label="Paper" className="flex gap-2">
           {TONE_ORDER.map((tone) => (
             <button
               key={tone}

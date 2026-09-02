@@ -121,7 +121,7 @@ export const DIAGRAM_GEOMETRY = {
   /** Tile is a square of this side. */
   TILE_SIZE: 62,
   TILE_RADIUS: 14,
-  GROUP_RADIUS: 14,
+  BOUNDARY_RADIUS: 14,
   /** Background grid cell. */
   GRID_CELL: 26,
   /** Gap between a tile edge and the start of its edge line. */

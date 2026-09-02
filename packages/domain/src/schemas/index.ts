@@ -20,14 +20,15 @@ export {
 export {
   diagramConfigSchema,
   diagramNodeSchema,
-  diagramGroupSchema,
+  diagramBoundarySchema,
   diagramEdgeSchema,
+  deriveEdgeIds,
   validateDiagramConfig,
   formatDiagramIssues,
   EXAMPLE_DIAGRAM_CONFIG,
   type DiagramConfig,
   type DiagramConfigInput,
   type DiagramNode,
-  type DiagramGroup,
+  type DiagramBoundary,
   type DiagramEdge,
 } from "./diagram";

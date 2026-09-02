@@ -26,7 +26,7 @@ describe("DIAGRAM_GUIDELINES", () => {
     expect(DIAGRAM_GUIDELINES).toContain("Do NOT emit a `canvas`");
   });
 
-  it("names every group tone the schema accepts", () => {
+  it("names every boundary tone the schema accepts", () => {
     for (const tone of Object.values(BOUNDARY_TONES)) {
       expect(DIAGRAM_GUIDELINES, `guidelines never mention the "${tone}" tone`).toContain(tone);
     }

@@ -8,6 +8,7 @@ import {
   removeNode,
   setNodePosition,
   snapToGrid,
+  updateEdgeFields,
   updateNodeFields,
 } from "../use-diagram-editing";
 
@@ -50,7 +51,7 @@ describe("moveNode", () => {
     const after = moveNode(before, "hono", 300, 200);
 
     expect(parse(after).edges).toEqual(parse(before).edges);
-    expect(parse(after).groups).toEqual(parse(before).groups);
+    expect(parse(after).boundaries).toEqual(parse(before).boundaries);
     expect(parse(after).canvas).toEqual(parse(before).canvas);
   });
 
@@ -198,18 +199,53 @@ describe("addEdge", () => {
 });
 
 describe("removeEdge", () => {
-  it("drops the edge at the index and keeps the rest in order", () => {
+  it("drops the edge with that id and keeps the rest in order", () => {
+    // The seed writes no edge ids: they are derived from the endpoints, and a
+    // gesture has to reach an edge through the id the schema would give it.
     const before = seed();
-    const after = removeEdge(before, 0);
+    const after = removeEdge(before, "user-hono");
 
     expect(parse(after).edges).toEqual(parse(before).edges.slice(1));
   });
 
-  it("is a no-op for an index that does not exist", () => {
+  it("is a no-op for an id no edge carries", () => {
     const before = seed();
 
-    expect(removeEdge(before, 99)).toBe(before);
-    expect(removeEdge(before, -1)).toBe(before);
+    expect(removeEdge(before, "nope")).toBe(before);
+  });
+});
+
+describe("updateEdgeFields", () => {
+  /** Two edges between the same pair, so only the id can tell them apart. */
+  const twoWay = () =>
+    JSON.stringify(
+      {
+        version: 1,
+        title: "t",
+        boundaries: [],
+        nodes: [
+          { id: "a", x: 0, y: 0, emoji: "a", name: "A" },
+          { id: "b", x: 200, y: 0, emoji: "b", name: "B" },
+        ],
+        edges: [
+          { id: "a-b", from: "a", to: "b", out: "r", inn: "l" },
+          { id: "b-a", from: "b", to: "a", out: "l", inn: "r" },
+        ],
+      },
+      null,
+      2,
+    );
+
+  it("edits the edge with the given id, whatever its position", () => {
+    const next = parse(updateEdgeFields(twoWay(), "b-a", { label: "retry" }));
+
+    expect((next.edges as Array<Record<string, unknown>>)[1]?.label).toBe("retry");
+    expect((next.edges as Array<Record<string, unknown>>)[0]?.label).toBeUndefined();
+  });
+
+  it("is a no-op when no edge carries that id", () => {
+    const before = twoWay();
+    expect(updateEdgeFields(before, "nope", { label: "x" })).toBe(before);
   });
 });
 
@@ -222,14 +258,14 @@ describe("editing text that is not valid JSON", () => {
     expect(moveNode(broken, "hono", 10, 10)).toBe(broken);
     expect(updateNodeFields(broken, "hono", { name: "x" })).toBe(broken);
     expect(addEdge(broken, { from: "a", to: "b", out: "r", inn: "l" })).toBe(broken);
-    expect(removeEdge(broken, 0)).toBe(broken);
+    expect(removeEdge(broken, "a-b")).toBe(broken);
   });
 
   it("is a no-op when the JSON parses but has no nodes array", () => {
     const shapeless = JSON.stringify({ version: 1 }, null, 2);
 
     expect(moveNode(shapeless, "hono", 10, 10)).toBe(shapeless);
-    expect(removeEdge(shapeless, 0)).toBe(shapeless);
+    expect(removeEdge(shapeless, "a-b")).toBe(shapeless);
   });
 });
 

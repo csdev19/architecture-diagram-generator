@@ -19,7 +19,7 @@ describe("diagramConfigSchema", () => {
     const parsed = diagramConfigSchema.parse({
       version: 1,
       canvas: { w: 700, h: 360 },
-      groups: [],
+      boundaries: [],
       nodes: [{ id: "a", x: 200, y: 180, emoji: "🖥️", name: "User" }],
       edges: [],
     });
@@ -29,12 +29,12 @@ describe("diagramConfigSchema", () => {
     expect(parsed.nodes[0]?.tile).toBe("light");
   });
 
-  it("applies group and edge defaults", () => {
+  it("applies boundary and edge defaults", () => {
     const config = validConfig();
     const parsed = diagramConfigSchema.parse(config);
 
-    expect(parsed.groups[0]?.dashed).toBe(false);
-    expect(parsed.groups[0]?.filled).toBe(true);
+    expect(parsed.boundaries[0]?.dashed).toBe(false);
+    expect(parsed.boundaries[0]?.filled).toBe(true);
     expect(parsed.edges[0]?.style).toBe("solid");
   });
 
@@ -77,10 +77,10 @@ describe("diagramConfigSchema", () => {
     );
   });
 
-  it("names the repeated id when two groups share one", () => {
+  it("names the repeated id when two boundaries share one", () => {
     const config = validConfig();
-    const groups = config.groups as Array<Record<string, unknown>>;
-    groups.push({ ...groups[0]! });
+    const boundaries = config.boundaries as Array<Record<string, unknown>>;
+    boundaries.push({ ...boundaries[0]! });
 
     expect(messagesFor(config).some((m) => m.includes("unique"))).toBe(true);
   });
@@ -112,9 +112,9 @@ describe("diagramConfigSchema", () => {
     expect(diagramConfigSchema.safeParse(config).success).toBe(false);
   });
 
-  it("rejects an unknown group tone", () => {
+  it("rejects an unknown boundary tone", () => {
     const config = validConfig();
-    (config.groups as Array<Record<string, unknown>>)[0]!.tone = "purple";
+    (config.boundaries as Array<Record<string, unknown>>)[0]!.tone = "purple";
 
     expect(diagramConfigSchema.safeParse(config).success).toBe(false);
   });
@@ -149,6 +149,75 @@ describe("diagramConfigSchema", () => {
   });
 });
 
+describe("edge ids", () => {
+  /** A two-node config whose edges the test supplies. */
+  const configWithEdges = (edges: Array<Record<string, unknown>>) => ({
+    version: 1,
+    boundaries: [],
+    nodes: [
+      { id: "user", x: 110, y: 180, emoji: "🖥️", name: "User" },
+      { id: "hono", x: 350, y: 180, emoji: "🔥", name: "Hono" },
+    ],
+    edges,
+  });
+
+  it("derives an edge id from its endpoints when the author omits one", () => {
+    const result = validateDiagramConfig(
+      configWithEdges([{ from: "user", to: "hono", out: "r", inn: "l" }]),
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.config.edges[0]?.id).toBe("user-hono");
+  });
+
+  it("suffixes a derived id when the same pair is connected twice", () => {
+    const result = validateDiagramConfig(
+      configWithEdges([
+        { from: "user", to: "hono", out: "r", inn: "l" },
+        { from: "user", to: "hono", out: "b", inn: "t", style: "dashed" },
+      ]),
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.config.edges.map((edge) => edge.id)).toEqual(["user-hono", "user-hono-2"]);
+    }
+  });
+
+  it("keeps an id the author wrote", () => {
+    const result = validateDiagramConfig(
+      configWithEdges([{ id: "login", from: "user", to: "hono", out: "r", inn: "l" }]),
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.config.edges[0]?.id).toBe("login");
+  });
+
+  it("rejects two edges that were given the same id", () => {
+    const result = validateDiagramConfig(
+      configWithEdges([
+        { id: "same", from: "user", to: "hono", out: "r", inn: "l" },
+        { id: "same", from: "hono", to: "user", out: "l", inn: "r" },
+      ]),
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors.join("\n")).toContain('duplicate id "same"');
+  });
+
+  it("never collides a derived id with one the author wrote", () => {
+    const result = validateDiagramConfig(
+      configWithEdges([
+        { id: "user-hono", from: "hono", to: "user", out: "l", inn: "r" },
+        { from: "user", to: "hono", out: "r", inn: "l" },
+      ]),
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.config.edges[1]?.id).toBe("user-hono-2");
+  });
+});
+
 /**
  * The phase-0 example frozen as a literal. `EXAMPLE_DIAGRAM_CONFIG` itself
  * gained `iconKey`s in phase 1.5, so it can no longer stand as the guarantee
@@ -158,7 +227,7 @@ const PHASE_0_CONFIG = {
   version: 1,
   title: "api-simple",
   canvas: { w: 700, h: 360 },
-  groups: [
+  boundaries: [
     { id: "cf", label: "CLOUDFLARE", icon: "☁️", x: 240, y: 60, w: 420, h: 240, tone: "orange" },
   ],
   nodes: [
@@ -176,7 +245,7 @@ const PHASE_0_CONFIG = {
 const configWithNode = (node: Record<string, unknown>) => ({
   version: 1,
   canvas: { w: 700, h: 360 },
-  groups: [],
+  boundaries: [],
   nodes: [{ id: "a", x: 200, y: 180, name: "Thing", ...node }],
   edges: [],
 });

@@ -7,10 +7,10 @@ import type { EdgePatch } from "@/components/editor/use-diagram-editing";
 /**
  * The edges tab.
  *
- * Edges have no id, so everything here addresses them by position — which is
- * the config's own model rather than a shortcut: an edge is a relation between
- * two node ids, not an entity. Removing one therefore renumbers the rows below
- * it.
+ * Every row addresses its edge by id, so removing one leaves the others
+ * pointing at exactly what they pointed at before. The number beside a control
+ * is only there to keep the accessible names apart on screen; nothing edits by
+ * position any more.
  *
  * Adding is a two-click gesture with the arrow tool rather than a pair of
  * dropdowns: picking tiles is how you think about a diagram, and it lets the
@@ -20,8 +20,8 @@ import type { EdgePatch } from "@/components/editor/use-diagram-editing";
 
 interface EdgeToolsProps {
   edges: DiagramEdge[];
-  onUpdate: (index: number, patch: EdgePatch) => void;
-  onRemove: (index: number) => void;
+  onUpdate: (id: string, patch: EdgePatch) => void;
+  onRemove: (id: string) => void;
 }
 
 const rowControl = cn(
@@ -46,10 +46,7 @@ export function EdgeTools({ edges, onUpdate, onRemove }: EdgeToolsProps) {
           const dashed = edge.style === EDGE_STYLES.DASHED;
 
           return (
-            // Edges are positional and two of them may be identical in every
-            // field, so the index genuinely is the identity here.
-            // eslint-disable-next-line react/no-array-index-key
-            <li key={index} className="space-y-1.5 border-b border-ed-border py-2.5">
+            <li key={edge.id} className="space-y-1.5 border-b border-ed-border py-2.5">
               <div className="flex items-center gap-2">
                 <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ed-text">
                   {edge.from} → {edge.to}
@@ -59,7 +56,7 @@ export function EdgeTools({ edges, onUpdate, onRemove }: EdgeToolsProps) {
                   type="button"
                   aria-label={`Edge ${index + 1} style`}
                   onClick={() =>
-                    onUpdate(index, {
+                    onUpdate(edge.id, {
                       style: dashed ? EDGE_STYLES.SOLID : EDGE_STYLES.DASHED,
                     })
                   }
@@ -76,7 +73,7 @@ export function EdgeTools({ edges, onUpdate, onRemove }: EdgeToolsProps) {
                 <button
                   type="button"
                   aria-label={`Remove edge ${edge.from} to ${edge.to}`}
-                  onClick={() => onRemove(index)}
+                  onClick={() => onRemove(edge.id)}
                   className={cn(
                     "flex size-[30px] shrink-0 items-center justify-center rounded-[6px]",
                     "text-ed-text-3 transition-colors duration-[140ms] outline-none",
@@ -95,7 +92,7 @@ export function EdgeTools({ edges, onUpdate, onRemove }: EdgeToolsProps) {
                   value={edge.label ?? ""}
                   maxLength={DIAGRAM_LIMITS.TEXT_MAX}
                   onChange={(event) =>
-                    onUpdate(index, {
+                    onUpdate(edge.id, {
                       label: event.target.value.slice(0, DIAGRAM_LIMITS.TEXT_MAX) || undefined,
                     })
                   }
@@ -106,7 +103,7 @@ export function EdgeTools({ edges, onUpdate, onRemove }: EdgeToolsProps) {
                   aria-label={`Out ${index + 1}`}
                   value={edge.out}
                   onChange={(event) =>
-                    onUpdate(index, { out: event.target.value as DiagramEdge["out"] })
+                    onUpdate(edge.id, { out: event.target.value as DiagramEdge["out"] })
                   }
                   className={rowControl}
                 >
@@ -121,7 +118,7 @@ export function EdgeTools({ edges, onUpdate, onRemove }: EdgeToolsProps) {
                   aria-label={`In ${index + 1}`}
                   value={edge.inn}
                   onChange={(event) =>
-                    onUpdate(index, { inn: event.target.value as DiagramEdge["inn"] })
+                    onUpdate(edge.id, { inn: event.target.value as DiagramEdge["inn"] })
                   }
                   className={rowControl}
                 >

@@ -3,7 +3,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { DIAGRAM_GEOMETRY } from "@diagram-tool/domain/constants";
 import type { CanvasTone } from "@diagram-tool/domain/constants";
 import { layoutDiagram } from "@diagram-tool/domain/render";
-import { validateDiagramConfig } from "@diagram-tool/domain/schemas";
+import { deriveEdgeIds, validateDiagramConfig } from "@diagram-tool/domain/schemas";
 import type { DiagramConfigInput } from "@diagram-tool/domain/schemas";
 
 /**
@@ -157,77 +157,79 @@ export const removeNode = (text: string, id: string): string =>
     return true;
   });
 
-type GroupInput = DiagramConfigInput["groups"][number];
+type BoundaryInput = DiagramConfigInput["boundaries"][number];
 
-/** A partial group update. An `undefined` value removes the field entirely. */
-export type GroupPatch = Partial<GroupInput>;
+/** A partial boundary update. An `undefined` value removes the field entirely. */
+export type BoundaryPatch = Partial<BoundaryInput>;
 
-/** The group with this id, if the config has one to find. */
-const findGroup = (config: RawRecord, id: string): RawRecord | undefined => {
-  if (!Array.isArray(config.groups)) return undefined;
-  return config.groups.find((group) => isRecord(group) && group.id === id) as RawRecord | undefined;
+/** The boundary with this id, if the config has one to find. */
+const findBoundary = (config: RawRecord, id: string): RawRecord | undefined => {
+  if (!Array.isArray(config.boundaries)) return undefined;
+  return config.boundaries.find((boundary) => isRecord(boundary) && boundary.id === id) as
+    | RawRecord
+    | undefined;
 };
 
 /**
- * Appends a group, snapped to the grid.
+ * Appends a boundary, snapped to the grid.
  *
- * Prepended rather than pushed would be wrong: the renderer draws groups in
+ * Prepended rather than pushed would be wrong: the renderer draws boundaries in
  * array order, so the newest has to be last to sit on top of the ones it
  * overlaps — which is also what makes hit-testing back-to-front correct.
  */
-export const addGroup = (text: string, group: GroupInput): string =>
+export const addBoundary = (text: string, boundary: BoundaryInput): string =>
   editConfig(text, (config) => {
-    if (!Array.isArray(config.groups)) return false;
+    if (!Array.isArray(config.boundaries)) return false;
 
-    config.groups.push({
-      ...group,
-      x: snapToGrid(group.x),
-      y: snapToGrid(group.y),
-      w: snapToGrid(group.w),
-      h: snapToGrid(group.h),
+    config.boundaries.push({
+      ...boundary,
+      x: snapToGrid(boundary.x),
+      y: snapToGrid(boundary.y),
+      w: snapToGrid(boundary.w),
+      h: snapToGrid(boundary.h),
     });
     return true;
   });
 
-/** Patches a group's fields. A field set to `undefined` is removed. */
-export const updateGroupFields = (text: string, id: string, patch: GroupPatch): string =>
+/** Patches a boundary's fields. A field set to `undefined` is removed. */
+export const updateBoundaryFields = (text: string, id: string, patch: BoundaryPatch): string =>
   editConfig(text, (config) => {
-    const group = findGroup(config, id);
-    if (!group) return false;
+    const boundary = findBoundary(config, id);
+    if (!boundary) return false;
 
     for (const [key, value] of Object.entries(patch)) {
-      if (value === undefined) delete group[key];
-      else group[key] = value;
+      if (value === undefined) delete boundary[key];
+      else boundary[key] = value;
     }
     return true;
   });
 
-/** Moves a group's top-left corner, snapped. Its size is unchanged. */
-export const moveGroup = (text: string, id: string, x: number, y: number): string =>
+/** Moves a boundary's top-left corner, snapped. Its size is unchanged. */
+export const moveBoundary = (text: string, id: string, x: number, y: number): string =>
   editConfig(text, (config) => {
-    const group = findGroup(config, id);
-    if (!group) return false;
+    const boundary = findBoundary(config, id);
+    if (!boundary) return false;
 
-    group.x = snapToGrid(x);
-    group.y = snapToGrid(y);
+    boundary.x = snapToGrid(x);
+    boundary.y = snapToGrid(y);
     return true;
   });
 
 /**
- * Removes a group.
+ * Removes a boundary.
  *
- * Nothing else goes with it: a group is a box drawn around nodes, not a parent
+ * Nothing else goes with it: a boundary is a box drawn around nodes, not a parent
  * of them. The nodes it enclosed stay exactly where they were, which is the
- * whole reason grouping is cheap to try.
+ * whole reason a boundary is cheap to try.
  */
-export const removeGroup = (text: string, id: string): string =>
+export const removeBoundary = (text: string, id: string): string =>
   editConfig(text, (config) => {
-    if (!Array.isArray(config.groups)) return false;
+    if (!Array.isArray(config.boundaries)) return false;
 
-    const kept = config.groups.filter((group) => !isRecord(group) || group.id !== id);
-    if (kept.length === config.groups.length) return false;
+    const kept = config.boundaries.filter((boundary) => !isRecord(boundary) || boundary.id !== id);
+    if (kept.length === config.boundaries.length) return false;
 
-    config.groups = kept;
+    config.boundaries = kept;
     return true;
   });
 
@@ -238,25 +240,83 @@ export const setBackground = (text: string, tone: CanvasTone): string =>
     return true;
   });
 
-/** Appends an edge. */
+/**
+ * Appends an edge, writing an id only when the derived one would be ambiguous.
+ *
+ * Normally the id stays out of the text: `from` and `to` already identify the
+ * edge, and a field the author never has to write is one they never have to
+ * read. The exception is a second connection between the same pair, whose
+ * derived id depends on which of the two comes first in the array — reordering
+ * them by hand would then swap their identities, which is the instability ids
+ * exist to remove. So that one gets written down.
+ */
 export const addEdge = (text: string, edge: EdgeInput): string =>
   editConfig(text, (config) => {
     if (!Array.isArray(config.edges)) return false;
 
-    config.edges.push({ ...edge });
+    const samePair = config.edges.some(
+      (existing) => isRecord(existing) && existing.from === edge.from && existing.to === edge.to,
+    );
+
+    if (!samePair) {
+      config.edges.push({ ...edge });
+      return true;
+    }
+
+    const taken = new Set(effectiveEdgeIds(config.edges));
+    const base = `${edge.from}-${edge.to}`;
+    let id = base;
+    let suffix = 2;
+    while (taken.has(id)) {
+      id = `${base}-${suffix}`;
+      suffix += 1;
+    }
+
+    config.edges.push({ ...edge, id });
     return true;
   });
 
 /** A partial edge update. An `undefined` value removes the field entirely. */
 export type EdgePatch = Partial<EdgeInput>;
 
-/** Patches the edge at `index`. Edges have no id, so position is the handle. */
-export const updateEdgeFields = (text: string, index: number, patch: EdgePatch): string =>
+/**
+ * The stand-in for an edge too malformed to identify.
+ *
+ * It keeps its slot rather than being filtered out, so a broken entry cannot
+ * shift the ids of the entries after it, and its endpoints are a pair no real
+ * edge can have — a node id cannot be blank — so nothing matches it by accident.
+ */
+const UNIDENTIFIABLE = { id: undefined, from: "", to: "" } as const;
+
+/**
+ * The id each raw edge answers to, in array order.
+ *
+ * An id is optional in the text, so the ids the schema *would* derive are
+ * computed rather than read: matching on a raw `id` field alone would find
+ * nothing in a document that never wrote one, the seed included.
+ * `deriveEdgeIds` comes from the domain, so there is exactly one answer to the
+ * question of which edge an id names.
+ */
+const effectiveEdgeIds = (edges: readonly unknown[]): string[] =>
+  deriveEdgeIds(
+    edges.map((edge) =>
+      isRecord(edge) && typeof edge.from === "string" && typeof edge.to === "string"
+        ? { id: typeof edge.id === "string" ? edge.id : undefined, from: edge.from, to: edge.to }
+        : UNIDENTIFIABLE,
+    ),
+  ).map((edge) => edge.id);
+
+/** Where the edge with this id sits in the raw array, or `-1`. */
+const edgeIndexById = (edges: readonly unknown[], id: string): number =>
+  effectiveEdgeIds(edges).indexOf(id);
+
+/** Patches the edge with this id. */
+export const updateEdgeFields = (text: string, id: string, patch: EdgePatch): string =>
   editConfig(text, (config) => {
     const { edges } = config;
     if (!Array.isArray(edges)) return false;
 
-    const edge = edges[index];
+    const edge = edges[edgeIndexById(edges, id)];
     if (!isRecord(edge)) return false;
 
     for (const [key, value] of Object.entries(patch)) {
@@ -266,12 +326,14 @@ export const updateEdgeFields = (text: string, index: number, patch: EdgePatch):
     return true;
   });
 
-/** Removes the edge at `index`, by position rather than identity — edges have no id. */
-export const removeEdge = (text: string, index: number): string =>
+/** Removes the edge with this id. */
+export const removeEdge = (text: string, id: string): string =>
   editConfig(text, (config) => {
     const { edges } = config;
     if (!Array.isArray(edges)) return false;
-    if (!Number.isInteger(index) || index < 0 || index >= edges.length) return false;
+
+    const index = edgeIndexById(edges, id);
+    if (index < 0) return false;
 
     edges.splice(index, 1);
     return true;
@@ -324,16 +386,17 @@ export const useDiagramEditing = (setText: Dispatch<SetStateAction<string>>) =>
         setText((text) => updateNodeFields(text, id, patch)),
       addNode: (node: NodeInput) => setText((text) => addNode(text, node)),
       setBackground: (tone: CanvasTone) => setText((text) => setBackground(text, tone)),
-      addGroup: (group: GroupInput) => setText((text) => addGroup(text, group)),
-      updateGroupFields: (id: string, patch: GroupPatch) =>
-        setText((text) => updateGroupFields(text, id, patch)),
-      moveGroup: (id: string, x: number, y: number) => setText((text) => moveGroup(text, id, x, y)),
-      removeGroup: (id: string) => setText((text) => removeGroup(text, id)),
+      addBoundary: (boundary: BoundaryInput) => setText((text) => addBoundary(text, boundary)),
+      updateBoundaryFields: (id: string, patch: BoundaryPatch) =>
+        setText((text) => updateBoundaryFields(text, id, patch)),
+      moveBoundary: (id: string, x: number, y: number) =>
+        setText((text) => moveBoundary(text, id, x, y)),
+      removeBoundary: (id: string) => setText((text) => removeBoundary(text, id)),
       removeNode: (id: string) => setText((text) => removeNode(text, id)),
       addEdge: (edge: EdgeInput) => setText((text) => addEdge(text, edge)),
-      updateEdgeFields: (index: number, patch: EdgePatch) =>
-        setText((text) => updateEdgeFields(text, index, patch)),
-      removeEdge: (index: number) => setText((text) => removeEdge(text, index)),
+      updateEdgeFields: (id: string, patch: EdgePatch) =>
+        setText((text) => updateEdgeFields(text, id, patch)),
+      removeEdge: (id: string) => setText((text) => removeEdge(text, id)),
       arrangeNodes: () => setText(arrangeNodes),
     }),
     [setText],

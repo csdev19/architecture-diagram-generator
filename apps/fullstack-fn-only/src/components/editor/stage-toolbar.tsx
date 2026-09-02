@@ -27,7 +27,7 @@ const TOOL_ICONS: Record<EditorTool, LucideIcon> = {
   [EDITOR_TOOLS.SELECT]: MousePointer2,
   [EDITOR_TOOLS.PAN]: Hand,
   [EDITOR_TOOLS.NODE]: Square,
-  [EDITOR_TOOLS.GROUP]: Frame,
+  [EDITOR_TOOLS.BOUNDARY]: Frame,
   [EDITOR_TOOLS.EDGE]: ArrowRight,
 };
 
