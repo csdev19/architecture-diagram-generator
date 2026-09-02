@@ -17,12 +17,17 @@ which is why most rows show an exact pin.
 
 ## Runtime and monorepo
 
-| Technology             | Role here                                                     | Why                                                                                                                            |
-| ---------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| **Bun** `1.3.4`        | Package manager, script runner and local runtime              | Template default. Workspaces plus the version `catalog` come from it, which is what keeps one Zod and one Vite across packages |
-| **Turborepo** `^2.6.3` | Task graph — `build`, `test`, `check-types`, `lint`           | Template default. `build` depends on `^build`, which is what makes `web-ui`'s `dist/` exist before an app consumes it          |
-| **TypeScript** `5.9.3` | The whole codebase                                            | Template default                                                                                                               |
-| **Cloudflare Workers** | Deploy target for the app (`wrangler.jsonc`, `nodejs_compat`) | Chosen by the "fullstack serverFn only" pattern: a single Worker, no separate API Worker and no proxy                          |
+| Technology             | Role here                                                                 | Why                                                                                                                                                   |
+| ---------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Bun** `1.3.4`        | Package manager, script runner and local runtime                          | Template default. Workspaces plus the version `catalog` come from it, which is what keeps one Zod and one Vite across packages                        |
+| **Turborepo** `^2.6.3` | Task graph — `build`, `test`, `check-types`, `lint`                       | Template default. `build` depends on `^build`, which is what makes `web-ui`'s `dist/` exist before an app consumes it                                 |
+| **TypeScript** `5.9.3` | The whole codebase                                                        | Template default                                                                                                                                      |
+| **Cloudflare Workers** | Deploy target for the app (`wrangler.jsonc`, `nodejs_compat`)             | Chosen by the "fullstack serverFn only" pattern: a single Worker, no separate API Worker and no proxy                                                 |
+| **Wrangler** `4.128.0` | The Workers CLI — `wrangler dev` on a built `dist/`, and `wrangler types` | The only honest way to test Worker-runtime behaviour. `vite dev` diverges from it, and a wasm-compilation failure surfaced under `wrangler dev` alone |
+
+Run `wrangler types --include-runtime=false` after editing a `wrangler.jsonc`.
+Without that flag it emits the full Workers runtime types, which clobber the
+app's DOM lib and break the browser-side PNG export.
 
 The layering is DDD/hexagonal and enforced by convention, not tooling:
 `domain <- application <- infra-*`, and only apps wire them together. `domain`
@@ -32,10 +37,11 @@ is a leaf, so importing it can never transitively pull in server code.
 
 This is the part chosen for this product. It is deliberately tiny.
 
-| Technology                 | Role here                                           | Why                                                                                                                                                        |
-| -------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Zod** `4.3.6`            | The `DiagramConfig` contract and all its validation | Already the template's schema layer. `superRefine` gives cross-field rules that report every problem in one parse, which is what lets a model self-correct |
-| **simple-icons** `16.29.0` | Brand logo path data for the 20 `iconKey` values    | CC0-1.0 and consumable as plain data — a path string and a hex — with no loader and no DOM, so it survives inside a Worker                                 |
+| Technology                    | Role here                                                                     | Why                                                                                                                                                            |
+| ----------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Zod** `4.3.6`               | The `DiagramConfig` contract and all its validation                           | Already the template's schema layer. `superRefine` gives cross-field rules that report every problem in one parse, which is what lets a model self-correct     |
+| **simple-icons** `16.29.0`    | Brand logo path data for the 20 `iconKey` values                              | CC0-1.0 and consumable as plain data — a path string and a hex — with no loader and no DOM, so it survives inside a Worker                                     |
+| **@resvg/resvg-wasm** `2.6.2` | Rasterises SVG to PNG server-side, on the throwaway `/api/render-spike` route | MPL-2.0, and it ships a wasm build that works as a **bundled import** — the only shape Cloudflare Workers accept, since they refuse to compile wasm at runtime |
 
 No diagram library, no SVG builder, no layout engine: `renderSVG` and
 `layoutDiagram` are hand-written in `packages/domain/src/render/`. The reasoning
@@ -99,3 +105,8 @@ before the app. See [web-ui Package](/web-ui-package).
   nothing records why it is held back.
 - The template's Todo CRUD example, auth pages and database layer are still
   present and still build. They are not part of the diagram tool.
+- `@resvg/resvg-wasm` needs a `resolve.alias` in `vite.config.ts` pointing the
+  `.wasm` specifier at an absolute path. Without it, Vite's dependency scanner
+  fails to resolve it, abandons pre-bundling for the whole app, and reports the
+  problem as a stale **React** pre-bundle — a symptom with no visible connection
+  to the cause.
