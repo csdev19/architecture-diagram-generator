@@ -33,16 +33,15 @@ stylesheet exists. Do not propose wiring these to the app's design system.
 
 ### Surface and tiles
 
-| Token               | Value     | Use                                                            |
-| ------------------- | --------- | -------------------------------------------------------------- |
-| `CANVAS_BG`         | `#f7f8fb` | The full-bleed background                                      |
-| `GRID_LINE`         | `#e6eaf2` | The 26px background grid                                       |
-| `TILE_LIGHT_FILL`   | `#ffffff` | Default tile                                                   |
-| `TILE_LIGHT_BORDER` | `#e2e8f0` | Default tile border                                            |
-| `TILE_DARK_FILL`    | `#0f172a` | Emphasis tile — see the rule below                             |
-| `TILE_DARK_BORDER`  | `#0f172a` | Emphasis tile border (identical, so it reads as a solid block) |
-| `NAME_TEXT`         | `#0f172a` | Node name                                                      |
-| `SUB_TEXT`          | `#64748b` | Node sublabel                                                  |
+| Token               | Value     | Use                                                                                  |
+| ------------------- | --------- | ------------------------------------------------------------------------------------ |
+| `GRID_LINE`         | `#dcdcdc` | The 26px grid, drawn **dashed** at `2 3` — neutral so it sits under every paper tone |
+| `TILE_LIGHT_FILL`   | `#ffffff` | Default tile                                                                         |
+| `TILE_LIGHT_BORDER` | `#e2e8f0` | Default tile border                                                                  |
+| `TILE_DARK_FILL`    | `#0f172a` | Emphasis tile — see the rule below                                                   |
+| `TILE_DARK_BORDER`  | `#0f172a` | Emphasis tile border (identical, so it reads as a solid block)                       |
+| `NAME_TEXT`         | `#0f172a` | Node name                                                                            |
+| `SUB_TEXT`          | `#64748b` | Node sublabel                                                                        |
 
 ### Edges
 
@@ -121,15 +120,30 @@ because longer text overflows the tile rather than wrapping.
 | `ANCHOR_OFFSET`        | `6`   | Gap between a tile edge and the start of its edge line                       |
 | `BOTTOM_ANCHOR_OFFSET` | `34`  | Extra clearance so a bottom edge clears the node's text                      |
 | `NODE_TEXT_BLOCK`      | `40`  | Vertical space name + sublabel occupy **below** the tile                     |
-| `CANVAS_MARGIN`        | `60`  | Minimum distance from a node centre to any canvas edge                       |
+| `FRAME_PADDING`        | `60`  | Whitespace the derived frame leaves around the drawing, on every side        |
 | `NODE_SPACING`         | `140` | Minimum distance between node centres                                        |
 | `LAYOUT_COLUMN_GAP`    | `200` | Auto-layout's horizontal step, wider because a name can run to 26 characters |
 | `LAYOUT_ORIGIN`        | `110` | Centre of the first auto-layout column and row                               |
 | `ICON_SIZE`            | `32`  | Rendered logo side, centred like the emoji it replaces                       |
 | `ICON_VIEWBOX`         | `24`  | The square `simple-icons` paths are authored in                              |
 
-**Signature motifs.** The faint grid, always present, which is what makes the
-canvas read as a drawing surface rather than a slide. Fully rounded tiles and
+**Paper.** `CANVAS_TONE_INFO` holds five near-whites, chosen by name rather than
+by hex like every other colour here: `white` `#ffffff`, `grey` `#f8f9fa` (the
+default), `blue` `#f5faff`, `cream` `#fffce8`, `blush` `#fdf8f6`. A config's
+optional `background` picks one. Two other layers punch through the paper and
+must be handed the same value — an unfilled group's label cover and an edge
+label's backing rect — which is why `renderSVG` threads it rather than reading a
+constant.
+
+**The frame is derived, not declared.** `contentFrame` unions the bounds of
+every node and group and pads by `FRAME_PADDING`; that rectangle becomes the
+`viewBox`. Coordinates are therefore unbounded and may be negative, and no
+layout code may assume a positive origin or a maximum. `renderSVG` also accepts
+an explicit frame, which is how the editor draws the rectangle its camera is
+looking at. See [ADR 0002](/architecture/decisions/adr-0002-the-frame-is-derived-not-declared).
+
+**Signature motifs.** The faint dashed grid, always present, which is what makes
+the surface read as a drawing surface rather than a slide. Fully rounded tiles and
 groups at the same radius. Orthogonal edges only, with an arrowhead at the
 target. Nested groups drawn with `filled: false`, so an inner boundary is a
 border with no second tint — two tints stacked would muddy both.

@@ -24,6 +24,7 @@ const stubScreenCTM = (matrix: Partial<DOMMatrix> = {}) => {
 
 const canvas = () => screen.getByTestId("diagram-canvas");
 const configText = () => screen.getByLabelText<HTMLTextAreaElement>(/diagram config/i).value;
+const parsed = () => JSON.parse(configText()) as typeof EXAMPLE_DIAGRAM_CONFIG;
 const nodeIn = (text: string, id: string) =>
   (JSON.parse(text) as typeof EXAMPLE_DIAGRAM_CONFIG).nodes.find((node) => node.id === id);
 
@@ -32,6 +33,11 @@ const drag = (from: { x: number; y: number }, to: { x: number; y: number }) => {
   fireEvent.pointerDown(canvas(), { clientX: from.x, clientY: from.y, pointerId: 1 });
   fireEvent.pointerMove(canvas(), { clientX: to.x, clientY: to.y, pointerId: 1 });
   fireEvent.pointerUp(canvas(), { clientX: to.x, clientY: to.y, pointerId: 1 });
+};
+
+const clickTile = (x: number, y: number) => {
+  fireEvent.pointerDown(canvas(), { clientX: x, clientY: y, pointerId: 1 });
+  fireEvent.pointerUp(canvas(), { clientX: x, clientY: y, pointerId: 1 });
 };
 
 beforeEach(() => {
@@ -61,6 +67,22 @@ describe("dragging a node", () => {
 
     expect(nodeIn(configText(), "user")).toEqual(nodeIn(before, "user"));
     expect(nodeIn(configText(), "d1")).toEqual(nodeIn(before, "d1"));
+  });
+
+  it("takes a node anywhere, negative coordinates included", () => {
+    render(<EditorPage />);
+    // Nothing clamps: there is no frame to stay inside, so the drag lands
+    // exactly where it was released, snapped to the grid and no further.
+    drag({ x: 350, y: 180 }, { x: -400, y: -400 });
+
+    expect(nodeIn(configText(), "hono")).toMatchObject({ x: -403, y: -403 });
+  });
+
+  it("takes a node far past where the diagram used to end", () => {
+    render(<EditorPage />);
+    drag({ x: 350, y: 180 }, { x: 2000, y: 2000 });
+
+    expect(nodeIn(configText(), "hono")).toMatchObject({ x: 2002, y: 2002 });
   });
 
   it("ignores a press that lands on empty canvas", () => {
@@ -96,15 +118,30 @@ describe("dragging a node", () => {
 
     expect(nodeIn(configText(), "hono")).toMatchObject({ x: 350, y: 180 });
   });
+});
 
-  it("does nothing while the config does not validate", () => {
+describe("text that does not validate", () => {
+  it("keeps drawing the last config that did, and lists the problems", () => {
     render(<EditorPage />);
-    const textarea = screen.getByLabelText<HTMLTextAreaElement>(/diagram config/i);
+    const textarea = screen.getByLabelText(/diagram config/i);
     fireEvent.change(textarea, { target: { value: "{ not json" } });
 
-    // There is no canvas to drag on at all, which is the affordance working.
-    expect(screen.queryByTestId("diagram-canvas")).not.toBeInTheDocument();
+    // Losing the picture at every half-typed keystroke is what makes a JSON
+    // panel unusable, so the canvas holds the last good render.
+    expect(screen.getByTestId("diagram-canvas")).toBeInTheDocument();
     expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(screen.getByText(/the canvas shows the last valid config/i)).toBeInTheDocument();
+  });
+
+  it("puts the last valid text back on Revert", () => {
+    render(<EditorPage />);
+    const textarea = screen.getByLabelText<HTMLTextAreaElement>(/diagram config/i);
+    const before = textarea.value;
+
+    fireEvent.change(textarea, { target: { value: "{ not json" } });
+    fireEvent.click(screen.getByRole("button", { name: /revert/i }));
+
+    expect(configText()).toBe(before);
   });
 });
 
@@ -118,11 +155,87 @@ describe("selection", () => {
 
   it("clears the selection when the press misses every tile", () => {
     render(<EditorPage />);
-    fireEvent.pointerDown(canvas(), { clientX: 350, clientY: 180, pointerId: 1 });
-    fireEvent.pointerUp(canvas(), { clientX: 350, clientY: 180, pointerId: 1 });
+    clickTile(350, 180);
     fireEvent.pointerDown(canvas(), { clientX: 60, clientY: 320, pointerId: 1 });
 
     expect(canvas()).not.toHaveAttribute("data-selected-node");
+  });
+});
+
+describe("placing a tile", () => {
+  it("places the palette's chosen tile where the sheet was clicked", () => {
+    render(<EditorPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Astro/ }));
+    fireEvent.pointerDown(canvas(), { clientX: 400, clientY: 260, pointerId: 1 });
+
+    // Snapped to the half-grid, like every other write of a coordinate.
+    expect(parsed().nodes.at(-1)).toMatchObject({
+      id: "astro",
+      iconKey: "astro",
+      name: "Astro",
+      x: 403,
+      y: 260,
+    });
+  });
+
+  it("gives the second tile of a kind an id of its own", () => {
+    render(<EditorPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Astro/ }));
+    fireEvent.pointerDown(canvas(), { clientX: 400, clientY: 260, pointerId: 1 });
+    fireEvent.pointerDown(canvas(), { clientX: 200, clientY: 100, pointerId: 1 });
+
+    expect(parsed().nodes.map((node) => node.id)).toContain("astro2");
+  });
+
+  it("places a tile left of and above everything else", () => {
+    render(<EditorPage />);
+    fireEvent.click(screen.getByRole("button", { name: /^Astro/ }));
+
+    // The old editor clamped this into the sheet's corner, stacking every such
+    // click on the same spot. There is no corner now.
+    fireEvent.pointerDown(canvas(), { clientX: -200, clientY: -90, pointerId: 1 });
+
+    expect(parsed().nodes.at(-1)).toMatchObject({ id: "astro", x: -195, y: -91 });
+    expect(parsed().canvas, "placing a tile re-introduced a fixed frame").toBeUndefined();
+  });
+
+  it("places a tile dropped from the palette, whichever one is armed", () => {
+    render(<EditorPage />);
+    // Astro is the armed tile; the drop names Docker and must win.
+    const stage = screen.getByTestId("diagram-stage");
+    fireEvent.drop(stage, {
+      clientX: 640,
+      clientY: 420,
+      dataTransfer: {
+        getData: (type: string) => (type === "application/x-diagram-tile" ? "docker" : ""),
+      },
+    });
+
+    expect(parsed().nodes.at(-1)).toMatchObject({ id: "docker", iconKey: "docker", x: 637 });
+  });
+});
+
+describe("deleting a tile", () => {
+  it("takes its edges with it", () => {
+    render(<EditorPage />);
+    clickTile(350, 180);
+
+    fireEvent.keyDown(window, { key: "Delete" });
+
+    expect(parsed().nodes.map((node) => node.id)).toEqual(["user", "d1"]);
+    // Both seeded edges touched hono, so both go.
+    expect(parsed().edges).toHaveLength(0);
+  });
+
+  it("is unavailable in the toolbar until something is selected", () => {
+    render(<EditorPage />);
+    const bin = screen.getByRole("button", { name: /delete what is selected/i });
+    expect(bin).toBeDisabled();
+
+    clickTile(350, 180);
+    expect(screen.getByRole("button", { name: /delete what is selected/i })).toBeEnabled();
   });
 });
 

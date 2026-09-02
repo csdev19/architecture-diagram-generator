@@ -7,13 +7,13 @@ description: Architecture diagrams as data — one config, one renderer, consist
 
 A diagram is not a drawing, it is data. A `DiagramConfig` describes groups,
 nodes and edges; one renderer turns it into SVG. Because a single function
-produces that SVG, the browser preview, the exported PNG and — from phase 1 —
+produces that SVG, the editor's canvas, the exported PNG and — from phase 1 —
 the image a model generates over MCP can never disagree.
 
 ## Architecture Overview
 
 - Domain: `packages/domain/src/schemas/diagram.ts`, `packages/domain/src/constants/diagram.ts`, `packages/domain/src/constants/diagram-icons.ts`
-- Renderer: `packages/domain/src/render/` (including `layout.ts`, the auto-layout)
+- Renderer: `packages/domain/src/render/` (including `frame.ts`, which sizes the document, and `layout.ts`, the auto-layout)
 - Infrastructure: N/A — phase 0 runs entirely in the browser
 - Web UI: `apps/fullstack-fn-only/src/components/editor/` (the route file is wiring only)
 - Mobile: N/A
@@ -25,20 +25,22 @@ the image a model generates over MCP can never disagree.
 | -------------------------------------------- | ------ | ---------- | ----------------------------------------------------------------------------- |
 | [Config Schema](config-schema)               | ✅     | 2026-09-01 | The `DiagramConfig` contract and the validation that makes it self-correcting |
 | [SVG Renderer](svg-renderer)                 | ✅     | 2026-09-01 | Pure, deterministic `renderSVG` shared by every surface                       |
-| [Editor Page](editor-page)                   | ✅     | 2026-09-01 | Two-pane `/editor`: JSON in, preview out — and draggable, with auto-layout    |
+| [Editor Page](editor-page)                   | ✅     | 2026-09-02 | Full-window canvas: drag tiles in, draw groups, wire edges — the JSON follows |
 | [Authoring Guidelines](authoring-guidelines) | ✅     | 2026-09-01 | The text that teaches a model to produce a well-positioned config             |
 | API Worker + MCP server                      | 📋     | —          | Phase 1: render server-side, store in R2, expose to Claude over MCP           |
 
 ## Shared Decisions
 
-| Decision                                                          | Why                                                                                                                                                                                                                                                    |
-| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Everything lives in `packages/domain`, not a new package          | The hub's conventions put schemas in `domain/schemas`, constants in `domain/constants`, and define `domain` as the pure layer. `DiagramConfig` _is_ this product's domain model, so a separate package would have been the anomaly                     |
-| The renderer is a pure string builder, not React                  | It has to run unchanged inside a Cloudflare Worker in phase 1. Two renderers would mean the PNG could disagree with the preview — the exact failure this design exists to prevent                                                                      |
-| Colours are literal values, never theme tokens                    | They are written into SVG attributes and must survive rasterisation outside a browser, where no stylesheet or CSS variable exists                                                                                                                      |
-| Config authors choose semantics, never colour                     | A group picks a `tone` and a node picks an `iconKey`; the renderer owns the palette and decides what is legible on which tile. That is what keeps every diagram in one visual family, and it means a palette change re-styles every historical diagram |
-| Anything a model must choose from is interpolated from its source | Tone names, every limit and the full icon key list reach the authoring guidelines from the constants that enforce them. Guidance that contradicts validation is worse than no guidance                                                                 |
-| The editor's canvas is hand-written, not React Flow               | A node-graph library renders nodes as HTML and exports through the browser, which forfeits the server-rendered PNG and the parity that comes with it. Recorded in [ADR 0001](/architecture/decisions/adr-0001-no-canvas-library-for-the-editor)        |
+| Decision                                                          | Why                                                                                                                                                                                                                                                                                        |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Everything lives in `packages/domain`, not a new package          | The hub's conventions put schemas in `domain/schemas`, constants in `domain/constants`, and define `domain` as the pure layer. `DiagramConfig` _is_ this product's domain model, so a separate package would have been the anomaly                                                         |
+| The renderer is a pure string builder, not React                  | It has to run unchanged inside a Cloudflare Worker in phase 1. Two renderers would mean the PNG could disagree with the preview — the exact failure this design exists to prevent                                                                                                          |
+| Colours are literal values, never theme tokens                    | They are written into SVG attributes and must survive rasterisation outside a browser, where no stylesheet or CSS variable exists                                                                                                                                                          |
+| Config authors choose semantics, never colour                     | A group picks a `tone` and a node picks an `iconKey`; the renderer owns the palette and decides what is legible on which tile. That is what keeps every diagram in one visual family, and it means a palette change re-styles every historical diagram                                     |
+| Anything a model must choose from is interpolated from its source | Tone names, every limit and the full icon key list reach the authoring guidelines from the constants that enforce them. Guidance that contradicts validation is worse than no guidance                                                                                                     |
+| The editor's canvas is hand-written, not React Flow               | A node-graph library renders nodes as HTML and exports through the browser, which forfeits the server-rendered PNG and the parity that comes with it. Recorded in [ADR 0001](/architecture/decisions/adr-0001-no-canvas-library-for-the-editor)                                            |
+| The exported frame is derived, never declared                     | An authored `canvas` is a wall: it makes coordinates a walled garden, and every editor affordance becomes an apology for the wall. Sizing the document from its own contents deletes all of it. Recorded in [ADR 0002](/architecture/decisions/adr-0002-the-frame-is-derived-not-declared) |
+| The renderer draws the editor's surface, not just the export      | The editor passes the rectangle its camera is looking at as an explicit frame, so paper and grid come from the same function that produces the PNG. Two surfaces would be two things to keep in step                                                                                       |
 
 ## Shared Gotchas
 
@@ -46,4 +48,5 @@ the image a model generates over MCP can never disagree.
 - ⚠️ Anything interpolated into the SVG must go through `escapeXml`. An unescaped `&` in a technology name produces a document that fails to parse, usually with no visible error.
 - ⚠️ The renderer must stay free of DOM and Node APIs. Anything needing `canvas`, `Image` or `document` belongs in the app, which is why PNG export lives there.
 - ⚠️ Never restate a colour, size or limit that already exists in `constants/diagram.ts`. The guidelines interpolate their numbers from it precisely so guidance cannot drift from validation.
+- ⚠️ Coordinates are unbounded and may be negative. Nothing is "off the canvas", so no layout code may assume a positive origin or a maximum.
 - ⚠️ The editor's text is the single source of truth. Anything that edits a diagram — a drag, a field, auto-layout — parses that text, mutates it and prints it back. Holding a parsed config as editing state is the one change that would break the whole design.

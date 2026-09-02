@@ -1,4 +1,5 @@
-import { DIAGRAM_GEOMETRY, DIAGRAM_LIMITS, GROUP_TONES } from "../constants/diagram";
+import { CANVAS_TONES, DIAGRAM_GEOMETRY, DIAGRAM_LIMITS, GROUP_TONES } from "../constants/diagram";
+import { FRAME_PADDING } from "./frame";
 import { DIAGRAM_ICON_KEYS } from "../constants/diagram-icons";
 
 /**
@@ -39,11 +40,23 @@ ${DIAGRAM_GEOMETRY.TILE_SIZE}x${DIAGRAM_GEOMETRY.TILE_SIZE}px, and its name and
 sublabel occupy roughly ${DIAGRAM_GEOMETRY.NODE_TEXT_BLOCK}px underneath it.
 Forgetting that text block is the most common cause of a cramped diagram.
 
+## The canvas has no edges
+
+Do NOT emit a \`canvas\`. There is no fixed sheet to fit the diagram into: the
+exported document is sized from what you draw, plus ${FRAME_PADDING}px of
+whitespace on every side. Coordinates are unbounded and may be negative, and no
+position is ever "off the canvas".
+
+This means layout is about the *relationships between* nodes — spacing, rows,
+reading order — and never about staying inside a rectangle. Place the first node
+wherever you like and build outward from it.
+
+(\`canvas: { w, h }\` still exists for the rare diagram that must be an exact
+size, such as a slide. Setting it re-imposes a fixed frame, and anything outside
+that frame is then cropped. Leave it out unless the user asked for a size.)
+
 ## Layout
 
-- Canvas: 1000x800 suits 10-14 nodes; 700x400 suits 5 or fewer. Allowed range is
-  ${DIAGRAM_LIMITS.CANVAS_MIN_WIDTH}-${DIAGRAM_LIMITS.CANVAS_MAX_WIDTH} wide by
-  ${DIAGRAM_LIMITS.CANVAS_MIN_HEIGHT}-${DIAGRAM_LIMITS.CANVAS_MAX_HEIGHT} tall.
 - The main flow occupies ONE horizontal row, left to right, at a constant \`y\`.
   External actors (users, clients) sit on the left; data stores (databases,
   buckets) on the right.
@@ -54,8 +67,6 @@ Forgetting that text block is the most common cause of a cramped diagram.
 - Keep at least 140px between node centres, horizontally and vertically.
 - Give a group about 60px of padding around the nodes it contains. A nested
   group uses \`filled: false\` and \`dashed: true\`.
-- Keep every node at least 70px from the canvas edge. Validation rejects
-  anything closer than ${DIAGRAM_GEOMETRY.CANVAS_MARGIN}px, so 70 leaves room.
 
 ## Content
 
@@ -64,6 +75,10 @@ Forgetting that text block is the most common cause of a cramped diagram.
 - \`sub\`: its role, lowercase, at most ${DIAGRAM_LIMITS.TEXT_MAX} characters —
   "orm / migrations".
 - \`tile: "dark"\` for only 2-3 key nodes; everything else stays light.
+- \`background\` is the paper tone, and it is optional — leave it out unless the
+  user asked for one. The choices are \`${Object.values(CANVAS_TONES).join("`, `")}\`,
+  all of them near-white. \`${CANVAS_TONES.CREAM}\` reads as a legal pad and
+  \`${CANVAS_TONES.BLUE}\` as blueprint paper; the rest are neutral.
 - Edge labels: short and technical. Protocol names stay as they are; other words
   follow the language the user is writing in.
 - Group \`tone\` is semantic, never a colour: \`${GROUP_TONES.ORANGE}\` for the
@@ -97,6 +112,7 @@ noticeably longer line.
 ## What validation enforces
 
 - \`version\` must be 1.
+- Coordinates are unbounded. Nothing is rejected for being too far out.
 - At most ${DIAGRAM_LIMITS.MAX_GROUPS} groups, ${DIAGRAM_LIMITS.MIN_NODES}-${DIAGRAM_LIMITS.MAX_NODES} nodes, at most ${DIAGRAM_LIMITS.MAX_EDGES} edges.
 - Node ids and group ids must each be unique.
 - Every \`edge.from\` and \`edge.to\` must name a node that exists, and an edge

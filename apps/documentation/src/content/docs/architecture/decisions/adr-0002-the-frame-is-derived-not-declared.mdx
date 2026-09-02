@@ -1,0 +1,148 @@
+---
+title: "ADR 0002: The frame is derived, not declared"
+description: Make canvas optional and compute the exported document's bounds from the drawing's bounding box, so coordinates are unbounded and the editor has no sheet to place tiles inside of.
+---
+
+# ADR 0002: The frame is derived, not declared
+
+_`canvas` becomes optional. `renderSVG` sizes the document from the bounding box
+of what the diagram contains. Coordinates are unbounded._
+
+## Status
+
+| Field         | Value      |
+| ------------- | ---------- |
+| Status        | Accepted   |
+| Date          | 2026-09-02 |
+| Supersedes    | N/A        |
+| Superseded by | N/A        |
+
+## Context
+
+An SVG document has finite bounds, and so does the PNG rasterised from it, so
+something has to decide them. v1 made those bounds an authored field:
+
+```json
+"canvas": { "w": 700, "h": 360 }
+```
+
+That had a reason. When the expected author was a model emitting JSON, a
+declared canvas gave it a coordinate system to reason inside, and let the schema
+check a real invariant — every node centre at least `CANVAS_MARGIN` from every
+edge — instead of accepting a config that would render half off the page.
+
+The cost only became visible once there was a canvas editor in front of it. A
+declared frame is a wall, and every affordance the editor grew was an apology
+for the wall:
+
+- A grey "table" behind a white "sheet", so the author could see where the wall
+  was.
+- Coordinates clamped on drag, so a tile could not be pushed through it.
+- `growCanvasFor`, so dropping a tile past the right edge widened the wall
+  instead of refusing.
+- `matchCanvasToView`, so the wall could be made the size of the window.
+- A "Sheet size" panel, because none of the above made sense without one.
+
+None of that is diagram-making. It is frame administration, and the author has
+to do it before they can put anything down. The failure mode users actually hit
+was placing four tiles outside the sheet and watching all four clamp to the same
+corner, stacked on top of each other.
+
+## Decision
+
+**The frame is computed from the drawing.** `contentFrame(config)` unions the
+bounds of every node — tile, plus the name and sublabel that hang below it — and
+every group, then pads by `FRAME_PADDING`. `renderSVG` puts that rectangle in
+the `viewBox`, so a document is exactly as big as what is on it.
+
+**`canvas` stays, optional.** Present, it is an explicit fixed frame, for the
+diagram that must be an exact size — a slide, a page — and for configs written
+before this. Absent, which is what the editor writes and what the guidelines now
+tell a model to emit, the frame is derived.
+
+**Coordinates are unbounded.** The margin rule is gone from the schema. A node at
+`(-800, 2400)` is as legal as one at `(110, 180)`; there is no edge to be inside
+of.
+
+**`renderSVG` takes an optional frame and background.** The editor passes the
+rectangle of the world its camera is looking at, and turns the background off
+only when it wants to; export passes nothing. Same renderer, same shapes, two
+framings — which is the invariant [ADR 0001](./adr-0001-no-canvas-library-for-the-editor)
+turns on, and is covered by a test asserting the two produce an identical scene.
+
+## Consequences
+
+**Positive:**
+
+- Tiles go where they are dropped. The editor's whole surface is the diagram,
+  so there is no grey table, no white sheet and nothing to place "outside".
+- Net deletion in the editor: `snapWithinCanvas`, `growCanvasFor`,
+  `matchCanvasToView`, `setCanvasSize` and the sheet-size panel all went, and
+  nothing replaced them.
+- One fewer thing for a model to get wrong. The commonest layout failure was a
+  node inside the margin of a canvas the model had guessed too small.
+- `layoutDiagram` no longer computes a canvas, so arranging cannot leave the
+  frame and the coordinates disagreeing.
+
+**Negative:**
+
+- The document's size now changes as it is edited. Two exports of "the same"
+  diagram differ in dimensions if a node moved, which a fixed-size pipeline —
+  a slide deck, a print template — would care about. `canvas` is the escape
+  hatch, and it is on the author to reach for it.
+- A stray node dragged far off ruins the framing of the export, silently. The
+  old schema would at least have rejected it. This is the "if the user makes a
+  giant canvas that makes no sense, that is their responsibility" trade, taken
+  deliberately.
+- The editor re-renders the SVG on every camera move, where it used to
+  CSS-transform a fixed document. Fine at the tens of nodes the schema allows;
+  it would need a dirty-region pass long before it needed a canvas library.
+
+**Neutral:**
+
+- `canvas` in an existing file keeps working and renders exactly as before, so
+  nothing saved needs migrating.
+
+## Non-goals
+
+- Multiple frames or export regions per config. One diagram, one document.
+- Auto-cropping to a selection. The frame covers everything, always.
+- Changing the coordinate system itself: `x`/`y` are still the centre of a
+  tile, in pixels, with `y` growing downward.
+
+## Alternatives considered
+
+### Keep `canvas` required and grow it in all four directions
+
+Rejected. Growing left or up means adding an offset to every coordinate in the
+file, so placing one tile rewrites every line the author wrote — and the editor
+then has to compensate its camera so the picture does not jump. All of that to
+preserve a number nothing needed.
+
+### Keep `canvas` and auto-size it to the window
+
+This was built first, and shipped for about an hour. It made the sheet as big as
+the screen on load, which hides the problem at one window size and reintroduces
+it at another — and it rewrites the author's config as a side effect of opening
+it. It also could not answer "why is there a rectangle at all?", which was the
+question that produced this ADR.
+
+### Derive the frame but drop `canvas` entirely
+
+Rejected as gratuitous. Keeping it optional costs one branch in `resolveFrame`
+and buys backwards compatibility plus the fixed-size case.
+
+## When to reopen this decision
+
+- Exports have to be a stable size across edits — a template, a deck, a print
+  run — for more than the occasional diagram. At that point a declared frame
+  stops being the exception and the default should flip back.
+- The re-render-per-frame cost becomes visible, which would mean diagrams far
+  past the current `MAX_NODES` of 40.
+
+## References
+
+- Frame derivation: `packages/domain/src/render/frame.ts`
+- Renderer and its options: `packages/domain/src/render/index.ts`
+- The guidance a model reads: `packages/domain/src/render/guidelines.ts`
+- The editor's camera: `apps/fullstack-fn-only/src/components/editor/use-stage-view.ts`

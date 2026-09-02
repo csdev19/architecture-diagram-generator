@@ -12,9 +12,9 @@ description: Paste-whole context for a model reasoning about or generating code 
 ## What it is
 
 `architecture-diagram-generator` is a tool for producing architecture diagrams
-from a JSON document rather than by drawing. A `DiagramConfig` describes a
-canvas, tinted groups, nodes with brand logos, and edges; one pure function,
-`renderSVG`, turns it into an SVG. The intended authoring path is that a model
+from a JSON document rather than by drawing. A `DiagramConfig` describes tinted
+groups, nodes with brand logos, and edges; one pure function, `renderSVG`, turns
+it into an SVG, sized from the drawing's own bounds. The intended authoring path is that a model
 writes the config and a person then refines it by dragging tiles in a browser
 editor. It lives in a Bun + Turborepo monorepo using DDD/hexagonal layering, and
 the diagram lives entirely in the `domain` package.
@@ -59,7 +59,6 @@ the diagram lives entirely in the `domain` package.
 {
   "version": 1,
   "title": "api-simple",
-  "canvas": { "w": 700, "h": 360 },
   "groups": [
     { "id": "cf", "label": "CLOUDFLARE", "icon": "☁️",
       "x": 240, "y": 60, "w": 420, "h": 240,
@@ -90,12 +89,19 @@ Edge anchors `out` and `inn` are `"l" | "r" | "t" | "b"`. Group `tone` is
 build, external services and data, and everything else. `filled: false` draws
 the border only and is how nested groups are done.
 
-**Limits enforced by the schema.** Canvas width 400–2400, height 300–2400. At
-most 12 groups, 40 nodes, 80 edges; at least 1 node. Any tile text — a node
-`name`, a node `sub`, a group `label` — is at most **26 characters**. Every node
-centre must sit at least **60px** from every canvas edge. Node and group ids
-must be unique, an edge must reference existing nodes, and a node cannot connect
-to itself.
+**Limits enforced by the schema.** At most 12 groups, 40 nodes, 80 edges; at
+least 1 node. Any tile text — a node `name`, a node `sub`, a group `label` — is
+at most **26 characters**. Node and group ids must be unique, an edge must
+reference existing nodes, and a node cannot connect to itself.
+
+**Coordinates are unbounded**, negatives included. There is no canvas to be
+outside of: the exported document is sized from the bounding box of what the
+diagram contains, plus 60px of padding. Do **not** emit a `canvas` — the field
+still exists as an optional fixed frame for a diagram that must be an exact size
+(a slide), and setting it crops anything outside it.
+
+**`background`** is an optional paper tone, one of `white`, `grey`, `blue`,
+`cream`, `blush`. Leave it out unless a tone was asked for.
 
 **The 20 available `iconKey` values**, and nothing else: `astro`, `betterauth`,
 `bun`, `cloudflare`, `cloudflareworkers`, `docker`, `drizzle`, `expo`, `github`,
@@ -131,10 +137,15 @@ drift from validation. It is a TypeScript string rather than a markdown asset
 because a Worker must be able to return it without a raw-text loader.
 
 The only user-facing surface is the `/editor` route in the
-`apps/fullstack-fn-only` TanStack Start app: a two-pane page with the JSON on
-the left and the live preview on the right, exporting SVG or 2x PNG in the
-browser. Tiles drag, clicking one opens an inspector, edges are drawn by
-clicking two tiles, and an **Arrange** button re-places nodes from the topology.
+`apps/fullstack-fn-only` TanStack Start app: a full-window canvas with a tile
+palette and a collapsible JSON panel floating over it, exporting SVG or 2x PNG
+in the browser. Tiles are dragged in from the palette and dragged to move,
+groups are dragged out as boxes, edges are two clicks, an **Arrange** button
+re-places nodes from the topology, and every one of those rewrites the JSON.
+
+`renderSVG` takes an optional frame, which is how the editor draws the rectangle
+its camera is looking at rather than the whole diagram. Same scene, framed
+differently — that is the only difference between the canvas and the export.
 
 ## Corrections
 

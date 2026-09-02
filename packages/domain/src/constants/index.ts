@@ -1,5 +1,7 @@
 // Diagram constants
 export {
+  CANVAS_TONES,
+  CANVAS_TONE_INFO,
   GROUP_TONES,
   GROUP_TONE_INFO,
   TILE_VARIANTS,
@@ -9,10 +11,12 @@ export {
   DIAGRAM_TYPOGRAPHY,
   DIAGRAM_COLORS,
   DIAGRAM_LIMITS,
+  isValidCanvasTone,
   isValidGroupTone,
   isValidTileVariant,
   isValidEdgeStyle,
   isValidAnchorSide,
+  type CanvasTone,
   type GroupTone,
   type GroupToneInfo,
   type TileVariant,

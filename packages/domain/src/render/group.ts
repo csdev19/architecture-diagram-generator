@@ -1,9 +1,4 @@
-import {
-  DIAGRAM_COLORS,
-  DIAGRAM_GEOMETRY,
-  DIAGRAM_TYPOGRAPHY,
-  GROUP_TONE_INFO,
-} from "../constants/diagram";
+import { DIAGRAM_GEOMETRY, DIAGRAM_TYPOGRAPHY, GROUP_TONE_INFO } from "../constants/diagram";
 import type { DiagramGroup } from "../schemas/diagram";
 import { escapeXml, num } from "./svg";
 
@@ -26,7 +21,7 @@ const ICON_GAP = 5;
  * A group box: a rounded rect tinted by tone, with its label sitting on the top
  * border rather than inside the box, so the border appears to break around it.
  */
-export const renderGroup = (group: DiagramGroup): string => {
+export const renderGroup = (group: DiagramGroup, paper: string): string => {
   const tone = GROUP_TONE_INFO[group.tone];
   const labelSize = DIAGRAM_TYPOGRAPHY.GROUP_LABEL_SIZE;
 
@@ -50,11 +45,11 @@ export const renderGroup = (group: DiagramGroup): string => {
   const baseline = group.y + 4;
 
   // Covers the border where the label sits. A `filled: false` group sits on the
-  // canvas, so its cover has to match the canvas rather than the group's tint.
+  // paper, so its cover has to match the paper rather than the group's tint.
   const cover =
     `<rect x="${num(labelX)}" y="${num(group.y - labelHeight / 2)}" ` +
     `width="${num(labelWidth)}" height="${num(labelHeight)}" ` +
-    `fill="${group.filled ? tone.fill : DIAGRAM_COLORS.CANVAS_BG}"/>`;
+    `fill="${group.filled ? tone.fill : paper}"/>`;
 
   const icon = group.icon
     ? `<text x="${num(labelX + LABEL_PADDING)}" y="${num(baseline + 1)}" ` +

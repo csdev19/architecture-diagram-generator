@@ -1,6 +1,6 @@
 ---
 title: Editor Page
-description: The /editor route — edit a config as text or by dragging, and export it.
+description: The /editor route — an unbounded canvas you draw on, with the config as its only state.
 ---
 
 # Editor Page
@@ -10,38 +10,42 @@ description: The /editor route — edit a config as text or by dragging, and exp
 | Field          | Value                 |
 | -------------- | --------------------- |
 | Status         | ✅ Complete           |
-| Completed      | 2026-09-01            |
+| Completed      | 2026-09-02            |
 | Author         | Cristian Sotomayor    |
 | Parent Feature | [Diagram Tool](index) |
 | Related Issues | None                  |
 
 ## What It Does
 
-A public two-pane page. The config JSON goes on the left, the rendered diagram
-appears on the right as you type, and it exports as SVG or a 2x PNG.
+A full-window canvas you draw architecture diagrams on. Tiles are dragged in
+from a palette, boxes are dragged out around them, edges are two clicks, and
+everything exports as SVG or a 2x PNG.
 
-Since phase 2 the diagram is also editable by hand: tiles drag, a click opens an
-inspector for the selected node's name, sublabel, mark and tile, edges are added
-by clicking two tiles, and **Arrange** re-places everything from the topology.
-Every one of those writes back into the JSON, which stays the thing you save.
+The JSON is still there — a collapsible panel on the right — and it is still the
+only state on the page. Every gesture rewrites it, and every edit to it redraws
+the canvas.
 
 ## Implementation
 
 ### Files Changed
 
-| Path                                                                    | Purpose                                                                       |
-| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `apps/fullstack-fn-only/src/routes/editor.tsx`                          | The route — wiring only                                                       |
-| `apps/fullstack-fn-only/src/components/editor/editor-page.tsx`          | The page: its state, the parse → validate → render pipeline, and the gestures |
-| `apps/fullstack-fn-only/src/components/editor/json-input.tsx`           | Labelled textarea and the list of problems                                    |
-| `apps/fullstack-fn-only/src/components/editor/diagram-preview.tsx`      | Preview pane, export buttons and the pointer handling                         |
-| `apps/fullstack-fn-only/src/components/editor/use-diagram-editing.ts`   | Every visual edit, as a pure text → text transformation                       |
-| `apps/fullstack-fn-only/src/components/editor/pointer-geometry.ts`      | Hit-testing, the client → viewBox transform, and default edge anchors         |
-| `apps/fullstack-fn-only/src/components/editor/node-inspector.tsx`       | The panel for the selected tile                                               |
-| `apps/fullstack-fn-only/src/components/editor/edge-tools.tsx`           | Add, edit and remove edges                                                    |
-| `apps/fullstack-fn-only/src/components/editor/config-file-controls.tsx` | Open and save a config file, and the Arrange button                           |
-| `apps/fullstack-fn-only/src/lib/export-png.ts`                          | Rasterises the SVG to PNG and hands over downloads                            |
-| `apps/fullstack-fn-only/vitest.config.ts`                               | The app's component-test rig                                                  |
+| Path                                                                  | Purpose                                                                     |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `apps/fullstack-fn-only/src/routes/editor.tsx`                        | The route — wiring only                                                     |
+| `apps/fullstack-fn-only/src/components/editor/editor-page.tsx`        | The page: state, the parse → validate pipeline, and every gesture's handler |
+| `apps/fullstack-fn-only/src/components/editor/diagram-stage.tsx`      | The canvas: pointer handling, drag and drop, halos, and the framed render   |
+| `apps/fullstack-fn-only/src/components/editor/use-stage-view.ts`      | The camera — pan, zoom and fit over an unbounded plane                      |
+| `apps/fullstack-fn-only/src/components/editor/use-diagram-editing.ts` | Every visual edit, as a pure text → text transformation                     |
+| `apps/fullstack-fn-only/src/components/editor/pointer-geometry.ts`    | Hit-testing tiles and groups, and the client → world transform              |
+| `apps/fullstack-fn-only/src/components/editor/selection.ts`           | What is picked: one slot holding a node **or** a group                      |
+| `apps/fullstack-fn-only/src/components/editor/tile-palette.tsx`       | The draggable palette, built from the icon registry                         |
+| `apps/fullstack-fn-only/src/components/editor/stage-toolbar.tsx`      | The five tools, each labelled                                               |
+| `apps/fullstack-fn-only/src/components/editor/node-inspector.tsx`     | The panel for the selected tile                                             |
+| `apps/fullstack-fn-only/src/components/editor/group-inspector.tsx`    | The panel for the selected group — label, tone, geometry                    |
+| `apps/fullstack-fn-only/src/components/editor/diagram-panel.tsx`      | The panel with nothing selected: the paper tone                             |
+| `apps/fullstack-fn-only/src/components/editor/side-panel.tsx`         | The collapsible JSON / Inspector / Edges panel                              |
+| `apps/fullstack-fn-only/src/components/editor/editor-chrome.tsx`      | Local button, input and label primitives on the editor's own tokens         |
+| `apps/fullstack-fn-only/src/lib/export-png.ts`                        | Rasterises the SVG to PNG and hands over downloads                          |
 
 ### Domain Model
 
@@ -49,52 +53,57 @@ N/A — the page consumes the domain model without extending it.
 
 ### Key Logic
 
-The page holds exactly one piece of state: the textarea's text. The SVG, the
-title and the error list are all derived from it in a single memoised pass, so
-the preview cannot disagree with what is written. Invalid JSON and an invalid
-config surface through the same channel — both are just problems to fix. PNG
-export serialises the SVG into a blob, draws it to a canvas at twice its size,
-and triggers a download.
+The page holds one piece of state: the textarea's text. The config and the error
+list derive from it in a single memoised pass; the last config that validated is
+kept so a half-typed keystroke does not blank the canvas.
 
-Visual editing does not add a second source of truth. A drag parses the current
-text, moves the node, and prints the JSON back; so does every field in the
-inspector. The preview then re-renders because the text changed, which is why
-the canvas and the JSON can never disagree and why undo is just editing the JSON
-back. Hit-testing reads the config's own coordinates rather than measuring the
-DOM — the renderer already decided where each tile is.
+The canvas is a camera over an unbounded plane. `useStageView` tracks the world
+point at the centre of the window and a scale, turns them into the rectangle
+currently visible, and hands that to `renderSVG` as an explicit frame — so the
+paper and grid reach every edge of the window and nothing is off-canvas. Export
+calls the same renderer with no frame and gets the one the diagram implies.
+
+Every gesture is a text transformation. A drag parses the text, moves the node
+and prints the JSON back; so does dropping a tile, drawing a group, or any field
+in an inspector. Hit-testing reads the config's own coordinates rather than
+measuring the DOM, and prefers a tile over the group it sits in.
 
 ## Decisions
 
-| Decision                                  | Why                                                                                                                                                                                                            | Alternatives Considered                                          |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| No server function is involved            | The hub reserves server functions for cookie and header work on the web server. Rendering needs neither, so it runs in the browser                                                                             | A `createServerFn` that renders server-side                      |
-| The SVG is injected as markup             | Rebuilding it as a React tree would mean a second renderer, and the exported image could then differ from the preview. The markup is our own output, from a validated config, fully escaped                    | Parsing the SVG into React elements                              |
-| Everything derives from one state value   | Any second source of truth eventually disagrees with the text on screen                                                                                                                                        | Holding a parsed config alongside the raw text                   |
-| The route is public                       | Phase 0 has no accounts, and the plan explicitly defers multi-user auth                                                                                                                                        | Placing it under the authenticated segment                       |
-| Seeded with the canonical example         | The page is useful on first load, and there is one example to keep correct rather than two                                                                                                                     | An empty textarea                                                |
-| Every visual edit rewrites the text       | A drag or a field edit parses the text, mutates it and prints it back. Phase 0's invariant survives its own success: one state value, so the canvas and the JSON cannot drift apart, and undo stays text-level | Holding a parsed config as editing state and serialising on save |
-| Mutations never validate before writing   | An edit that breaks the config is written anyway and reported in the existing error list. Silently refusing a keystroke leaves the author with no idea what happened                                           | Rejecting edits that would fail validation                       |
-| Hit-testing reads the config, not the DOM | The renderer already fixed every tile's coordinates. Measuring the rendered SVG would be a second source of truth, and it stops agreeing the moment the preview is scaled to fit                               | `document.elementFromPoint`, or per-tile DOM listeners           |
-| Cancelling a drag restores exactly        | A config's coordinates need not sit on the grid — the seed's Hono is at 350,180 — so restoring through the snapping mover would relocate a node the author decided not to move                                 | Reusing `moveNode` for the restore                               |
-| Arrange writes coordinates only           | Round-tripping the laid-out config through `JSON.stringify` would stamp every schema default into the author's file, rewriting lines they never touched                                                        | Serialising the whole validated config                           |
-| Saving is a file download                 | Without a server there is no id to mint. The filesystem is honest about being the persistence layer, and a `.json` reopens byte-identical where a PNG cannot                                                   | `localStorage`, which the author cannot find, back up or send    |
-| Enum fields are native `<select>`s        | A dense panel of small controls keeps keyboard behaviour, label association and screen-reader semantics for free, without a portal per field                                                                   | The design system's base-ui `Select`                             |
+| Decision                                       | Why                                                                                                                                                                               | Alternatives Considered                                   |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| The canvas is the window; panels float over it | A column takes its width from the diagram permanently, read or not. Floating means closing the JSON hands the space straight back                                                 | A three-column grid                                       |
+| The renderer draws the editor's surface too    | Passing the visible rectangle as a frame means what you look at and what you export come from one function, background and grid included                                          | A CSS grid behind a separately rendered sheet             |
+| Everything derives from one state value        | Any second source of truth eventually disagrees with the text on screen                                                                                                           | Holding a parsed config alongside the raw text            |
+| The last valid config keeps drawing            | Half of authoring JSON is spent in states that do not parse. Losing the picture at each one makes the panel unusable                                                              | Blanking the canvas on any error                          |
+| Mutations never validate before writing        | An edit that breaks the config is written anyway and reported in the existing error list. Silently refusing a keystroke leaves the author with no idea what happened              | Rejecting edits that would fail validation                |
+| Hit-testing reads the config, not the DOM      | The renderer already fixed every tile's coordinates. Measuring the rendered SVG is a second source of truth that stops agreeing the moment the view is scaled                     | `document.elementFromPoint`, or per-tile DOM listeners    |
+| One selection slot, two kinds                  | The bin, the Delete key and the inspector all need to know _what_ they are looking at. Separate node and group ids would let both be set and make every reader invent a tie-break | `selectedNodeId` and `selectedGroupId` side by side       |
+| A tile wins over the group containing it       | The tile is the smaller, more specific target, and it is drawn on top                                                                                                             | Requiring a click on the group's border                   |
+| Chrome is drawn in an overlay SVG              | Halos and the group being dragged out never enter the scene, so the exported document is the renderer's output byte for byte — with nothing to strip                              | Marking chrome inside the scene and removing it on export |
+| A drawn group lands neutral, named `GROUP`     | The tone is a claim about the system and the label is the author's words. Neither is something a drag can guess, so it opens in the inspector instead                             | Prompting for a name mid-gesture                          |
+| Deleting a group keeps its tiles               | A group is a box drawn around nodes, not a parent of them — which is what makes trying one cheap                                                                                  | Cascading the delete to everything inside                 |
+| The editor runs its own chrome theme           | The app shell forces `.dark` on `<html>`; the editor reads `data-chrome` on its own root, so its light and dark palettes are independent of the rest of the app                   | Reusing the app's shadcn tokens                           |
+| Local chrome primitives, not `web-ui`          | The shared components carry `dark:` variants keyed to `.dark` on `<html>`, so inside the editor they would follow the app's theme rather than the editor's                        | Overriding the shared components per instance             |
+| Enum fields are native `<select>`s             | A dense panel of small controls keeps keyboard behaviour, label association and screen-reader semantics for free, without a portal per field                                      | The design system's base-ui `Select`                      |
 
 ## Gotchas & Warnings
 
-- ⚠️ The route must stay outside the `_authenticated` segment. Moving it in would put a tool that needs no account behind a login.
+- ⚠️ The route must stay outside the `_authenticated` segment, and it is the only route in `FULL_SCREEN_ROUTES` in `__root.tsx` — that list is what hides the app navbar so the canvas can own the window.
+- ⚠️ The scene SVG is rebuilt on every camera move, because the frame _is_ the camera. That is fine at the 40 nodes the schema allows and would need a dirty-region pass long before it needed a canvas library.
 - ⚠️ PNG export depends on the SVG being fully self-contained. Adding a remote `<image href>` to the renderer would taint the canvas and make `toDataURL` throw.
-- ⚠️ The two-pane layout uses `md:grid-cols-2`, an app-only responsive utility. If `packages/web-ui` ever imports a stylesheet in its `src/index.ts` again, that class loses the cascade in production builds while still working in dev.
 - ⚠️ `EditorPage` lives in `components/`, not in the route file. A `__tests__` directory under `src/routes/` would be picked up as a route by the file-based router.
-- ⚠️ jsdom implements no `PointerEvent`. Testing Library silently downgrades to a plain `Event` and drops `clientX`/`clientY`, so a drag test fires a perfectly shaped gesture carrying no coordinates. The polyfill lives in `src/vitest.setup.ts`; removing it makes every drag test fail in a way that points at the component.
+- ⚠️ jsdom performs no layout, so every element reports a zero size and the camera has no viewport — nothing renders. `src/vitest.setup.ts` makes elements report a fixed one; removing that stub makes every canvas test fail in a way that points at the component.
+- ⚠️ jsdom implements neither `PointerEvent` nor `DragEvent`. Testing Library downgrades both to a plain `Event` and drops `clientX`/`clientY`, so a gesture test fires perfectly and carries no coordinates. Both polyfills live in the same setup file.
 - ⚠️ jsdom implements no SVG geometry either, so `getScreenCTM` is stubbed per test file. `clientToViewBox` solves the matrix by hand rather than via `DOMPoint`, which jsdom also lacks.
 - ⚠️ Testing Library only auto-registers cleanup under `globals: true`. The setup file wires `afterEach(cleanup)` explicitly — without it renders stack in one document and queries fail with "found multiple elements".
 - ⚠️ The test rig keeps `vite-tsconfig-paths`. `@diagram-tool/web-ui` defines a `@/` alias of its own, and a single app-level `@/` alias hijacks it and breaks every import inside that package.
-- ⚠️ Dragging is disabled while the add-edge gesture is armed: one press cannot mean both "pick this endpoint" and "start moving this".
+- ⚠️ The wheel listener is attached natively, not through `onWheel`. React registers wheel handlers as passive, so `preventDefault` there cannot stop the page scrolling behind the zoom.
+- ⚠️ Auto-fit stops the moment the author zooms by hand. Without that, opening a panel or adding a tile would undo a deliberate zoom; `Fit` hands control back.
 
 ## Dependencies
 
-None new. Uses `@diagram-tool/domain` and existing `@diagram-tool/web-ui` components.
+None new. Uses `@diagram-tool/domain` and `lucide-react`.
 
 ## Testing
 
@@ -105,16 +114,20 @@ bun run test --filter=fullstack-fn-only
 # Manual testing
 bun run dev:fullstack-fn
 # Open http://localhost:3002/editor
-# 1. The example renders on load, with real brand logos.
-# 2. Drag a tile — the JSON's coordinates follow it and snap to the half-grid.
-# 3. Press Escape mid-drag — the node returns to exactly where it started.
-# 4. Click a tile, rename it, switch its mark to an emoji and back.
-# 5. Add edge, click two tiles — the anchors face each other.
-# 6. Arrange — the flow lands in one row, secondaries under what they attach to.
-# 7. Save JSON, then Open… it again — the editor comes back byte-identical.
+# 1. The example renders on load, filling the window — no sheet, no table.
+# 2. Drag a tile off the palette onto the canvas, far from everything else.
+# 3. Drag it again — the JSON's coordinates follow and snap to the half-grid.
+# 4. Press Escape mid-drag — the node returns to exactly where it started.
+# 5. Group, drag a box around two tiles, name it and pick a tone.
+# 6. Move the group — the tiles inside stay put. Delete it — they survive.
+# 7. Connect, click two tiles — the anchors face each other.
+# 8. Inspector with nothing selected — switch the paper to Legal pad.
+# 9. File ▸ Export PNG 2x — the PNG is the drawing, cropped to its own bounds.
 ```
 
 ## Related
 
-- [SVG Renderer](svg-renderer) — produces what this page displays
+- [SVG Renderer](svg-renderer) — draws both the canvas and the export
 - [Config Schema](config-schema) — produces the errors this page lists
+- [ADR 0001](/architecture/decisions/adr-0001-no-canvas-library-for-the-editor) — why this canvas is hand-written
+- [ADR 0002](/architecture/decisions/adr-0002-the-frame-is-derived-not-declared) — why there is no sheet to draw inside

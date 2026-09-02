@@ -1,7 +1,13 @@
 import type { QueryClient } from "@tanstack/react-query";
 
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
+import {
+  HeadContent,
+  Outlet,
+  Scripts,
+  createRootRouteWithContext,
+  useRouterState,
+} from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
 import { Toaster } from "@diagram-tool/web-ui";
@@ -59,9 +65,22 @@ const criticalStyles = `
   }
 `;
 
+/**
+ * Routes that run their own full-viewport chrome.
+ *
+ * The editor is a canvas application: it owns the whole screen, sets its own
+ * 52px header and runs a chrome theme independent of the app shell's. A second
+ * fixed navbar above it would cost a strip of canvas and give two headers to
+ * read.
+ */
+const FULL_SCREEN_ROUTES = ["/editor"];
+
 function RootDocument() {
   const context = Route.useRouteContext();
   const { isAuthenticated, session } = context;
+
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const fullScreen = FULL_SCREEN_ROUTES.includes(pathname);
 
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
@@ -71,12 +90,14 @@ function RootDocument() {
       </head>
       <body suppressHydrationWarning>
         <div className="min-h-svh">
-          <Header
-            isAuthenticated={isAuthenticated}
-            userName={session?.user?.name ?? ""}
-            userEmail={session?.user?.email ?? ""}
-          />
-          <main className="pt-12">
+          {fullScreen ? null : (
+            <Header
+              isAuthenticated={isAuthenticated}
+              userName={session?.user?.name ?? ""}
+              userEmail={session?.user?.email ?? ""}
+            />
+          )}
+          <main className={fullScreen ? undefined : "pt-12"}>
             <Outlet />
           </main>
         </div>

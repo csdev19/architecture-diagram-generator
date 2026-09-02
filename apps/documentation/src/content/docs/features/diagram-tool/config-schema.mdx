@@ -17,7 +17,7 @@ description: The DiagramConfig contract, and validation written so a model can c
 
 ## What It Does
 
-Defines what a diagram _is_: a canvas, a set of groups, nodes and edges. Every
+Defines what a diagram _is_: a set of groups, nodes and edges. Every
 surface reads this one contract — the editor validates against it, the renderer
 consumes it, and from phase 1 the MCP tool will accept it. Its failure messages
 are written for whoever authored the config, so a model that gets a config wrong
@@ -37,7 +37,7 @@ can usually fix it without a human stepping in.
 
 ### Domain Model
 
-`DiagramConfig` is the aggregate: a `canvas`, plus arrays of `DiagramGroup`,
+`DiagramConfig` is the aggregate: arrays of `DiagramGroup`,
 `DiagramNode` and `DiagramEdge`. Groups and nodes are positioned rectangles;
 an edge is a reference between two node ids plus the sides it leaves and enters.
 All four are plain inferred types — data, no behaviour. A node identifies itself
@@ -48,7 +48,7 @@ optional on their own, and a node-level rule requires at least one of them.
 
 Field-level rules live on the fields. Everything that needs to see the whole
 config — ids being unique, both ends of an edge resolving to real nodes, nodes
-sitting inside the canvas margin — runs in a single `superRefine`, so one parse
+— runs in a single `superRefine`, so one parse
 reports every problem rather than the first one. Messages name the offending
 value and the fix; a dangling edge lists the ids that actually exist.
 `validateDiagramConfig` wraps this into either a ready-to-render config or a
@@ -70,7 +70,9 @@ list of strings.
 ## Gotchas & Warnings
 
 - ⚠️ The parsed output type differs from the authoring type: defaults mean `DiagramConfig` has fields that `DiagramConfigInput` does not require. Anything hand-writing a config should be typed as the input.
-- ⚠️ Validation rejects a node centre closer than 60px to a canvas edge, but the guidelines ask for 70px. That gap is intentional — it leaves room before the hard limit.
+- ⚠️ Coordinates are unbounded, negatives included. There is no canvas to be outside of — the exported frame is derived from the drawing, so nothing is rejected for being too far out. See [ADR 0002](/architecture/decisions/adr-0002-the-frame-is-derived-not-declared).
+- ⚠️ `canvas` still exists but is optional, and setting it re-imposes a fixed frame that crops anything outside it. The editor never writes one; leave it out unless an exact size was asked for.
+- ⚠️ `background` names a paper tone, never a hex — the renderer owns the value, like every other colour in the format.
 - ⚠️ `version` is a literal `1`. A future shape change means a new version and an explicit migration, not a widened schema.
 - ⚠️ Whitespace-only text passes `.min(1)` without the `.trim()` in front of it. Every user-facing string field needs both.
 - ⚠️ A node carrying **both** `emoji` and `iconKey` is valid, and the renderer draws the icon. The emoji is not a fallback the renderer will ever reach — it only matters if the `iconKey` is later removed by hand.
