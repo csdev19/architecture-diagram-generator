@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent } from "react";
+import type {
+  DragEvent as ReactDragEvent,
+  MouseEvent as ReactMouseEvent,
+  PointerEvent as ReactPointerEvent,
+} from "react";
 import { DIAGRAM_GEOMETRY } from "@diagram-tool/domain/constants";
 import { contentFrame, renderSVG } from "@diagram-tool/domain/render";
 import type { ResolvedDiagram } from "@diagram-tool/domain/schemas";
@@ -10,7 +14,7 @@ import {
 } from "@/components/editor/pointer-geometry";
 import type { Point } from "@/components/editor/pointer-geometry";
 import { isBoundary, isNode } from "@/components/editor/selection";
-import type { Selection } from "@/components/editor/selection";
+import type { MaybeSelection } from "@/components/editor/selection";
 import { EDITOR_TOOLS, STAGE_CURSORS, toolHint } from "@/components/editor/editor-tools";
 import type { EditorTool } from "@/components/editor/editor-tools";
 import { StageToolbar } from "@/components/editor/stage-toolbar";
@@ -46,8 +50,24 @@ interface DiagramStageProps {
   diagram: ResolvedDiagram | null;
   tool: EditorTool;
   onToolChange: (tool: EditorTool) => void;
-  selection: Selection;
-  onSelect: (selection: Selection) => void;
+  selection: MaybeSelection;
+  onSelect: (selection: MaybeSelection) => void;
+  /**
+   * What a press on this element should select.
+   *
+   * The page decides, because the answer depends on the group tree and on
+   * which group has been entered — and the stage has neither. It also decides
+   * whether the gesture moves one thing or a whole group.
+   */
+  resolveSelection: (kind: "node" | "boundary", id: string) => MaybeSelection;
+  /** Adds or removes one element, for a shift-click. */
+  onToggleSelect: (kind: "node" | "boundary", id: string) => void;
+  /** Enters the group a double-click landed in, so the next click reaches inside. */
+  onEnterGroup: (kind: "node" | "boundary", id: string) => void;
+  /** The rectangle a selected group covers, drawn as a halo and never exported. */
+  groupOutline: { x: number; y: number; w: number; h: number } | null;
+  /** Moves everything in the selection by the same delta. */
+  onSelectionMove: (dx: number, dy: number) => void;
   /** Source tile of an edge being drawn, once one has been picked. */
   edgeFrom: string | null;
   onPickEdgeEnd: (id: string) => void;
@@ -74,9 +94,11 @@ interface DiagramStageProps {
 interface NodeDrag {
   kind: "node";
   id: string;
-  /** Where the node started, so Escape can put it back. */
-  originX: number;
-  originY: number;
+  /** Where the press landed, which is what a group drag measures its delta from. */
+  fromX: number;
+  fromY: number;
+  /** Whether the press picked a whole group, so everything in it moves together. */
+  moveGroup: boolean;
   pointerId: number;
 }
 
@@ -86,8 +108,10 @@ interface BoundaryDrag {
   /** The grab offset, so the box does not jump its corner to the pointer. */
   offsetX: number;
   offsetY: number;
-  originX: number;
-  originY: number;
+  /** Where the press landed, for the same reason a node drag records it. */
+  fromX: number;
+  fromY: number;
+  moveGroup: boolean;
   pointerId: number;
 }
 
@@ -140,6 +164,11 @@ export function DiagramStage({
   onToolChange,
   selection,
   onSelect,
+  resolveSelection,
+  onToggleSelect,
+  onEnterGroup,
+  groupOutline,
+  onSelectionMove,
   edgeFrom,
   onPickEdgeEnd,
   tileLabel,
@@ -244,13 +273,20 @@ export function DiagramStage({
     if (tool !== EDITOR_TOOLS.SELECT) return;
 
     if (node) {
-      onSelect({ kind: "node", id: node.id });
+      if (event.shiftKey) {
+        onToggleSelect("node", node.id);
+        return;
+      }
+
+      const target = resolveSelection("node", node.id);
+      onSelect(target);
       onGestureStart();
       gestureRef.current = {
         kind: "node",
         id: node.id,
-        originX: node.x,
-        originY: node.y,
+        fromX: point.x,
+        fromY: point.y,
+        moveGroup: target?.kind === "group",
         pointerId: event.pointerId,
       };
       setGesturing(true);
@@ -268,20 +304,50 @@ export function DiagramStage({
       return;
     }
 
-    onSelect({ kind: "boundary", id: boundary.id });
+    if (event.shiftKey) {
+      onToggleSelect("boundary", boundary.id);
+      return;
+    }
+
+    const target = resolveSelection("boundary", boundary.id);
+    onSelect(target);
     onGestureStart();
     gestureRef.current = {
       kind: "boundary",
       id: boundary.id,
       offsetX: point.x - boundary.x,
       offsetY: point.y - boundary.y,
-      originX: boundary.x,
-      originY: boundary.y,
+      fromX: point.x,
+      fromY: point.y,
+      moveGroup: target?.kind === "group",
       pointerId: event.pointerId,
     };
     setGesturing(true);
     event.currentTarget.setPointerCapture?.(event.pointerId);
     event.preventDefault();
+  };
+
+  /**
+   * Enters the group a double-click landed in.
+   *
+   * The way into a group, and the only way to reach a boundary that frames one:
+   * a single click selects the outermost group, so without this the elements
+   * inside would be unreachable once they were grouped.
+   */
+  const handleDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!diagram || tool !== EDITOR_TOOLS.SELECT) return;
+
+    const point = pointAt(event.clientX, event.clientY);
+    if (!point) return;
+
+    const node = hitTestNode(diagram, point);
+    if (node) {
+      onEnterGroup("node", node.id);
+      return;
+    }
+
+    const boundary = hitTestBoundary(diagram, point);
+    if (boundary) onEnterGroup("boundary", boundary.id);
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -300,12 +366,16 @@ export function DiagramStage({
     if (!point) return;
 
     if (gesture?.kind === "node") {
-      onNodeMove(gesture.id, point.x, point.y);
+      if (gesture.moveGroup) onSelectionMove(point.x - gesture.fromX, point.y - gesture.fromY);
+      else onNodeMove(gesture.id, point.x, point.y);
       return;
     }
 
     if (gesture?.kind === "boundary") {
-      onBoundaryMove(gesture.id, point.x - gesture.offsetX, point.y - gesture.offsetY);
+      // A grouped boundary has no rectangle of its own to move: its group does
+      // the moving, and the box follows whatever it frames.
+      if (gesture.moveGroup) onSelectionMove(point.x - gesture.fromX, point.y - gesture.fromY);
+      else onBoundaryMove(gesture.id, point.x - gesture.offsetX, point.y - gesture.offsetY);
       return;
     }
 
@@ -421,6 +491,26 @@ export function DiagramStage({
     })
     .filter(Boolean);
 
+  /**
+   * The rectangle around a selected group.
+   *
+   * A group is never drawn, so this lives in the overlay with every other halo
+   * — dashed, to read as a selection rather than as a boundary someone made.
+   */
+  const groupHalo = groupOutline ? (
+    <rect
+      x={groupOutline.x - HALO_SLACK}
+      y={groupOutline.y - HALO_SLACK}
+      width={groupOutline.w + HALO_SLACK * 2}
+      height={groupOutline.h + HALO_SLACK * 2}
+      rx={HALO_RADIUS}
+      fill="none"
+      stroke="var(--ed-accent)"
+      strokeWidth={1.75 / view.scale}
+      strokeDasharray={`${6 / view.scale} ${4 / view.scale}`}
+    />
+  ) : null;
+
   const boundaryHalos = (diagram?.boundaries ?? [])
     .filter((boundary) => isBoundary(selection, boundary.id))
     .map((boundary) => (
@@ -464,6 +554,7 @@ export function DiagramStage({
       className="absolute inset-0 touch-none overflow-hidden bg-ed-stage"
       style={{ cursor }}
       onPointerDown={handlePointerDown}
+      onDoubleClick={handleDoubleClick}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
@@ -476,8 +567,11 @@ export function DiagramStage({
           <div
             ref={sceneRef}
             data-testid="diagram-canvas"
-            data-selected-node={selection?.kind === "node" ? selection.id : undefined}
-            data-selected-boundary={selection?.kind === "boundary" ? selection.id : undefined}
+            data-selected-node={selection?.kind === "node" ? selection.ids.join(" ") : undefined}
+            data-selected-boundary={
+              selection?.kind === "boundary" ? selection.ids.join(" ") : undefined
+            }
+            data-selected-group={selection?.kind === "group" ? selection.ids.join(" ") : undefined}
             className="absolute inset-0 [&>svg]:h-full [&>svg]:w-full"
             dangerouslySetInnerHTML={{ __html: svg }}
           />
@@ -488,6 +582,7 @@ export function DiagramStage({
           >
             {nodeHalos}
             {boundaryHalos}
+            {groupHalo}
             {draftHalo}
           </svg>
         </>

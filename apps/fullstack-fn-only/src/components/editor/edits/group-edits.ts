@@ -153,6 +153,12 @@ export const createGroup = (
     const groups = collectionOf(document, "groups") ?? [];
     content.groups = [...groups, { id, members: [...memberIds] }];
 
+    // A boundary that has just been grouped derives its rectangle from what it
+    // frames, so the one it was carrying has to go — keeping it would be a
+    // contradiction the validator rejects.
+    for (const member of memberIds) forgetBoundaryRect(document, member);
+    pruneLayout(document);
+
     if (home !== undefined) {
       const parent = groupsIn(document).find((group) => group.id === home);
       if (parent) parent.raw.members = [...parent.members, id];

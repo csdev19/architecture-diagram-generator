@@ -28,6 +28,12 @@ import {
   setEdgeAnchors,
   setNodePosition,
 } from "@/components/editor/edits/layout-edits";
+import {
+  addMember,
+  createGroup,
+  removeMember,
+  ungroup,
+} from "@/components/editor/edits/group-edits";
 import { materialiseLayout } from "@/components/editor/edits/materialise";
 
 /**
@@ -90,6 +96,14 @@ export const useDiagramEditing = (
       setEdgeAnchors: (id: string, anchors: { out?: AnchorSide; inn?: AnchorSide }) =>
         setText((text) => setEdgeAnchors(text, id, anchors)),
       removeEdge: (id: string) => setText(settled((text) => removeEdge(text, id))),
+
+      createGroup: (id: string, memberIds: readonly string[]) =>
+        setText(settled((text) => createGroup(text, id, memberIds, diagram))),
+      ungroup: (id: string) => setText(settled((text) => ungroup(text, id, diagram))),
+      addMember: (groupId: string, memberId: string) =>
+        setText(settled((text) => addMember(text, groupId, memberId, diagram))),
+      removeMember: (groupId: string, memberId: string) =>
+        setText(settled((text) => removeMember(text, groupId, memberId, diagram))),
 
       setBackground: (tone: CanvasTone) => setText((text) => setBackground(text, tone)),
       arrangeNodes: () => setText(clearNodeLayout),

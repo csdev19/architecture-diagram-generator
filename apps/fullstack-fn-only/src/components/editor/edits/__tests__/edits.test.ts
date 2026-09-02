@@ -73,10 +73,9 @@ describe("moving a node", () => {
   it("writes several positions at once", () => {
     const next = parse(moveNodes(contentOnly(), { api: { x: 0, y: 0 }, db: { x: 200, y: 0 } }));
 
-    expect(next.layout.nodes).toEqual({
-      api: { x: 0, y: 0 },
-      db: { x: snapToGrid(200), y: 0 },
-    });
+    // Verbatim: the caller snaps the delta once, because rounding each member
+    // separately would move them by different amounts.
+    expect(next.layout.nodes).toEqual({ api: { x: 0, y: 0 }, db: { x: 200, y: 0 } });
   });
 
   it("returns unparseable text unchanged", () => {

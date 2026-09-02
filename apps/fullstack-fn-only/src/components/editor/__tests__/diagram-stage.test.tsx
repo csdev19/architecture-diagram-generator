@@ -62,9 +62,26 @@ const drag = (from: { x: number; y: number }, to: { x: number; y: number }) => {
   fireEvent.pointerUp(canvas(), { clientX: to.x, clientY: to.y, pointerId: 1 });
 };
 
-const clickTile = (x: number, y: number) => {
+/**
+ * Picks the tile itself rather than the group it belongs to.
+ *
+ * Everything in the seed is grouped, and a single click selects the outermost
+ * group — so reaching a tile means entering its group first, which is what a
+ * double-click does.
+ */
+const selectTile = (id: string) => {
+  const { x, y } = at(id);
   fireEvent.pointerDown(canvas(), { clientX: x, clientY: y, pointerId: 1 });
   fireEvent.pointerUp(canvas(), { clientX: x, clientY: y, pointerId: 1 });
+  fireEvent.doubleClick(canvas(), { clientX: x, clientY: y });
+};
+
+/** A press-move-release starting on a tile that has already been selected. */
+const dragSelected = (id: string, to: { x: number; y: number }) => {
+  const from = at(id);
+  fireEvent.pointerDown(canvas(), { clientX: from.x, clientY: from.y, pointerId: 1 });
+  fireEvent.pointerMove(canvas(), { clientX: to.x, clientY: to.y, pointerId: 1 });
+  fireEvent.pointerUp(canvas(), { clientX: to.x, clientY: to.y, pointerId: 1 });
 };
 
 beforeEach(() => {
@@ -74,14 +91,16 @@ beforeEach(() => {
 describe("dragging a node", () => {
   it("writes the new coordinates into the editor's JSON", () => {
     render(<EditorPage />);
-    drag(at("api"), { x: 300, y: 260 });
+    selectTile("api");
+    dragSelected("api", { x: 300, y: 260 });
 
     expect(positionIn(documentText(), "api")).toEqual({ x: 299, y: 260 });
   });
 
   it("snaps to the half-grid on the way", () => {
     render(<EditorPage />);
-    drag(at("api"), { x: 301, y: 197 });
+    selectTile("api");
+    dragSelected("api", { x: 301, y: 197 });
 
     expect(positionIn(documentText(), "api")).toEqual({ x: 299, y: 195 });
   });
@@ -89,7 +108,8 @@ describe("dragging a node", () => {
   it("leaves the architecture completely alone", () => {
     render(<EditorPage />);
     const before = documentText();
-    drag(at("api"), { x: 300, y: 260 });
+    selectTile("api");
+    dragSelected("api", { x: 300, y: 260 });
 
     expect(JSON.parse(documentText()).content).toEqual(JSON.parse(before).content);
     expect(nodeIn(documentText(), "api")).not.toHaveProperty("x");
@@ -97,7 +117,8 @@ describe("dragging a node", () => {
 
   it("leaves every other tile exactly where it was drawn", () => {
     render(<EditorPage />);
-    drag(at("api"), { x: 300, y: 260 });
+    selectTile("api");
+    dragSelected("api", { x: 300, y: 260 });
 
     // Dragging one tile settles the rest rather than re-flowing them: pinning
     // one node is enough to change what auto-layout would do with the others.
@@ -106,18 +127,33 @@ describe("dragging a node", () => {
     }
   });
 
+  it("moves a whole group when the press picks one", () => {
+    render(<EditorPage />);
+    // `api` and `db` share the `runtime` group, so a plain press picks the
+    // group and both travel by the same delta.
+    // 130 snaps to 130 exactly, so the delta is the one the drag asked for.
+    drag(at("api"), { x: at("api").x + 130, y: at("api").y + 130 });
+
+    const moved = positionIn(documentText(), "db");
+    expect(moved).toEqual({ x: at("db").x + 130, y: at("db").y + 130 });
+    // Nothing outside the group went with it.
+    expect(positionIn(documentText(), "web")).toEqual(at("web"));
+  });
+
   it("takes a node anywhere, negative coordinates included", () => {
     render(<EditorPage />);
     // Nothing clamps: there is no frame to stay inside, so the drag lands
     // exactly where it was released, snapped to the grid and no further.
-    drag(at("api"), { x: -400, y: -400 });
+    selectTile("api");
+    dragSelected("api", { x: -400, y: -400 });
 
     expect(positionIn(documentText(), "api")).toEqual({ x: -403, y: -403 });
   });
 
   it("takes a node far past where the diagram used to end", () => {
     render(<EditorPage />);
-    drag(at("api"), { x: 2000, y: 2000 });
+    selectTile("api");
+    dragSelected("api", { x: 2000, y: 2000 });
 
     expect(positionIn(documentText(), "api")).toEqual({ x: 2002, y: 2002 });
   });
@@ -138,6 +174,7 @@ describe("dragging a node", () => {
     fireEvent.pointerDown(canvas(), { clientX: start.x, clientY: start.y, pointerId: 1 });
     fireEvent.pointerMove(canvas(), { clientX: 500, clientY: 300, pointerId: 1 });
     expect(positionIn(documentText(), "api")).not.toEqual(start);
+    expect(documentText()).not.toBe(before);
 
     fireEvent.keyDown(window, { key: "Escape" });
 
@@ -186,16 +223,38 @@ describe("text that does not validate", () => {
 });
 
 describe("selection", () => {
-  it("selects the tile that was pressed", () => {
+  it("selects the group a pressed tile belongs to", () => {
     render(<EditorPage />);
     fireEvent.pointerDown(canvas(), { clientX: at("api").x, clientY: at("api").y, pointerId: 1 });
+
+    // A group reads as one object: pressing any part of it picks the whole.
+    expect(canvas()).toHaveAttribute("data-selected-group", "runtime");
+    expect(canvas()).not.toHaveAttribute("data-selected-node");
+  });
+
+  it("selects the tile itself once its group has been entered", () => {
+    render(<EditorPage />);
+    selectTile("api");
 
     expect(canvas()).toHaveAttribute("data-selected-node", "api");
   });
 
+  it("adds to the selection on shift-click", () => {
+    render(<EditorPage />);
+    selectTile("api");
+    fireEvent.pointerDown(canvas(), {
+      clientX: at("db").x,
+      clientY: at("db").y,
+      pointerId: 1,
+      shiftKey: true,
+    });
+
+    expect(canvas()).toHaveAttribute("data-selected-node", "api db");
+  });
+
   it("clears the selection when the press misses every tile", () => {
     render(<EditorPage />);
-    clickTile(at("api").x, at("api").y);
+    selectTile("api");
     fireEvent.pointerDown(canvas(), { clientX: NOWHERE.x, clientY: NOWHERE.y, pointerId: 1 });
 
     expect(canvas()).not.toHaveAttribute("data-selected-node");
@@ -263,7 +322,7 @@ describe("placing a tile", () => {
 describe("deleting a tile", () => {
   it("takes its edges with it", () => {
     render(<EditorPage />);
-    clickTile(at("api").x, at("api").y);
+    selectTile("api");
 
     fireEvent.keyDown(window, { key: "Delete" });
 
@@ -278,7 +337,7 @@ describe("deleting a tile", () => {
 
   it("leaves no layout entry naming something that is gone", () => {
     render(<EditorPage />);
-    clickTile(at("api").x, at("api").y);
+    selectTile("api");
 
     fireEvent.keyDown(window, { key: "Delete" });
 
@@ -291,7 +350,7 @@ describe("deleting a tile", () => {
     const bin = screen.getByRole("button", { name: /delete what is selected/i });
     expect(bin).toBeDisabled();
 
-    clickTile(at("api").x, at("api").y);
+    selectTile("api");
     expect(screen.getByRole("button", { name: /delete what is selected/i })).toBeEnabled();
   });
 });
