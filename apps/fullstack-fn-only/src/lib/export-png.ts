@@ -55,9 +55,9 @@ export const downloadSvgAsPng = async (svg: string, filename: string): Promise<v
   }
 };
 
-/** Hands the viewer the SVG source itself, unrasterised. */
-export const downloadSvg = (svg: string, filename: string): void => {
-  const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+/** Hands the viewer a text file, revoking the object URL once the click lands. */
+const downloadText = (contents: string, filename: string, mimeType: string): void => {
+  const blob = new Blob([contents], { type: `${mimeType};charset=utf-8` });
   const objectUrl = URL.createObjectURL(blob);
 
   try {
@@ -68,3 +68,16 @@ export const downloadSvg = (svg: string, filename: string): void => {
     setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
   }
 };
+
+/** Hands the viewer the SVG source itself, unrasterised. */
+export const downloadSvg = (svg: string, filename: string): void =>
+  downloadText(svg, filename, "image/svg+xml");
+
+/**
+ * Hands the viewer the config itself.
+ *
+ * This is what "save" means without a server: the config is the diagram, so a
+ * saved `.json` reopens in the editor byte-identical, while a PNG does not.
+ */
+export const downloadConfig = (configText: string, filename: string): void =>
+  downloadText(configText, filename, "application/json");

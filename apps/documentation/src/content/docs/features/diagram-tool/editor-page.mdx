@@ -1,6 +1,6 @@
 ---
 title: Editor Page
-description: The /editor route — paste a config, see it render, export a PNG.
+description: The /editor route — edit a config as text or by dragging, and export it.
 ---
 
 # Editor Page
@@ -18,20 +18,30 @@ description: The /editor route — paste a config, see it render, export a PNG.
 ## What It Does
 
 A public two-pane page. The config JSON goes on the left, the rendered diagram
-appears on the right as you type, and one button downloads it as a 2x PNG. In
-phase 0 this is the whole product: ask Claude for a config in chat, paste it
-here, export the image.
+appears on the right as you type, and it exports as SVG or a 2x PNG.
+
+Since phase 2 the diagram is also editable by hand: tiles drag, a click opens an
+inspector for the selected node's name, sublabel, mark and tile, edges are added
+by clicking two tiles, and **Arrange** re-places everything from the topology.
+Every one of those writes back into the JSON, which stays the thing you save.
 
 ## Implementation
 
 ### Files Changed
 
-| Path                                                               | Purpose                                                                          |
-| ------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
-| `apps/fullstack-fn-only/src/routes/editor.tsx`                     | The route, its single piece of state, and the parse → validate → render pipeline |
-| `apps/fullstack-fn-only/src/components/editor/json-input.tsx`      | Labelled textarea and the list of problems                                       |
-| `apps/fullstack-fn-only/src/components/editor/diagram-preview.tsx` | Preview pane and the export buttons                                              |
-| `apps/fullstack-fn-only/src/lib/export-png.ts`                     | Rasterises the SVG to PNG and hands over the download                            |
+| Path                                                                    | Purpose                                                                       |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `apps/fullstack-fn-only/src/routes/editor.tsx`                          | The route — wiring only                                                       |
+| `apps/fullstack-fn-only/src/components/editor/editor-page.tsx`          | The page: its state, the parse → validate → render pipeline, and the gestures |
+| `apps/fullstack-fn-only/src/components/editor/json-input.tsx`           | Labelled textarea and the list of problems                                    |
+| `apps/fullstack-fn-only/src/components/editor/diagram-preview.tsx`      | Preview pane, export buttons and the pointer handling                         |
+| `apps/fullstack-fn-only/src/components/editor/use-diagram-editing.ts`   | Every visual edit, as a pure text → text transformation                       |
+| `apps/fullstack-fn-only/src/components/editor/pointer-geometry.ts`      | Hit-testing, the client → viewBox transform, and default edge anchors         |
+| `apps/fullstack-fn-only/src/components/editor/node-inspector.tsx`       | The panel for the selected tile                                               |
+| `apps/fullstack-fn-only/src/components/editor/edge-tools.tsx`           | Add, edit and remove edges                                                    |
+| `apps/fullstack-fn-only/src/components/editor/config-file-controls.tsx` | Open and save a config file, and the Arrange button                           |
+| `apps/fullstack-fn-only/src/lib/export-png.ts`                          | Rasterises the SVG to PNG and hands over downloads                            |
+| `apps/fullstack-fn-only/vitest.config.ts`                               | The app's component-test rig                                                  |
 
 ### Domain Model
 
@@ -46,22 +56,41 @@ config surface through the same channel — both are just problems to fix. PNG
 export serialises the SVG into a blob, draws it to a canvas at twice its size,
 and triggers a download.
 
+Visual editing does not add a second source of truth. A drag parses the current
+text, moves the node, and prints the JSON back; so does every field in the
+inspector. The preview then re-renders because the text changed, which is why
+the canvas and the JSON can never disagree and why undo is just editing the JSON
+back. Hit-testing reads the config's own coordinates rather than measuring the
+DOM — the renderer already decided where each tile is.
+
 ## Decisions
 
-| Decision                                | Why                                                                                                                                                                                         | Alternatives Considered                        |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| No server function is involved          | The hub reserves server functions for cookie and header work on the web server. Rendering needs neither, so it runs in the browser                                                          | A `createServerFn` that renders server-side    |
-| The SVG is injected as markup           | Rebuilding it as a React tree would mean a second renderer, and the exported image could then differ from the preview. The markup is our own output, from a validated config, fully escaped | Parsing the SVG into React elements            |
-| Everything derives from one state value | Any second source of truth eventually disagrees with the text on screen                                                                                                                     | Holding a parsed config alongside the raw text |
-| The route is public                     | Phase 0 has no accounts, and the plan explicitly defers multi-user auth                                                                                                                     | Placing it under the authenticated segment     |
-| Seeded with the canonical example       | The page is useful on first load, and there is one example to keep correct rather than two                                                                                                  | An empty textarea                              |
+| Decision                                  | Why                                                                                                                                                                                                            | Alternatives Considered                                          |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| No server function is involved            | The hub reserves server functions for cookie and header work on the web server. Rendering needs neither, so it runs in the browser                                                                             | A `createServerFn` that renders server-side                      |
+| The SVG is injected as markup             | Rebuilding it as a React tree would mean a second renderer, and the exported image could then differ from the preview. The markup is our own output, from a validated config, fully escaped                    | Parsing the SVG into React elements                              |
+| Everything derives from one state value   | Any second source of truth eventually disagrees with the text on screen                                                                                                                                        | Holding a parsed config alongside the raw text                   |
+| The route is public                       | Phase 0 has no accounts, and the plan explicitly defers multi-user auth                                                                                                                                        | Placing it under the authenticated segment                       |
+| Seeded with the canonical example         | The page is useful on first load, and there is one example to keep correct rather than two                                                                                                                     | An empty textarea                                                |
+| Every visual edit rewrites the text       | A drag or a field edit parses the text, mutates it and prints it back. Phase 0's invariant survives its own success: one state value, so the canvas and the JSON cannot drift apart, and undo stays text-level | Holding a parsed config as editing state and serialising on save |
+| Mutations never validate before writing   | An edit that breaks the config is written anyway and reported in the existing error list. Silently refusing a keystroke leaves the author with no idea what happened                                           | Rejecting edits that would fail validation                       |
+| Hit-testing reads the config, not the DOM | The renderer already fixed every tile's coordinates. Measuring the rendered SVG would be a second source of truth, and it stops agreeing the moment the preview is scaled to fit                               | `document.elementFromPoint`, or per-tile DOM listeners           |
+| Cancelling a drag restores exactly        | A config's coordinates need not sit on the grid — the seed's Hono is at 350,180 — so restoring through the snapping mover would relocate a node the author decided not to move                                 | Reusing `moveNode` for the restore                               |
+| Arrange writes coordinates only           | Round-tripping the laid-out config through `JSON.stringify` would stamp every schema default into the author's file, rewriting lines they never touched                                                        | Serialising the whole validated config                           |
+| Saving is a file download                 | Without a server there is no id to mint. The filesystem is honest about being the persistence layer, and a `.json` reopens byte-identical where a PNG cannot                                                   | `localStorage`, which the author cannot find, back up or send    |
+| Enum fields are native `<select>`s        | A dense panel of small controls keeps keyboard behaviour, label association and screen-reader semantics for free, without a portal per field                                                                   | The design system's base-ui `Select`                             |
 
 ## Gotchas & Warnings
 
 - ⚠️ The route must stay outside the `_authenticated` segment. Moving it in would put a tool that needs no account behind a login.
 - ⚠️ PNG export depends on the SVG being fully self-contained. Adding a remote `<image href>` to the renderer would taint the canvas and make `toDataURL` throw.
 - ⚠️ The two-pane layout uses `md:grid-cols-2`, an app-only responsive utility. If `packages/web-ui` ever imports a stylesheet in its `src/index.ts` again, that class loses the cascade in production builds while still working in dev.
-- ⚠️ The page has no automated test. The app ships no Vitest config, and a route test would first need jsdom, RTL and the React dedup block from the hub's testing guide.
+- ⚠️ `EditorPage` lives in `components/`, not in the route file. A `__tests__` directory under `src/routes/` would be picked up as a route by the file-based router.
+- ⚠️ jsdom implements no `PointerEvent`. Testing Library silently downgrades to a plain `Event` and drops `clientX`/`clientY`, so a drag test fires a perfectly shaped gesture carrying no coordinates. The polyfill lives in `src/vitest.setup.ts`; removing it makes every drag test fail in a way that points at the component.
+- ⚠️ jsdom implements no SVG geometry either, so `getScreenCTM` is stubbed per test file. `clientToViewBox` solves the matrix by hand rather than via `DOMPoint`, which jsdom also lacks.
+- ⚠️ Testing Library only auto-registers cleanup under `globals: true`. The setup file wires `afterEach(cleanup)` explicitly — without it renders stack in one document and queries fail with "found multiple elements".
+- ⚠️ The test rig keeps `vite-tsconfig-paths`. `@diagram-tool/web-ui` defines a `@/` alias of its own, and a single app-level `@/` alias hijacks it and breaks every import inside that package.
+- ⚠️ Dragging is disabled while the add-edge gesture is armed: one press cannot mean both "pick this endpoint" and "start moving this".
 
 ## Dependencies
 
@@ -70,16 +99,19 @@ None new. Uses `@diagram-tool/domain` and existing `@diagram-tool/web-ui` compon
 ## Testing
 
 ```bash
-# Unit tests
-# None for this page — see the gotcha above.
+# Unit and component tests
+bun run test --filter=fullstack-fn-only
 
 # Manual testing
 bun run dev:fullstack-fn
 # Open http://localhost:3002/editor
-# 1. The example renders on load.
-# 2. Rename an edge target to something that does not exist — the error names it
-#    and lists the available node ids.
-# 3. Export PNG — the file downloads and matches the preview.
+# 1. The example renders on load, with real brand logos.
+# 2. Drag a tile — the JSON's coordinates follow it and snap to the half-grid.
+# 3. Press Escape mid-drag — the node returns to exactly where it started.
+# 4. Click a tile, rename it, switch its mark to an emoji and back.
+# 5. Add edge, click two tiles — the anchors face each other.
+# 6. Arrange — the flow lands in one row, secondaries under what they attach to.
+# 7. Save JSON, then Open… it again — the editor comes back byte-identical.
 ```
 
 ## Related

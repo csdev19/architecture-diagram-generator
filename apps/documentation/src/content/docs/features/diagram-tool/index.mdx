@@ -13,9 +13,9 @@ the image a model generates over MCP can never disagree.
 ## Architecture Overview
 
 - Domain: `packages/domain/src/schemas/diagram.ts`, `packages/domain/src/constants/diagram.ts`, `packages/domain/src/constants/diagram-icons.ts`
-- Renderer: `packages/domain/src/render/`
+- Renderer: `packages/domain/src/render/` (including `layout.ts`, the auto-layout)
 - Infrastructure: N/A — phase 0 runs entirely in the browser
-- Web UI: `apps/fullstack-fn-only/src/routes/editor.tsx`, `apps/fullstack-fn-only/src/components/editor/`
+- Web UI: `apps/fullstack-fn-only/src/components/editor/` (the route file is wiring only)
 - Mobile: N/A
 - Desktop: N/A
 
@@ -25,7 +25,7 @@ the image a model generates over MCP can never disagree.
 | -------------------------------------------- | ------ | ---------- | ----------------------------------------------------------------------------- |
 | [Config Schema](config-schema)               | ✅     | 2026-09-01 | The `DiagramConfig` contract and the validation that makes it self-correcting |
 | [SVG Renderer](svg-renderer)                 | ✅     | 2026-09-01 | Pure, deterministic `renderSVG` shared by every surface                       |
-| [Editor Page](editor-page)                   | ✅     | 2026-09-01 | Two-pane `/editor` route: JSON in, preview and PNG out                        |
+| [Editor Page](editor-page)                   | ✅     | 2026-09-01 | Two-pane `/editor`: JSON in, preview out — and draggable, with auto-layout    |
 | [Authoring Guidelines](authoring-guidelines) | ✅     | 2026-09-01 | The text that teaches a model to produce a well-positioned config             |
 | API Worker + MCP server                      | 📋     | —          | Phase 1: render server-side, store in R2, expose to Claude over MCP           |
 
@@ -45,3 +45,4 @@ the image a model generates over MCP can never disagree.
 - ⚠️ Anything interpolated into the SVG must go through `escapeXml`. An unescaped `&` in a technology name produces a document that fails to parse, usually with no visible error.
 - ⚠️ The renderer must stay free of DOM and Node APIs. Anything needing `canvas`, `Image` or `document` belongs in the app, which is why PNG export lives there.
 - ⚠️ Never restate a colour, size or limit that already exists in `constants/diagram.ts`. The guidelines interpolate their numbers from it precisely so guidance cannot drift from validation.
+- ⚠️ The editor's text is the single source of truth. Anything that edits a diagram — a drag, a field, auto-layout — parses that text, mutates it and prints it back. Holding a parsed config as editing state is the one change that would break the whole design.

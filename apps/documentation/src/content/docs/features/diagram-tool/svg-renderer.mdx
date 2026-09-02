@@ -35,6 +35,7 @@ what the editor showed.
 | `packages/domain/src/render/group.ts`      | Group box, with its label punched through the top border   |
 | `packages/domain/src/render/node.ts`       | Tile, brand mark or emoji, name and sublabel               |
 | `packages/domain/src/render/edge.ts`       | Anchor geometry, line, arrowheads and labels               |
+| `packages/domain/src/render/layout.ts`     | `layoutDiagram` — coordinates derived from the topology    |
 | `packages/domain/tsdown.config.ts`         | Adds the `render` entry so the subpath export exists       |
 
 ### Domain Model
@@ -69,6 +70,8 @@ tile and substitutes a legible one when the mark would otherwise disappear.
 | Straight lines only                            | Straight edges plus a deliberate layout cover almost everything; orthogonal routing around obstacles is a rabbit hole                                                                                                                                                        | Auto-routed orthogonal edges                                                                             |
 | `simple-icons` as the source of brand marks    | It ships every logo as plain data — a path string and a hex — so it needs no loader, no DOM and no bundler magic, which is what makes it usable inside a Worker. CC0-1.0 also sidesteps the brand-kit question for personal use                                              | A hand-maintained folder of `.svg` assets, which would need a raw-text loader and manual updates         |
 | A brand colour is used only when it is legible | Brand palettes are designed for logos on their own backgrounds. Better Auth's white scores 1.00 against a white tile and Drizzle's lime 1.25 — both invisible. The mark's shape carries the identity, so substituting a readable fill loses far less than an unreadable logo | Using the brand hex unconditionally; darkening the hue toward the contrast floor instead of replacing it |
+| Auto-layout follows solid edges only           | Solid edges _are_ the primary flow by definition, so they are what a left-to-right reading should follow. Counting dashed side channels would bend the spine around auth and CI boxes                                                                                        | Layering over every edge regardless of style                                                             |
+| Layering is queue-based, not recursive         | A config's edges may form a cycle — nothing in the schema forbids one — and a recursive longest-path walk would not terminate. Kahn's algorithm stops, and whatever it could not drain is placed in declaration order                                                        | Depth-first longest-path with a visited set                                                              |
 | A dark tile always draws its mark in white     | Only a minority of marks keep enough contrast on `#0f172a`, and the ones that fail — GitHub's near-black scores 1.00 — vanish entirely. One rule beats a marginal brand-fidelity gain on the two or three tiles a diagram is allowed to darken                               | Applying the same contrast test in both directions                                                       |
 
 ## Gotchas & Warnings
