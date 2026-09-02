@@ -32,13 +32,16 @@ briefing needs an entry there.
 | schemas             | `packages/domain/src/schemas/diagram.ts`                                                                   |
 | stack               | root `package.json` (workspace catalog) + every `apps/*/package.json` and `packages/*/package.json`        |
 | design values       | `packages/domain/src/constants/diagram.ts`, `packages/domain/src/constants/diagram-icons.ts`               |
+| the exported frame  | `packages/domain/src/render/frame.ts` — the document's bounds are derived, not declared                    |
 | positioning copy    | `apps/documentation/src/content/docs/features/diagram-tool/index.mdx` and the root `README.md`             |
 | published version   | nothing is published — verify with `npm view @diagram-tool/domain version` (404) and `git tag` (empty)     |
 
-There are no ADRs. The nearest equivalent is the **Shared Decisions** table in
-`features/diagram-tool/index.mdx`, plus the design documents under
-`docs/specs/`. Treat `docs/specs/` and `docs/plans/` as **intent only** — they
-describe work that may never have been built.
+ADRs live in
+`apps/documentation/src/content/docs/architecture/decisions/`. Read them before
+writing about the editor or the renderer — they carry the reasoning that the
+**Shared Decisions** table in `features/diagram-tool/index.mdx` only summarises.
+Treat `docs/specs/` and `docs/plans/` as **intent only** — they describe work
+that may never have been built.
 
 ## Repo rules
 

@@ -1,0 +1,44 @@
+---
+title: "September 02, 2026 - The canvas has no edges"
+description: The editor became a full-window canvas, and the exported frame is now computed from the drawing instead of declared.
+date: 2026-09-02
+tags:
+  - changelog
+  - feature
+---
+
+✨ **Feature** — `/editor` is a canvas now. It fills the window, the palette and
+the JSON float over it and both close, tiles are dragged in from the palette,
+groups are dragged out around them, and the five tools all say what they are
+instead of standing in as glyphs.
+
+The change underneath it is smaller than it looks and explains everything else.
+`canvas: { w, h }` used to be a field the author wrote, and the renderer drew
+into it. That made a wall: a node could be "outside the canvas", so the editor
+grew a grey table, a white sheet, clamped drags, a grow-the-sheet rule and a
+sheet-size panel — every one of them an apology for the wall. Placing four tiles
+outside it clamped all four to the same corner, stacked.
+
+So the frame is derived. `contentFrame` unions the bounds of what the diagram
+contains and pads it; `canvas` survives as an optional override for the diagram
+that must be an exact size. Coordinates are unbounded, negatives included, and
+the margin rule is gone from the schema. In the editor that was a net deletion —
+the clamp, the growth rule and the sheet-size panel all went, and nothing
+replaced them. Recorded in
+[ADR 0002](/architecture/decisions/adr-0002-the-frame-is-derived-not-declared).
+
+`renderSVG` gained an optional frame, and the editor passes the rectangle its
+camera is looking at. That is what makes the drawing surface reach every edge of
+the window: the paper and the grid are the renderer's, not a CSS backdrop, so
+what you look at and what you export come from one function. A test asserts the
+two framings produce an identical scene, which is the invariant
+[ADR 0001](/architecture/decisions/adr-0001-no-canvas-library-for-the-editor)
+turns on.
+
+💄 **UI** — The grid is dashed and neutral rather than solid and blue: covering a
+whole window, the old weight read as a mesh laid over the drawing. Paper is now
+a choice of five near-whites — `white`, `grey`, `blue`, `cream`, `blush` — named
+rather than picked as a hex, like every other colour in the format, and it
+exports with the diagram.
+
+**Docs:** [Editor Page](/features/diagram-tool/editor-page)

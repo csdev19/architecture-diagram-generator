@@ -32,7 +32,6 @@ for a person to edit afterwards.
 {
   "version": 1,
   "title": "api-simple",
-  "canvas": { "w": 700, "h": 360 },
   "groups": [{ "id": "cf", "label": "CLOUDFLARE", "icon": "☁️",
                "x": 240, "y": 60, "w": 420, "h": 240, "tone": "orange" }],
   "nodes": [
@@ -49,8 +48,8 @@ rewrites itself.
 ## Why it is built this way
 
 **A model can write this, and be told when it is wrong.** The schema does not
-just reject bad input, it explains it: which node sits inside the canvas margin,
-which edge points at an id that does not exist, and what the available ids are.
+just reject bad input, it explains it: which name overruns its tile, which edge
+points at an id that does not exist, and what the available ids are.
 Every problem is reported at once, so a model fixes them in one pass instead of
 discovering them one turn at a time.
 
@@ -59,9 +58,16 @@ different mode from typing — a drag parses the JSON, moves the node, and print
 the JSON back. There is no hidden canvas state that the document can drift away
 from, which means the file you save reopens as exactly the diagram you left.
 
-**One renderer, so nothing can disagree.** The preview in the browser and the
-exported image come out of the same pure function. There is no second drawing
-path that could quietly render something else.
+**One renderer, so nothing can disagree.** The canvas you draw on and the
+exported image come out of the same pure function — the editor just asks it for
+the rectangle currently on screen instead of the whole diagram. There is no
+second drawing path that could quietly render something else.
+
+**Nothing is off the canvas.** There is no page to fit the diagram inside: the
+exported document is sized from what you drew, so coordinates run wherever you
+put them, negatives included. Notice what that removes rather than adds — no
+canvas to size before you start, no margin rule to violate, no tile snapping
+back to an edge you did not know was there.
 
 **You choose meaning; the palette is not yours to pick.** A group gets a `tone`
 — orange for the cloud provider, blue for tooling — and a node gets an

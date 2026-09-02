@@ -18,7 +18,7 @@ description: The single text that teaches a model to produce a well-positioned D
 ## What It Does
 
 Holds the rules that turn "draw me the architecture of X" into a config that is
-valid _and_ well laid out — canvas sizing, the main flow reading left to right,
+valid _and_ well laid out — the main flow reading left to right,
 minimum spacing, tone semantics, and a self-check to run before answering. In
 phase 1 the MCP `get_diagram_guidelines` tool returns this text verbatim, which
 is what lets any fresh Claude session use the tool well with no prior context.
@@ -44,7 +44,7 @@ N/A.
 The text is a TypeScript string rather than a markdown asset, because a
 Cloudflare Worker has to return it in phase 1 and importing markdown needs
 bundler-specific raw-text loaders. Every number in it — character limits, node
-and edge maxima, canvas bounds, tile size, the canvas margin — is interpolated
+and edge maxima, tile size, the frame's padding — is interpolated
 from `constants/diagram.ts` rather than typed out, so the guidance cannot state
 a limit that validation no longer enforces.
 
@@ -54,13 +54,13 @@ every model on the next build with no edit here.
 
 ## Decisions
 
-| Decision                                                             | Why                                                                                                                                              | Alternatives Considered                                             |
-| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
-| A TypeScript string, not a `.md` file                                | A Worker can return a string with zero bundler configuration; markdown needs a raw-text loader that is not portable                              | A `.md` asset exported through tsdown's `customExports`             |
-| Limits are interpolated, not typed out                               | Guidance that contradicts validation is worse than no guidance. Interpolation makes drift impossible                                             | Writing the numbers as prose, guarded by a test                     |
-| Not duplicated into this docs page                                   | Two copies of a rule set is exactly the drift the design avoids everywhere else                                                                  | Rendering the full text here for convenience                        |
-| Layout advice asks for 70px of edge margin, validation enforces 60px | Guidance should aim inside the hard limit, not at it                                                                                             | Making both 60                                                      |
-| The full icon key list is interpolated, not summarised               | A model cannot guess which brands are curated. Listing all of them costs a few dozen tokens and removes the entire class of invented-key retries | Naming a handful of examples and letting validation reject the rest |
+| Decision                                               | Why                                                                                                                                                | Alternatives Considered                                             |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| A TypeScript string, not a `.md` file                  | A Worker can return a string with zero bundler configuration; markdown needs a raw-text loader that is not portable                                | A `.md` asset exported through tsdown's `customExports`             |
+| Limits are interpolated, not typed out                 | Guidance that contradicts validation is worse than no guidance. Interpolation makes drift impossible                                               | Writing the numbers as prose, guarded by a test                     |
+| Not duplicated into this docs page                     | Two copies of a rule set is exactly the drift the design avoids everywhere else                                                                    | Rendering the full text here for convenience                        |
+| The guidelines tell a model **not** to emit a `canvas` | The frame is derived from the drawing. A model that keeps declaring one re-imposes the fixed sheet that was removed, and crops anything outside it | Leaving the old canvas-sizing advice in place                       |
+| The full icon key list is interpolated, not summarised | A model cannot guess which brands are curated. Listing all of them costs a few dozen tokens and removes the entire class of invented-key retries   | Naming a handful of examples and letting validation reject the rest |
 
 ## Gotchas & Warnings
 

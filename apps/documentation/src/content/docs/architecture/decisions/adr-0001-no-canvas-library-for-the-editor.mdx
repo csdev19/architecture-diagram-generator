@@ -164,6 +164,35 @@ not copied along with the patterns:
   unchanged by identity, which does not reliably re-render.
 - `width: '100wv'` is a typo for `100vw`; the browser discards the declaration.
 
+## Addendum — 2026-09-02: the gaps this ADR listed are now built
+
+The Context above describes the editor as it stood when the decision was taken.
+The canvas rebuild that followed closed most of the gaps it named, by hand and
+without a library, which is the outcome the decision predicted:
+
+- **Pan and zoom** — `use-stage-view.ts`, a camera over an unbounded plane whose
+  visible rectangle becomes the `viewBox`. `clientToViewBox` already solves the
+  screen CTM, so hit-testing stays correct at any scale.
+- **Node creation from a palette** — `tile-palette.tsx`. HTML5 drag and drop
+  carrying the tile's key in `dataTransfer`, which is exactly the pattern this
+  ADR planned to borrow, with `clientToViewBox` doing what `project()` does
+  there. Click-then-click still works for anyone who would rather not drag.
+- **Connection between two tiles** — still click-source-then-target, now under a
+  labelled `Connect` tool rather than an armed button. Dragging from an anchor
+  is still not built.
+
+Not built, and still deliberate: drawing a group, editing a label in place,
+undo/redo, multi-select and alignment guides. The `group` and `text` buttons
+that once stood in for the first two are gone — a button that does nothing is
+worse than an absent one — and the JSON and inspector are where those live.
+
+[ADR 0002](./adr-0002-the-frame-is-derived-not-declared) then removed the
+declared canvas, which is what let the drawing surface become the whole window.
+
+None of this changes the decision, and none of it touches `renderSVG`: chrome
+— selection halos included — is drawn in a separate overlay SVG, so the
+document that exports is the one the renderer produced, byte for byte.
+
 ## When to reopen this decision
 
 Any one of these is enough to revisit:

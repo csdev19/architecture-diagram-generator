@@ -15,22 +15,41 @@ releases, so PR state is the only ground truth here.
 Six pull requests, all merged, all on 2026-09-01 and 2026-09-02. Everything
 below is on `main`.
 
-| Capability               | What it means                                                                                                                                                                             | Landed in |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| Monorepo customised      | The template reduced to the "fullstack serverFn only" pattern — one TanStack Start app on Workers, no API Worker — with the architecture and docs rewritten to match                      | PR #1     |
-| The diagram contract     | `DiagramConfig` in `packages/domain`: the Zod schema, its author-facing error messages, the geometry and palette constants, and the authoring guidelines string                           | PR #2     |
-| The renderer             | `renderSVG` — a pure, deterministic string builder with no DOM or Node APIs, so it can run unchanged inside a Worker                                                                      | PR #2     |
-| The `/editor` page       | Two panes: JSON on the left, live preview on the right, with SVG and 2x PNG export done in the browser                                                                                    | PR #2     |
-| Brand logos              | A 20-key `iconKey` registry built on `simple-icons`, plus a WCAG contrast rule that resolves a legible fill per tile. Technologies with no entry keep an emoji                            | PR #3     |
-| Visual editing           | Tiles drag and snap, a click opens an inspector, edges are drawn by clicking two tiles, and **Arrange** re-places nodes from the topology — every edit a text-to-text rewrite of the JSON | PR #5     |
-| Rasterisation, de-risked | Proof that `@resvg/resvg-wasm` initialises and renders inside the Worker, behind a throwaway `/api/render-spike` route                                                                    | PR #4     |
-| These briefings          | The set you are reading, and the binding file that regenerates it                                                                                                                         | PR #6     |
+| Capability               | What it means                                                                                                                                                                                  | Landed in |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| Monorepo customised      | The template reduced to the "fullstack serverFn only" pattern — one TanStack Start app on Workers, no API Worker — with the architecture and docs rewritten to match                           | PR #1     |
+| The diagram contract     | `DiagramConfig` in `packages/domain`: the Zod schema, its author-facing error messages, the geometry and palette constants, and the authoring guidelines string                                | PR #2     |
+| The renderer             | `renderSVG` — a pure, deterministic string builder with no DOM or Node APIs, so it can run unchanged inside a Worker                                                                           | PR #2     |
+| The `/editor` page       | The route itself, with SVG and 2x PNG export done in the browser                                                                                                                               | PR #2     |
+| Brand logos              | A 20-key `iconKey` registry built on `simple-icons`, plus a WCAG contrast rule that resolves a legible fill per tile. Technologies with no entry keep an emoji                                 | PR #3     |
+| Visual editing           | Tiles drag and snap, a click opens an inspector, edges are drawn by clicking two tiles, and **Arrange** re-places nodes from the topology — every edit a text-to-text rewrite of the JSON      | PR #5     |
+| Rasterisation, de-risked | Proof that `@resvg/resvg-wasm` initialises and renders inside the Worker, behind a throwaway `/api/render-spike` route                                                                         | PR #4     |
+| These briefings          | The set you are reading, and the binding file that regenerates it                                                                                                                              | PR #6     |
+| Why the canvas is ours   | [ADR 0001](/architecture/decisions/adr-0001-no-canvas-library-for-the-editor) — React Flow evaluated and rejected, because it exports through the browser and forfeits the server-rendered PNG | PR #8     |
 
 ## In flight
 
-**Nothing.** No pull requests are open and no branch is in review as of the
-review date above. The next person to touch this repo starts from a clean
-`main`.
+### The canvas rebuild
+
+One branch, open for review. It is a rewrite of the editing surface plus the
+domain change that made it possible, so it is worth reading as one thing:
+
+- **The frame is derived, not declared.** `canvas: { w, h }` became optional and
+  `renderSVG` sizes the document from the bounding box of what the diagram
+  contains. Coordinates are unbounded — negatives included — and the margin rule
+  is gone from the schema. Recorded in
+  [ADR 0002](/architecture/decisions/adr-0002-the-frame-is-derived-not-declared).
+- **`/editor` is a full-window canvas.** The palette and the JSON panel float
+  over it and both close. Tiles are dragged in from the palette, groups are
+  dragged out as boxes, and the five tools are labelled rather than left as
+  glyphs.
+- **The renderer draws the editor's surface.** It takes an optional frame, and
+  the editor passes the rectangle its camera is looking at — so the paper and
+  the grid come from the same function that produces the PNG.
+- **Paper is a choice of five near-whites**, named in the config as
+  `background` rather than picked as a hex.
+
+Until it merges, `main` still has the two-pane editor and a required `canvas`.
 
 ## Next
 
@@ -68,10 +87,13 @@ paused rather than pushed through.
 
 Recorded so they are not rediscovered.
 
-- **Auto-layout ignores groups.** `layoutDiagram` re-places nodes and resizes the
-  canvas but returns group boxes untouched, so **Arrange** breaks a
-  hand-composed grouped diagram. It would need to recompute each group's box
-  from the nodes it contains.
+- **Auto-layout ignores groups.** `layoutDiagram` re-places nodes but returns
+  group boxes untouched, so **Arrange** breaks a hand-composed grouped diagram.
+  It would need to recompute each group's box from the nodes it contains — more
+  obviously worth doing now that groups can be drawn on the canvas.
+- **Groups have no resize handles.** A group is drawn at the size you drag it
+  out to and adjusted afterwards through width and height fields in the
+  inspector. Corner handles are the obvious next step.
 - **Server-side rendering draws no text yet.** The spike rasterises with
   `loadSystemFonts: false` and no font buffers, so shapes and logos render and
   glyphs do not. That is exactly what Task 2 fixes.

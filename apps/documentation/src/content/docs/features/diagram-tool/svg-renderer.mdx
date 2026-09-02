@@ -19,9 +19,13 @@ description: One pure function that turns a config into SVG, identically in a br
 
 Turns a validated `DiagramConfig` into a complete SVG document. It is a pure,
 deterministic string builder with no DOM and no Node built-ins, so the same
-function runs in the browser preview today and inside a Cloudflare Worker in
+function runs in the browser canvas today and inside a Cloudflare Worker in
 phase 1. That shared implementation is what guarantees an exported image matches
 what the editor showed.
+
+The document's bounds are computed from the drawing, not declared. `renderSVG`
+also takes an optional frame, which is how the editor asks it to draw the
+rectangle the camera is looking at instead — the same scene, framed differently.
 
 ## Implementation
 
@@ -31,7 +35,8 @@ what the editor showed.
 | ------------------------------------------ | ---------------------------------------------------------- |
 | `packages/domain/src/render/index.ts`      | `renderSVG` — composes the layers and fixes their order    |
 | `packages/domain/src/render/svg.ts`        | XML escaping, coordinate formatting, text-width estimation |
-| `packages/domain/src/render/background.ts` | Base fill and the grid pattern                             |
+| `packages/domain/src/render/frame.ts`      | `contentFrame` — the document's bounds, from its contents  |
+| `packages/domain/src/render/background.ts` | Paper fill and the dashed grid pattern                     |
 | `packages/domain/src/render/group.ts`      | Group box, with its label punched through the top border   |
 | `packages/domain/src/render/node.ts`       | Tile, brand mark or emoji, name and sublabel               |
 | `packages/domain/src/render/edge.ts`       | Anchor geometry, line, arrowheads and labels               |
