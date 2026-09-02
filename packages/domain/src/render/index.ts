@@ -73,5 +73,6 @@ export { contentFrame, resolveFrame, FRAME_PADDING } from "./frame";
 export type { DiagramFrame } from "./frame";
 export { boundaryBounds, nodeBounds, union } from "./bounds";
 export type { Bounds } from "./bounds";
+export { resolveDiagram } from "./resolve";
 export { facingSides } from "./anchors";
 export type { EdgeAnchors, Point } from "./anchors";
