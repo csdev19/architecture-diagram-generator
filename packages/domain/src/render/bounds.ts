@@ -28,10 +28,7 @@ export interface Bounds {
  */
 export const nodeBounds = (node: DiagramNode): Bounds => {
   const half = DIAGRAM_GEOMETRY.TILE_SIZE / 2;
-
-  const nameWidth = estimateMonoWidth(node.name, DIAGRAM_TYPOGRAPHY.NAME_SIZE);
-  const subWidth = estimateMonoWidth(node.sub, DIAGRAM_TYPOGRAPHY.SUB_SIZE);
-  const reach = Math.max(half, nameWidth / 2, subWidth / 2);
+  const reach = nodeReach(node);
 
   return {
     minX: node.x - reach,
@@ -40,6 +37,21 @@ export const nodeBounds = (node: DiagramNode): Bounds => {
     // The name and sublabel hang below the tile.
     maxY: node.y + half + DIAGRAM_GEOMETRY.NODE_TEXT_BLOCK,
   };
+};
+
+/**
+ * How far a node extends either side of its centre.
+ *
+ * Split out from `nodeBounds` because auto-layout needs the same answer for a
+ * node it has not placed yet: a wide label is what decides how much room its
+ * column has to leave, and asking the question twice in two ways would put a
+ * name through its neighbour.
+ */
+export const nodeReach = (node: { name: string; sub: string }): number => {
+  const nameWidth = estimateMonoWidth(node.name, DIAGRAM_TYPOGRAPHY.NAME_SIZE);
+  const subWidth = estimateMonoWidth(node.sub, DIAGRAM_TYPOGRAPHY.SUB_SIZE);
+
+  return Math.max(DIAGRAM_GEOMETRY.TILE_SIZE / 2, nameWidth / 2, subWidth / 2);
 };
 
 /**

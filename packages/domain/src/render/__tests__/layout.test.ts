@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { DIAGRAM_GEOMETRY } from "../../constants/diagram";
+import { BOUNDARY_PADDING_SIZE, DIAGRAM_GEOMETRY } from "../../constants/diagram";
+import type { BoundaryPadding } from "../../constants/diagram";
 import {
   EXAMPLE_RESOLVED_DIAGRAM,
   resolvedDiagramSchema,
   validateResolvedDiagram,
   type ResolvedDiagramInput,
 } from "../../schemas/diagram";
-import { layoutDiagram } from "../layout";
+import type { Point } from "../anchors";
+import { layoutDiagram, layoutNodes } from "../layout";
 
 const layout = (input: ResolvedDiagramInput) => layoutDiagram(resolvedDiagramSchema.parse(input));
 
@@ -204,5 +206,168 @@ describe("layoutDiagram", () => {
       x: DIAGRAM_GEOMETRY.LAYOUT_ORIGIN,
       y: DIAGRAM_GEOMETRY.LAYOUT_ORIGIN,
     });
+  });
+});
+
+/** A content-shaped diagram: nodes with no geometry, plus its relations. */
+const content = (
+  ids: string[],
+  extra: Partial<{
+    edges: Array<{ from: string; to: string; style: string }>;
+    groups: Array<{ id: string; members: string[] }>;
+    boundaries: Array<{ id: string; padding: BoundaryPadding }>;
+  }> = {},
+) => ({
+  nodes: ids.map((id) => ({ id, name: id, sub: "" })),
+  edges: ids.slice(1).map((id, index) => ({
+    from: ids[index] as string,
+    to: id,
+    style: "solid",
+  })),
+  ...extra,
+});
+
+/** The rectangle a set of placed nodes covers, tiles and labels included. */
+const boxAround = (placed: Map<string, Point>, ids: string[]) => {
+  const points = ids.map((id) => placed.get(id) as Point);
+  const half = DIAGRAM_GEOMETRY.TILE_SIZE / 2;
+
+  return {
+    minX: Math.min(...points.map((point) => point.x)) - half,
+    maxX: Math.max(...points.map((point) => point.x)) + half,
+    minY: Math.min(...points.map((point) => point.y)) - half,
+    maxY: Math.max(...points.map((point) => point.y)) + half + DIAGRAM_GEOMETRY.NODE_TEXT_BLOCK,
+  };
+};
+
+const inside = (box: ReturnType<typeof boxAround>, point: Point) =>
+  point.x >= box.minX && point.x <= box.maxX && point.y >= box.minY && point.y <= box.maxY;
+
+describe("layoutNodes", () => {
+  it("places every node when nothing is supplied", () => {
+    const placed = layoutNodes(content(["a", "b", "c"]));
+
+    expect([...placed.keys()].sort()).toEqual(["a", "b", "c"]);
+  });
+
+  it("leaves a supplied position exactly where it was put", () => {
+    const placed = layoutNodes(content(["a", "b", "c"]), { b: { x: -400, y: 900 } });
+
+    expect(placed.get("b")).toEqual({ x: -400, y: 900 });
+  });
+
+  it("never places a node on top of a supplied one", () => {
+    const placed = layoutNodes(content(["a", "b", "c"]), {
+      b: { x: DIAGRAM_GEOMETRY.LAYOUT_ORIGIN, y: DIAGRAM_GEOMETRY.LAYOUT_ORIGIN },
+    });
+
+    for (const [id, point] of placed) {
+      if (id === "b") continue;
+      const clash =
+        Math.abs(point.x - DIAGRAM_GEOMETRY.LAYOUT_ORIGIN) < DIAGRAM_GEOMETRY.NODE_SPACING &&
+        Math.abs(point.y - DIAGRAM_GEOMETRY.LAYOUT_ORIGIN) < DIAGRAM_GEOMETRY.NODE_SPACING;
+
+      expect(clash, `"${id}" landed on the supplied position`).toBe(false);
+    }
+  });
+
+  it("returns the supplied positions untouched when everything is pinned", () => {
+    const pinned = { a: { x: 0, y: 0 }, b: { x: 500, y: 0 } };
+    const placed = layoutNodes(content(["a", "b"]), pinned);
+
+    expect(Object.fromEntries(placed)).toEqual(pinned);
+  });
+
+  it("is deterministic", () => {
+    const first = layoutNodes(content(["a", "b", "c"]));
+    const second = layoutNodes(content(["a", "b", "c"]));
+
+    expect([...first]).toEqual([...second]);
+  });
+
+  it("terminates on a cycle", () => {
+    const cyclic = {
+      ...content(["a", "b", "c"]),
+      edges: [
+        { from: "a", to: "b", style: "solid" },
+        { from: "b", to: "c", style: "solid" },
+        { from: "c", to: "a", style: "solid" },
+      ],
+    };
+
+    expect(() => layoutNodes(cyclic)).not.toThrow();
+    expect(layoutNodes(cyclic).size).toBe(3);
+  });
+
+  it("keeps a group's members together, with nothing else between them", () => {
+    const placed = layoutNodes(
+      content(["web", "api", "db", "ci"], {
+        edges: [
+          { from: "web", to: "api", style: "solid" },
+          { from: "api", to: "db", style: "solid" },
+          { from: "ci", to: "api", style: "dashed" },
+        ],
+        groups: [{ id: "runtime", members: ["api", "db"] }],
+      }),
+    );
+
+    const box = boxAround(placed, ["api", "db"]);
+
+    expect(inside(box, placed.get("web") as Point)).toBe(false);
+    expect(inside(box, placed.get("ci") as Point)).toBe(false);
+  });
+
+  it("lays out a group nested inside a group", () => {
+    const placed = layoutNodes(
+      content(["api", "db", "cache", "web"], {
+        edges: [
+          { from: "web", to: "api", style: "solid" },
+          { from: "api", to: "db", style: "solid" },
+          { from: "db", to: "cache", style: "solid" },
+        ],
+        groups: [
+          { id: "runtime", members: ["api", "storage"] },
+          { id: "storage", members: ["db", "cache"] },
+        ],
+      }),
+    );
+
+    const outer = boxAround(placed, ["api", "db", "cache"]);
+    const inner = boxAround(placed, ["db", "cache"]);
+
+    expect(inner.minX).toBeGreaterThanOrEqual(outer.minX);
+    expect(inner.maxX).toBeLessThanOrEqual(outer.maxX);
+    expect(inside(outer, placed.get("web") as Point)).toBe(false);
+  });
+
+  it("reserves room for the rectangle a boundary will be given", () => {
+    // Two groups side by side, each framed at its loosest. Their derived boxes
+    // are the members' extent plus the padding — if placement ignored that
+    // padding, the two boxes would overlap even though no tile does.
+    const placed = layoutNodes(
+      content(["a", "b", "c", "d"], {
+        edges: [
+          { from: "a", to: "b", style: "solid" },
+          { from: "b", to: "c", style: "solid" },
+          { from: "c", to: "d", style: "solid" },
+        ],
+        groups: [
+          { id: "left", members: ["cf", "a", "b"] },
+          { id: "right", members: ["aws", "c", "d"] },
+        ],
+        boundaries: [
+          { id: "cf", padding: "loose" },
+          { id: "aws", padding: "loose" },
+        ],
+      }),
+    );
+
+    const room = BOUNDARY_PADDING_SIZE.loose;
+    const left = boxAround(placed, ["a", "b"]);
+    const right = boxAround(placed, ["c", "d"]);
+
+    expect(right.minX - room, "the two derived boundaries overlap").toBeGreaterThan(
+      left.maxX + room,
+    );
   });
 });
