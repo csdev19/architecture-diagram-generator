@@ -100,6 +100,22 @@ export const DIAGRAM_GEOMETRY = {
   NODE_TEXT_BLOCK: 40,
   /** A node centre must stay at least this far from every canvas edge. */
   CANVAS_MARGIN: 60,
+  /**
+   * Minimum distance between node centres. The guidelines ask for this in both
+   * directions, and auto-layout uses it as its vertical step.
+   */
+  NODE_SPACING: 140,
+  /**
+   * Horizontal step for auto-layout, wider than the minimum: a name may run to
+   * `TEXT_MAX` characters, which is around 180px set at `NAME_SIZE`, so columns
+   * spaced at the bare minimum would overlap their own labels.
+   */
+  LAYOUT_COLUMN_GAP: 200,
+  /**
+   * Centre of the first column and row. Clears the `CANVAS_MARGIN` validation
+   * limit and the 70px the guidelines ask for, with the tile's half-width on top.
+   */
+  LAYOUT_ORIGIN: 110,
   /** Rendered side of a brand icon, centred on the tile like the emoji it replaces. */
   ICON_SIZE: 32,
   /** simple-icons paths are authored in a square viewBox of this side. */

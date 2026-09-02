@@ -42,3 +42,4 @@ export const renderSVG = (config: DiagramConfig): string => {
 
 export { escapeXml } from "./svg";
 export { DIAGRAM_GUIDELINES } from "./guidelines";
+export { layoutDiagram } from "./layout";

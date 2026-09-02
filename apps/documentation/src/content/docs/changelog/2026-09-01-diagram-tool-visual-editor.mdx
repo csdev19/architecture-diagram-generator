@@ -1,0 +1,32 @@
+---
+title: "September 01, 2026 - Diagram tool, visual editor"
+description: Drag tiles, edit fields, wire edges and auto-arrange — all of it writing back into the JSON.
+date: 2026-09-01
+tags:
+  - changelog
+  - feature
+---
+
+✨ **Feature** — `/editor` is no longer read-only. Tiles drag and snap to the
+grid, clicking one opens a panel for its name, sublabel, mark and tile, edges
+are drawn by clicking two tiles, and **Arrange** re-places the whole diagram
+from its topology: the solid-edge flow in one row left to right, everything
+else in the band below, under whatever it attaches to.
+
+The design point is what these edits do _not_ introduce. Every one of them
+parses the textarea's text, mutates the config and prints the JSON back, so
+there is still exactly one piece of state on the page. The canvas and the JSON
+cannot drift apart, undo is just editing the text, and hit-testing reads the
+config's own coordinates rather than measuring the DOM — the renderer already
+decided where each tile is. Edits that break validation are written anyway and
+reported in the existing error list, because silently swallowing a keystroke
+tells the author nothing.
+
+Saving is a file for now: the config _is_ the diagram, so a saved `.json`
+reopens byte-identical where a PNG cannot. Minting server-side ids waits for
+the API phase.
+
+The app also gained its first component-test rig — jsdom, Testing Library, and
+polyfills for the `PointerEvent` and SVG geometry jsdom does not implement.
+
+**Docs:** [Editor Page](/features/diagram-tool/editor-page)

@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { DIAGRAM_GEOMETRY } from "@diagram-tool/domain/constants";
+import { layoutDiagram } from "@diagram-tool/domain/render";
+import { validateDiagramConfig } from "@diagram-tool/domain/schemas";
 import type { DiagramConfigInput } from "@diagram-tool/domain/schemas";
 
 /**
@@ -115,6 +117,25 @@ export const addEdge = (text: string, edge: EdgeInput): string =>
     return true;
   });
 
+/** A partial edge update. An `undefined` value removes the field entirely. */
+export type EdgePatch = Partial<EdgeInput>;
+
+/** Patches the edge at `index`. Edges have no id, so position is the handle. */
+export const updateEdgeFields = (text: string, index: number, patch: EdgePatch): string =>
+  editConfig(text, (config) => {
+    const { edges } = config;
+    if (!Array.isArray(edges)) return false;
+
+    const edge = edges[index];
+    if (!isRecord(edge)) return false;
+
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === undefined) delete edge[key];
+      else edge[key] = value;
+    }
+    return true;
+  });
+
 /** Removes the edge at `index`, by position rather than identity — edges have no id. */
 export const removeEdge = (text: string, index: number): string =>
   editConfig(text, (config) => {
@@ -123,6 +144,41 @@ export const removeEdge = (text: string, index: number): string =>
     if (!Number.isInteger(index) || index < 0 || index >= edges.length) return false;
 
     edges.splice(index, 1);
+    return true;
+  });
+
+/**
+ * Re-places every node from the diagram's topology.
+ *
+ * Only coordinates and the canvas are written back. Running the laid-out config
+ * through `JSON.stringify` wholesale would be simpler, but it would also stamp
+ * every schema default into the author's file — `sub: ""`, `style: "solid"`,
+ * `filled: true` — rewriting lines they never touched. A no-op if the config
+ * does not validate, because layout has nothing to work from.
+ */
+export const arrangeNodes = (text: string): string =>
+  editConfig(text, (config) => {
+    const validated = validateDiagramConfig(config);
+    if (!validated.ok) return false;
+    if (!Array.isArray(config.nodes)) return false;
+
+    const laidOut = layoutDiagram(validated.config);
+    const placed = new Map(laidOut.nodes.map((node) => [node.id, node]));
+
+    for (const node of config.nodes) {
+      if (!isRecord(node)) continue;
+      const position = placed.get(String(node.id));
+      if (!position) continue;
+
+      node.x = position.x;
+      node.y = position.y;
+    }
+
+    if (isRecord(config.canvas)) {
+      config.canvas.w = laidOut.canvas.w;
+      config.canvas.h = laidOut.canvas.h;
+    }
+
     return true;
   });
 
@@ -142,7 +198,10 @@ export const useDiagramEditing = (setText: Dispatch<SetStateAction<string>>) =>
       updateNodeFields: (id: string, patch: NodePatch) =>
         setText((text) => updateNodeFields(text, id, patch)),
       addEdge: (edge: EdgeInput) => setText((text) => addEdge(text, edge)),
+      updateEdgeFields: (index: number, patch: EdgePatch) =>
+        setText((text) => updateEdgeFields(text, index, patch)),
       removeEdge: (index: number) => setText((text) => removeEdge(text, index)),
+      arrangeNodes: () => setText(arrangeNodes),
     }),
     [setText],
   );

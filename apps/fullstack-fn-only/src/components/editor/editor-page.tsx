@@ -2,8 +2,12 @@ import { useMemo, useState } from "react";
 import { EXAMPLE_DIAGRAM_CONFIG, validateDiagramConfig } from "@diagram-tool/domain/schemas";
 import type { DiagramConfig } from "@diagram-tool/domain/schemas";
 import { renderSVG } from "@diagram-tool/domain/render";
+import { ConfigFileControls } from "@/components/editor/config-file-controls";
 import { DiagramPreview } from "@/components/editor/diagram-preview";
+import { EdgeTools } from "@/components/editor/edge-tools";
 import { JsonInput } from "@/components/editor/json-input";
+import { NodeInspector } from "@/components/editor/node-inspector";
+import { facingSides } from "@/components/editor/pointer-geometry";
 import { useDiagramEditing } from "@/components/editor/use-diagram-editing";
 
 /**
@@ -55,20 +59,75 @@ const buildState = (text: string): EditorState => {
 export function EditorPage() {
   const [text, setText] = useState(() => JSON.stringify(EXAMPLE_DIAGRAM_CONFIG, null, 2));
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [edgeArmed, setEdgeArmed] = useState(false);
+  const [pendingFrom, setPendingFrom] = useState<string | null>(null);
+
   const { svg, title, errors, config } = useMemo(() => buildState(text), [text]);
   const edit = useDiagramEditing(setText);
 
-  // A node that has been renamed away or deleted must not stay selected.
+  // A node that was renamed away or deleted must not stay selected: the
+  // inspector would be editing something the config no longer contains.
   const selectedNode = config?.nodes.find((node) => node.id === selectedNodeId) ?? null;
+
+  const disarm = () => {
+    setEdgeArmed(false);
+    setPendingFrom(null);
+  };
+
+  /**
+   * A tile press means "select this" normally, and "pick an endpoint" while the
+   * add-edge gesture is armed. Two clicks complete the edge; the anchor sides
+   * come from where the two nodes actually sit, and stay editable afterwards.
+   */
+  const handleSelectNode = (id: string | null) => {
+    if (!edgeArmed) {
+      setSelectedNodeId(id);
+      return;
+    }
+
+    // A press on empty canvas is not an endpoint; it leaves the gesture armed.
+    if (!id || !config) return;
+
+    if (!pendingFrom) {
+      setPendingFrom(id);
+      return;
+    }
+
+    // The schema rejects an edge from a node to itself, so a second press on
+    // the same tile is treated as a correction rather than a commit.
+    if (id === pendingFrom) return;
+
+    const source = config.nodes.find((node) => node.id === pendingFrom);
+    const target = config.nodes.find((node) => node.id === id);
+    if (source && target) {
+      edit.addEdge({ from: source.id, to: target.id, ...facingSides(source, target) });
+    }
+
+    disarm();
+  };
 
   return (
     <div className="container mx-auto flex min-h-screen flex-col gap-6 px-4 py-8">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">Diagram editor</h1>
-        <p className="text-sm text-muted-foreground">
-          Paste a <code className="font-mono">DiagramConfig</code> on the left. The preview and the
-          PNG come from the same renderer, so what you see is what you export.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight">Diagram editor</h1>
+          <p className="text-sm text-muted-foreground">
+            Edit the <code className="font-mono">DiagramConfig</code> on the left, or drag tiles on
+            the preview. The text is the source of truth either way, and the PNG comes from the same
+            renderer — so what you see is what you export.
+          </p>
+        </div>
+        <ConfigFileControls
+          text={text}
+          title={title}
+          canArrange={Boolean(config)}
+          onArrange={edit.arrangeNodes}
+          onLoad={(loaded) => {
+            setText(loaded);
+            setSelectedNodeId(null);
+            disarm();
+          }}
+        />
       </header>
 
       <div className="grid flex-1 gap-6 md:grid-cols-2">
@@ -77,12 +136,40 @@ export function EditorPage() {
           svg={svg}
           title={title}
           config={config}
-          onNodeMove={edit.moveNode}
+          // Dragging is off while the add-edge gesture is armed: the same press
+          // cannot mean both "pick this endpoint" and "start moving this".
+          onNodeMove={edgeArmed ? undefined : edit.moveNode}
           onNodeRestore={edit.setNodePosition}
           selectedNodeId={selectedNode?.id ?? null}
-          onSelectNode={setSelectedNodeId}
+          onSelectNode={handleSelectNode}
         />
       </div>
+
+      {config ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          {selectedNode ? (
+            <NodeInspector
+              node={selectedNode}
+              onChange={(patch) => edit.updateNodeFields(selectedNode.id, patch)}
+              onClose={() => setSelectedNodeId(null)}
+            />
+          ) : (
+            <p className="self-start rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+              Click a tile on the preview to edit it.
+            </p>
+          )}
+
+          <EdgeTools
+            edges={config.edges}
+            armed={edgeArmed}
+            pendingFrom={pendingFrom}
+            onArm={() => setEdgeArmed(true)}
+            onCancel={disarm}
+            onUpdate={edit.updateEdgeFields}
+            onRemove={edit.removeEdge}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
