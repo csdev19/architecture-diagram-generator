@@ -38,13 +38,15 @@ the diagram lives entirely in the `domain` package.
 - **The version numbers in `package.json` are meaningless.** The root is
   `1.0.0` and private; treat them as scaffolding, not releases.
 - **The MCP server and the HTTP API do not exist.** They are designed, not
-  built. Only a throwaway rasterisation spike exists, on an unmerged branch.
-  Never describe generating a diagram from Claude in the present tense.
-- **Server-side PNG rendering is unsolved in production.** Cloudflare Workers
-  forbid runtime WebAssembly compilation, so a rasteriser's wasm must be a
-  bundled module compiled at deploy time, not fetched and instantiated.
-- **Only two PRs are merged**; the brand icons, the drag-and-drop editor and the
-  rasterisation spike are all open branches as of this date.
+  built. Never describe generating a diagram from Claude in the present tense —
+  a person pastes a config into the editor by hand today.
+- **Server-side PNG rendering is proven but not built.** A merged spike route,
+  `/api/render-spike`, rasterises with `@resvg/resvg-wasm` inside the Worker; it
+  is explicitly throwaway and renders no text, because no font is embedded yet.
+  Cloudflare Workers forbid runtime WebAssembly compilation, so the wasm must be
+  a bundled module compiled at deploy, never fetched and instantiated.
+- **Everything currently designed as phase 0 is merged**; six PRs, no open
+  branches. The next work is phase 1, which is unstarted.
 - The repo was scaffolded from a monorepo template and still contains template
   leftovers — a Todo CRUD example, auth routes, and a Postgres/Drizzle stack
   that the diagram tool does not use at all.
