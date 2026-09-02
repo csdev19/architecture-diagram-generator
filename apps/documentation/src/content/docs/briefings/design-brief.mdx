@@ -1,0 +1,155 @@
+---
+title: Design Brief
+description: The visual language of a rendered diagram — palette, type, geometry — for anyone changing the renderer.
+---
+
+# Design Brief
+
+> Paste this whole document into a model doing design work on the **rendered
+> diagram**: the palette, the tiles, the edges, the groups. If anything here
+> disagrees with `packages/domain/src/constants/diagram.ts`, that file wins —
+> it is the source these values were read from. This brief does **not** cover
+> the app's own interface, which is unmodified shadcn/ui defaults in
+> `packages/web-ui/src/styles.css` and is deliberately not a design system of
+> this project's own. **Current as of 2026-09-02.**
+
+## The aesthetic
+
+A rendered diagram should read like a clean architectural sketch made by
+someone with a house style: a very pale blue-grey ground with a faint grid,
+white rounded tiles with hairline borders carrying a brand logo above two lines
+of text, and pastel-tinted regions grouping what shares a boundary. Almost
+everything is light and low-contrast, so the two things that are not — a
+near-black tile and a saturated blue edge — carry all the emphasis. Nothing is
+decorative. If something is darker or more colourful than its neighbours, that
+is a statement about the system being drawn.
+
+## Palette
+
+Every value is a literal hex string written directly into an SVG attribute.
+There are **no CSS variables and no theme tokens** in a rendered diagram, by
+design: the SVG must rasterise identically outside a browser, where no
+stylesheet exists. Do not propose wiring these to the app's design system.
+
+### Surface and tiles
+
+| Token               | Value     | Use                                                            |
+| ------------------- | --------- | -------------------------------------------------------------- |
+| `CANVAS_BG`         | `#f7f8fb` | The full-bleed background                                      |
+| `GRID_LINE`         | `#e6eaf2` | The 26px background grid                                       |
+| `TILE_LIGHT_FILL`   | `#ffffff` | Default tile                                                   |
+| `TILE_LIGHT_BORDER` | `#e2e8f0` | Default tile border                                            |
+| `TILE_DARK_FILL`    | `#0f172a` | Emphasis tile — see the rule below                             |
+| `TILE_DARK_BORDER`  | `#0f172a` | Emphasis tile border (identical, so it reads as a solid block) |
+| `NAME_TEXT`         | `#0f172a` | Node name                                                      |
+| `SUB_TEXT`          | `#64748b` | Node sublabel                                                  |
+
+### Edges
+
+| Token         | Value     | Meaning                                                       |
+| ------------- | --------- | ------------------------------------------------------------- |
+| `EDGE_SOLID`  | `#3b82f6` | The primary request or data path                              |
+| `EDGE_DASHED` | `#94a3b8` | A secondary relationship — auth, deploy, hooks, side channels |
+| `EDGE_LABEL`  | `#475569` | Text on an edge                                               |
+
+### Group tones
+
+| Tone      | Border    | Fill      | Label     | Means                             |
+| --------- | --------- | --------- | --------- | --------------------------------- |
+| `orange`  | `#f6a04d` | `#fdf3e7` | `#c2410c` | Cloud provider or primary runtime |
+| `blue`    | `#93c5fd` | `#f3f8ff` | `#1d4ed8` | Tooling, monorepo, build          |
+| `green`   | `#86efac` | `#f0fdf4` | `#15803d` | External services and data        |
+| `neutral` | `#cbd5e1` | `#f8fafc` | `#475569` | Anything else                     |
+
+**Colour here carries data, so decorative reuse is forbidden.** A config author
+never picks a colour — they pick a `tone` for a group and an `iconKey` for a
+node, and the renderer resolves both. Two consequences follow, and both are the
+point: diagrams drawn months apart belong to the same family, and changing a
+value in this file restyles every diagram ever made. Never add a colour
+parameter to the config schema, and never use a group tone to mean "I wanted
+this one to look different".
+
+The same rule governs the dark tile. `tile: "dark"` is reserved for **two or
+three** key nodes per diagram — the thing the diagram is about. Using it for
+variety destroys the only emphasis mechanism the format has.
+
+### Brand logos
+
+Logos come from `simple-icons` (CC0-1.0) as path data plus the brand's own hex,
+for 20 keys: `astro`, `betterauth`, `bun`, `cloudflare`, `cloudflareworkers`,
+`docker`, `drizzle`, `expo`, `github`, `githubactions`, `hono`, `nodedotjs`,
+`postgresql`, `react`, `redis`, `tailwindcss`, `turborepo`, `typescript`,
+`vite`, `zod`. Anything else falls back to an emoji — a designed path, not a
+gap to apologise for.
+
+Fill is resolved, never authored, by `resolveDiagramIconFill`: on a dark tile
+the logo is drawn white; on a light tile it keeps its brand colour **only if**
+that colour reaches a contrast ratio of `DIAGRAM_ICON_CONTRAST_MIN` (`2`)
+against white, and otherwise falls back to `#0f172a`. Without that rule, white
+and near-white brand marks vanish on a light tile.
+
+## Typography
+
+| Token              | Value                                                       |
+| ------------------ | ----------------------------------------------------------- |
+| `NAME_FAMILY`      | `system-ui, -apple-system, 'Segoe UI', sans-serif`          |
+| `MONO_FAMILY`      | `ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace` |
+| `EMOJI_SIZE`       | `28`                                                        |
+| `NAME_SIZE`        | `13.5`                                                      |
+| `SUB_SIZE`         | `10.5`                                                      |
+| `GROUP_LABEL_SIZE` | `11`                                                        |
+| `EDGE_LABEL_SIZE`  | `10.5`                                                      |
+
+Only system stacks, and no webfont is loaded. The rendering rule this protects:
+an SVG rasterised outside a browser has no font unless one is embedded, which is
+why server-side rendering will have to ship a font file rather than assume one.
+Sizes are small and set in absolute units because a diagram is read at its own
+scale, not the page's.
+
+Type is why tile text is capped at **26 characters** — a node `name`, a node
+`sub` and a group `label` all share that limit. It is enforced by the schema
+because longer text overflows the tile rather than wrapping.
+
+## Structure and texture
+
+| Value                  |       | Note                                                                         |
+| ---------------------- | ----- | ---------------------------------------------------------------------------- |
+| `TILE_SIZE`            | `62`  | Tiles are square                                                             |
+| `TILE_RADIUS`          | `14`  | Matches `GROUP_RADIUS` — one corner language                                 |
+| `GROUP_RADIUS`         | `14`  |                                                                              |
+| `GRID_CELL`            | `26`  | Background grid pitch                                                        |
+| `ANCHOR_OFFSET`        | `6`   | Gap between a tile edge and the start of its edge line                       |
+| `BOTTOM_ANCHOR_OFFSET` | `34`  | Extra clearance so a bottom edge clears the node's text                      |
+| `NODE_TEXT_BLOCK`      | `40`  | Vertical space name + sublabel occupy **below** the tile                     |
+| `CANVAS_MARGIN`        | `60`  | Minimum distance from a node centre to any canvas edge                       |
+| `NODE_SPACING`         | `140` | Minimum distance between node centres                                        |
+| `LAYOUT_COLUMN_GAP`    | `200` | Auto-layout's horizontal step, wider because a name can run to 26 characters |
+| `LAYOUT_ORIGIN`        | `110` | Centre of the first auto-layout column and row                               |
+| `ICON_SIZE`            | `32`  | Rendered logo side, centred like the emoji it replaces                       |
+| `ICON_VIEWBOX`         | `24`  | The square `simple-icons` paths are authored in                              |
+
+**Signature motifs.** The faint grid, always present, which is what makes the
+canvas read as a drawing surface rather than a slide. Fully rounded tiles and
+groups at the same radius. Orthogonal edges only, with an arrowhead at the
+target. Nested groups drawn with `filled: false`, so an inner boundary is a
+border with no second tint — two tints stacked would muddy both.
+
+**Layer order is fixed and load-bearing:** background, then groups, then edges,
+then nodes. A group tint must never cover an edge, and an edge must never cross
+over a tile.
+
+**A node's `x`/`y` is the centre of its tile, not its top-left corner.** Almost
+every layout mistake in this codebase has started by forgetting that.
+
+## Voice
+
+Diagram content is terse and lowercase-leaning: a node's `name` is the
+technology as it brands itself (`Hono`, `Drizzle ORM`), and its `sub` is a
+three-or-four-word role in lowercase (`http server`, `orm / migrations`). Group
+labels are short and uppercase (`CLOUDFLARE`, `WORKERS RUNTIME`). Edge labels
+name the protocol or the verb, not the sentence: `HTTPS`, `query`, `SQL`,
+`session store`.
+
+Off-limits: marketing adjectives anywhere in a diagram, version numbers in a
+node name, and full sentences in a sublabel. If it does not fit in 26
+characters, it was the wrong text.

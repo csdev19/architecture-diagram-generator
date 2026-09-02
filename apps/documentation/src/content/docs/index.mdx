@@ -1,20 +1,25 @@
 ---
-title: Monorepo Template Documentation
-description: Documentation for the Monorepo Template full-stack application
+title: Diagram Tool Documentation
+description: Architecture diagrams as data — a config a model can write and a person can drag into shape.
 ---
 
 ## Welcome
 
-Welcome to the **Monorepo Template** documentation. This is a modern full-stack monorepo with multiple API stack options, all sharing the same DDD + Hexagonal Architecture packages.
+This is the documentation for **architecture-diagram-generator**: a tool that
+treats an architecture diagram as data rather than a drawing. A `DiagramConfig`
+JSON document describes groups, nodes and edges, and one pure function renders
+it to SVG — so a model can write the document and a person can then refine it by
+dragging tiles in the browser.
 
-### Stack Options
+New here? Start with the [Briefings](/briefings/) — five self-contained answers
+to "what is this project?", split by who is asking. For the tool itself, go to
+[Diagram Tool](/features/diagram-tool/).
 
-| Stack           | Web App           | API Server           | Type-Safe Client | Docs                                       |
-| --------------- | ----------------- | -------------------- | ---------------- | ------------------------------------------ |
-| **Elysia**      | `apps/web-elysia` | `apps/server-elysia` | Eden Treaty      | [Elysia Stack](/fullstack-tanstack-elysia) |
-| **Hono + oRPC** | `apps/web-hono`   | `apps/server-hono`   | oRPC OpenAPILink | [Hono Stack](/fullstack-tanstack-hono)     |
-
-Both stacks deploy as two Cloudflare Workers (web + API) connected via Service Bindings. The web Worker proxies API requests for same-origin cookie auth.
+:::caution[Nothing is published yet]
+There is no npm package, no release and no deployment. The project runs from a
+clone, and the config schema can still change. See the
+[Roadmap](/briefings/roadmap) for what is merged versus what is still in review.
+:::
 
 ---
 
@@ -22,202 +27,134 @@ Both stacks deploy as two Cloudflare Workers (web + API) connected via Service B
 
 ### Prerequisites
 
-- **Bun** - Package manager and runtime
-- **PostgreSQL** - Database
-- **Node.js** - For tooling
+- **Bun** `1.3.4` — package manager, script runner and local runtime
+- **PostgreSQL** — only for the inherited auth and Todo example; the diagram
+  editor does not touch a database
 
 ### Installation
 
 ```bash
-# Clone the repository
-git clone <repo-url>
-
-# Install dependencies
 bun install
 
-# Set up environment variables
-cp .env.example .env
-cp .dev.vars.example .dev.vars
+# copy each app's .env.example -> .env (and .dev.vars for local Worker secrets)
+bun run db:push     # only if you want the auth / Todo example working
 
-# Run database migrations
-bun run db:push
-
-# Start development servers
-bun run dev                # Start all apps
-bun run dev:web-elysia     # Elysia web app
-bun run dev:server-elysia  # Elysia API server
-bun run dev:web-hono       # Hono web app
-bun run dev:server-hono    # Hono API server
+bun run dev         # every app
 ```
 
-### Development
+Then open `/editor`.
+
+:::danger[Environment configuration]
+Always use `.env` (and `.dev.vars` for local Worker secrets). **Never** add a
+`vars` / `[vars]` / `[env.*]` block to `wrangler.jsonc` — Wrangler auto-loads
+`.env`, so a `vars` block drifts from the single source of truth. Run
+`wrangler types` after editing a `wrangler.jsonc`. See
+[Environment Variables](/environment-variables).
+:::
+
+### Scripts
+
+Run these from the repo root; Turborepo fans them out.
 
 ```bash
-# Web app
-cd apps/web
-bun run dev
-
-# Backend
-cd apps/server
-bun run dev
-
-# Documentation
-cd apps/documentation
-bun run dev
+bun run dev                # start all apps
+bun run dev:fullstack-fn   # just the web app
+bun run build              # build everything
+bun run check-types        # typecheck
+bun run test               # all tests
+bun run test:unit          # domain + application only
+bun run test:web           # web-ui + the app's component tests
+bun run lint               # oxlint
+bun run format             # oxfmt --write
+bun run db:push            # push the Drizzle schema
+bun run db:studio          # inspect the database
 ```
+
+:::note[web-ui needs a build]
+`@diagram-tool/web-ui` resolves to `src/` under the `development` condition and
+to `dist/` otherwise, and `dist/` is git-ignored. `turbo run build` produces it
+before the app builds. If you hit "Cannot find module", run `bun run build`
+inside `packages/web-ui/`. See [web-ui Package](/web-ui-package).
+:::
 
 ---
 
-## Tech Stack
+## Architecture
 
-### Monorepo Structure
-
-- **Package Manager**: Bun
-- **Build Tool**: Turbo
-- **Monorepo**: Turborepo with workspace packages
-
-### Frontend
-
-- **Framework**: React with TanStack Start
-- **Routing**: TanStack Router
-- **State Management**: TanStack Query
-- **UI Library**: shadcn/ui with TailwindCSS
-- **Forms**: React Hook Form with Zod resolver
-- **Validation**: Zod v4
-
-### Backend (choose one)
-
-- **Elysia stack**: Elysia + Eden Treaty (type-safe client via `App` type export)
-- **Hono + oRPC stack**: Hono + oRPC with contract-first approach (OpenAPILink client)
-- **Database**: PostgreSQL with Drizzle ORM
-- **Authentication**: Better Auth
-- **Validation**: Zod v4
-
-### Documentation
-
-- **Framework**: Astro Starlight
-
----
-
-## Project Structure
+One TanStack Start app deployed as a **single Cloudflare Worker**. There is no
+separate API Worker and no proxy: server-only logic lives in TanStack Start
+server functions, and auth runs inside them.
 
 ```
-diagram-tool/
+architecture-diagram-generator/
 ├── apps/
-│   ├── web-elysia/            # Web app (TanStack Start + Eden Treaty)
-│   ├── server-elysia/         # API server (Elysia)
-│   ├── web-hono/              # Web app (TanStack Start + oRPC client)
-│   ├── server-hono/           # API server (Hono + oRPC)
-│   └── documentation/         # Documentation site (Astro Starlight)
+│   ├── fullstack-fn-only/     # The app (TanStack Start on Cloudflare Workers)
+│   └── documentation/         # This site (Astro Starlight)
 │
 ├── packages/
-│   ├── domain/                # Domain schemas, types, interfaces
-│   ├── application/           # Use cases (depends on domain)
-│   ├── infra-db/              # Database (Drizzle repos, schemas)
-│   ├── infra-auth/            # Authentication (Better Auth config)
-│   ├── infra-env/             # Environment variable schemas
+│   ├── domain/                # Zod schemas, types, constants, the diagram renderer
+│   ├── application/           # Use cases (depend only on domain interfaces)
+│   ├── infra-db/              # Drizzle schemas, repositories, Neon client
+│   ├── infra-auth/            # Better Auth configuration
+│   ├── infra-env/             # Zod env schemas
 │   ├── config/                # Shared TypeScript config
-│   └── web-ui/                # Shared UI components (shadcn/ui)
+│   └── web-ui/                # Shared React UI (shadcn/ui + Tailwind)
 │
-└── turbo.json                 # Turbo configuration
+├── docs/                      # Design documents and plans — intent, not status
+└── turbo.json
 ```
+
+**The dependency rule is strict:** `domain <- application <- infra-*`, and only
+apps wire them together. `domain` is a leaf, so importing it can never
+transitively pull in server code. Full detail in
+[Architecture](/architecture/).
+
+For the complete dependency list and the reasoning behind each choice — including
+which parts were chosen for the diagram tool and which came with the template —
+see the [Stack briefing](/briefings/stack).
 
 ---
 
 ## Key Concepts
 
-### Schema-Based Architecture
+### The config is the diagram
 
-We use a **schema-first approach** where Zod schemas are the source of truth:
-
-```typescript
-// Define base schema
-export const userSchema = z.object({
-  id: z.uuid(),
-  email: z.email(),
-  name: z.string().min(1),
-  createdAt: z.coerce.date(),
-});
-
-// Derive create/update schemas
-export const createUserSchema = userSchema.pick({
-  email: true,
-  name: true,
-});
-
-export type User = z.infer<typeof userSchema>;
-export type CreateUser = z.infer<typeof createUserSchema>;
-```
-
-### Full-Stack Type Safety
-
-Types flow seamlessly from backend to frontend:
+`DiagramConfig` is a Zod schema in `packages/domain/src/schemas/diagram.ts`. It
+validates for the **author**, not the library: messages name the offending value
+and the fix, and a single parse reports every problem at once so a model can
+correct them all in one retry.
 
 ```typescript
-// Backend defines the contract
-app.post("/users", async ({ body }) => {
-  const user = await db.createUser(body);
-  return success(user);
-});
+import { validateDiagramConfig } from "@diagram-tool/domain/schemas";
+import { renderSVG } from "@diagram-tool/domain/render";
 
-// Frontend consumes with full types
-const { data } = await eden.users.post({
-  email: "user@example.com",
-  name: "John Doe",
-});
-// data is fully typed!
+const result = validateDiagramConfig(input);
+if (result.ok) {
+  const svg = renderSVG(result.config);
+} else {
+  result.errors.forEach((message) => console.error(message));
+}
 ```
 
----
+### One renderer, everywhere
 
-## Security
+`renderSVG` is a pure string builder with no DOM and no Node APIs, so the same
+function can run in the browser and inside a Worker. Two renderers would let an
+exported image disagree with the preview — the exact failure the design exists
+to prevent. See [SVG Renderer](/features/diagram-tool/svg-renderer).
 
-- **HttpOnly Cookies** - Session tokens are secure
-- **Server-Side Validation** - All auth checks happen on the server
-- **CORS Protection** - Proper CORS configuration
-- **SQL Injection Prevention** - Drizzle ORM parameterizes queries
-- **XSS Protection** - React's built-in sanitization
-- **CSRF Protection** - SameSite cookies
+### Schema-first everywhere else too
 
----
-
-## Testing
-
-```bash
-# Run tests
-bun test
-
-# Run tests with coverage
-bun test --coverage
-
-# Run specific test file
-bun test path/to/test.ts
-```
-
----
-
-## Contributing
-
-1. Create a feature branch
-2. Make your changes
-3. Write/update tests
-4. Update documentation
-5. Submit a pull request
+Zod schemas in `packages/domain/` are the source of truth for the rest of the
+app as well, reused by server-side validation and client forms alike. See
+[Schemas Implementation](/schemas-implementation).
 
 ---
 
 ## Additional Resources
 
-- [Better Auth Docs](https://better-auth.com)
-- [TanStack Router Docs](https://tanstack.com/router)
+- [Diagram Tool](/features/diagram-tool/) — the feature documentation
+- [Changelog](/changelog/) — what changed and why
 - [TanStack Start Docs](https://tanstack.com/start)
-- [Elysia Docs](https://elysiajs.com)
-- [Hono Docs](https://hono.dev)
-- [oRPC Docs](https://orpc.dev)
+- [Better Auth Docs](https://better-auth.com)
 - [Drizzle ORM Docs](https://orm.drizzle.team)
-
----
-
-:::tip[Ready to Build]
-You're all set! Start exploring the documentation to understand the architecture and patterns used in this monorepo template.
-:::

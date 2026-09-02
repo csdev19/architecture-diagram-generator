@@ -1,0 +1,158 @@
+---
+title: AI Briefing
+description: Paste-whole context for a model reasoning about or generating code for this project.
+---
+
+# AI Briefing
+
+> Paste this whole document into a model's context when it needs to reason about
+> this project or generate a diagram config for it. It is written to stand alone
+> — no links need following. **Current as of 2026-09-02.**
+
+## What it is
+
+`architecture-diagram-generator` is a tool for producing architecture diagrams
+from a JSON document rather than by drawing. A `DiagramConfig` describes a
+canvas, tinted groups, nodes with brand logos, and edges; one pure function,
+`renderSVG`, turns it into an SVG. The intended authoring path is that a model
+writes the config and a person then refines it by dragging tiles in a browser
+editor. It lives in a Bun + Turborepo monorepo using DDD/hexagonal layering, and
+the diagram lives entirely in the `domain` package.
+
+1. **The config is the diagram.** Not an export format, not an intermediate —
+   the JSON is what gets saved and reopened. Every visual edit is a text-to-text
+   transformation of that JSON.
+2. **Validation is written for the author.** Errors name the offending value and
+   the fix, and every problem is reported in a single parse so a model can
+   correct them all in one retry.
+3. **One renderer for every surface.** `renderSVG` is pure, deterministic, and
+   free of DOM and Node APIs, so a browser preview and a server-side rasteriser
+   produce identical output.
+4. **Authors pick semantics, never colour.** A group picks a `tone`, a node
+   picks an `iconKey`; the renderer owns the palette and decides icon legibility.
+
+## Status — read this before answering
+
+- **Nothing is published or deployed.** `@diagram-tool/domain` is not on npm,
+  there are no git tags, no release, and no live URL. It runs from a clone.
+- **The version numbers in `package.json` are meaningless.** The root is
+  `1.0.0` and private; treat them as scaffolding, not releases.
+- **The MCP server and the HTTP API do not exist.** They are designed, not
+  built. Only a throwaway rasterisation spike exists, on an unmerged branch.
+  Never describe generating a diagram from Claude in the present tense.
+- **Server-side PNG rendering is unsolved in production.** Cloudflare Workers
+  forbid runtime WebAssembly compilation, so a rasteriser's wasm must be a
+  bundled module compiled at deploy time, not fetched and instantiated.
+- **Only two PRs are merged**; the brand icons, the drag-and-drop editor and the
+  rasterisation spike are all open branches as of this date.
+- The repo was scaffolded from a monorepo template and still contains template
+  leftovers — a Todo CRUD example, auth routes, and a Postgres/Drizzle stack
+  that the diagram tool does not use at all.
+
+## The interfaces
+
+### `DiagramConfig`
+
+```json
+{
+  "version": 1,
+  "title": "api-simple",
+  "canvas": { "w": 700, "h": 360 },
+  "groups": [
+    { "id": "cf", "label": "CLOUDFLARE", "icon": "☁️",
+      "x": 240, "y": 60, "w": 420, "h": 240,
+      "tone": "orange", "dashed": false, "filled": true }
+  ],
+  "nodes": [
+    { "id": "user", "x": 110, "y": 180, "emoji": "🖥️",
+      "name": "User", "sub": "browser", "tile": "light" },
+    { "id": "hono", "x": 350, "y": 180, "iconKey": "hono",
+      "name": "Hono", "sub": "http server", "tile": "light" },
+    { "id": "d1", "x": 550, "y": 180, "iconKey": "cloudflare",
+      "name": "D1", "sub": "sqlite", "tile": "dark" }
+  ],
+  "edges": [
+    { "from": "user", "to": "hono", "out": "r", "inn": "l",
+      "label": "HTTPS", "style": "solid" },
+    { "from": "hono", "to": "d1", "out": "r", "inn": "l", "label": "SQL" }
+  ]
+}
+```
+
+**Field rules.** `version` is the literal `1`. A node's `x`/`y` is the **centre**
+of its tile, not its top-left corner. A node must carry an `emoji` **or** an
+`iconKey`; `iconKey` wins when both are present. `sub` defaults to `""`, `tile`
+to `"light"`, `style` to `"solid"`, `dashed` to `false`, `filled` to `true`.
+Edge anchors `out` and `inn` are `"l" | "r" | "t" | "b"`. Group `tone` is
+`"orange" | "blue" | "green" | "neutral"`, meaning cloud/runtime, tooling and
+build, external services and data, and everything else. `filled: false` draws
+the border only and is how nested groups are done.
+
+**Limits enforced by the schema.** Canvas width 400–2400, height 300–2400. At
+most 12 groups, 40 nodes, 80 edges; at least 1 node. Any tile text — a node
+`name`, a node `sub`, a group `label` — is at most **26 characters**. Every node
+centre must sit at least **60px** from every canvas edge. Node and group ids
+must be unique, an edge must reference existing nodes, and a node cannot connect
+to itself.
+
+**The 20 available `iconKey` values**, and nothing else: `astro`, `betterauth`,
+`bun`, `cloudflare`, `cloudflareworkers`, `docker`, `drizzle`, `expo`, `github`,
+`githubactions`, `hono`, `nodedotjs`, `postgresql`, `react`, `redis`,
+`tailwindcss`, `turborepo`, `typescript`, `vite`, `zod`. Any other technology
+uses an emoji — that is the designed fallback, not a defect.
+
+**Layout advice for generating a config.** Keep at least 140px between node
+centres in both directions. A tile is 62px square and its name plus sublabel
+occupy roughly 40px _below_ it, which is what vertical spacing has to clear.
+Auto-layout, when used, places columns 200px apart starting at 110px.
+
+### The code surface
+
+The `@diagram-tool/domain` package exports subpaths — `./schemas`,
+`./render`, `./constants`, `./types`, `./repositories`, `./testing`:
+
+```ts
+import { validateDiagramConfig, EXAMPLE_DIAGRAM_CONFIG } from "@diagram-tool/domain/schemas";
+import { renderSVG, layoutDiagram, DIAGRAM_GUIDELINES } from "@diagram-tool/domain/render";
+
+const result = validateDiagramConfig(input);
+// { ok: true; config: DiagramConfig } | { ok: false; errors: string[] }
+if (result.ok) {
+  const svg: string = renderSVG(result.config);        // a complete SVG document
+  const tidied: DiagramConfig = layoutDiagram(result.config); // topology-based placement
+}
+```
+
+`DIAGRAM_GUIDELINES` is a string containing the full authoring guide, with every
+limit interpolated from the constants the schema enforces — so guidance cannot
+drift from validation. It is a TypeScript string rather than a markdown asset
+because a Worker must be able to return it without a raw-text loader.
+
+The only user-facing surface is the `/editor` route in the
+`apps/fullstack-fn-only` TanStack Start app: a two-pane page with the JSON on
+the left and the live preview on the right, exporting SVG or 2x PNG in the
+browser. Tiles drag, clicking one opens an inspector, edges are drawn by
+clicking two tiles, and an **Arrange** button re-places nodes from the topology.
+
+## Corrections
+
+- The diagram data lives in **`packages/domain`**, not in a dedicated diagram
+  package. `DiagramConfig` is this product's domain model, so a separate package
+  would be the anomaly.
+- The renderer is a **pure string builder**, not React and not an SVG DOM
+  library. Suggesting JSX or `document.createElementNS` breaks its one hard
+  requirement.
+- Diagram colours are **literal hex values in `constants/diagram.ts`**, not CSS
+  variables or Tailwind theme tokens. They are written into SVG attributes and
+  must survive rasterisation where no stylesheet exists. Do not wire them to the
+  design system.
+- Anything interpolated into the SVG must pass through **`escapeXml`**. An
+  unescaped `&` in a technology name yields a document that fails to parse,
+  usually with no visible error.
+- The editor holds **one** piece of state — the textarea's text. Holding a
+  parsed config as editing state is the single change that would break the
+  design.
+- The app's database is **Neon Postgres via Drizzle**, not Cloudflare D1. D1
+  appears in the example diagram as example content only.
+- `docs/plans/` and `docs/specs/` record **intent**, not what was built. Never
+  infer status from them.
