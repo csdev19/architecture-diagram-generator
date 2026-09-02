@@ -16,6 +16,7 @@
     "@diagram-tool/infra-auth": "workspace:*",
     "@diagram-tool/infra-db": "workspace:*",
     "@diagram-tool/infra-env": "workspace:*",
+    "@resvg/resvg-wasm": "catalog:",
     "@tanstack/react-form": "^1.23.5",
     "@tanstack/react-query": "^5.90.12",
     "@tanstack/react-router": "^1.141.1",
@@ -51,6 +52,7 @@
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "wrangler": "catalog:"
   }
 }
