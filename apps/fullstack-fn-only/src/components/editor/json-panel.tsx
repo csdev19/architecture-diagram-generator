@@ -60,12 +60,13 @@ export function JsonPanel({ value, onChange, errors, lastValidText }: JsonPanelP
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <p className="text-[13px] leading-relaxed text-ed-text-2">
-        The config is the diagram. This text is the only state — every drag rewrites it, and every
-        edit here redraws the sheet.
+        This document is the diagram, and it is the only state — every drag rewrites it, and every
+        edit here redraws the sheet. <code>content</code> is what the architecture is;
+        <code> layout</code> is where it sits.
       </p>
 
       <label htmlFor="diagram-config" className="sr-only">
-        Diagram config (JSON)
+        Diagram document (JSON)
       </label>
       <textarea
         id="diagram-config"
@@ -85,7 +86,7 @@ export function JsonPanel({ value, onChange, errors, lastValidText }: JsonPanelP
         <p className="flex items-start gap-2 text-[13px] text-ed-danger">
           <TriangleAlert className="mt-px size-[15px] shrink-0" strokeWidth={1.75} aria-hidden />
           {errors.length} {errors.length === 1 ? "problem" : "problems"} — the canvas shows the last
-          valid config.
+          valid document.
         </p>
       ) : (
         <p className="flex items-center gap-2 text-[13px] text-ed-positive">

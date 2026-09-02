@@ -2,10 +2,14 @@ import { X } from "lucide-react";
 import { ANCHOR_SIDES, DIAGRAM_LIMITS, EDGE_STYLES } from "@diagram-tool/domain/constants";
 import type { DiagramEdge } from "@diagram-tool/domain/schemas";
 import { cn } from "@diagram-tool/web-ui";
-import type { EdgePatch } from "@/components/editor/use-diagram-editing";
+import type { EdgePatch } from "@/components/editor/edits/content-edits";
 
 /**
  * The edges tab.
+ *
+ * Label and style go to `content`; the anchor sides go to `layout`. The panel
+ * edits both halves of the document, and which half a control writes to is
+ * exactly the difference between what a relation is and how it is drawn.
  *
  * Every row addresses its edge by id, so removing one leaves the others
  * pointing at exactly what they pointed at before. The number beside a control
@@ -20,7 +24,10 @@ import type { EdgePatch } from "@/components/editor/use-diagram-editing";
 
 interface EdgeToolsProps {
   edges: DiagramEdge[];
+  /** Label and style: what the relation *is*. */
   onUpdate: (id: string, patch: EdgePatch) => void;
+  /** The sides the line leaves and arrives at: where it is drawn. */
+  onAnchors: (id: string, anchors: { out?: DiagramEdge["out"]; inn?: DiagramEdge["inn"] }) => void;
   onRemove: (id: string) => void;
 }
 
@@ -30,7 +37,7 @@ const rowControl = cn(
   "outline-none focus-visible:border-ed-accent focus-visible:shadow-[var(--ed-focus-ring)]",
 );
 
-export function EdgeTools({ edges, onUpdate, onRemove }: EdgeToolsProps) {
+export function EdgeTools({ edges, onUpdate, onAnchors, onRemove }: EdgeToolsProps) {
   if (edges.length === 0) {
     return (
       <p className="text-[13px] text-ed-text-2">
@@ -103,7 +110,7 @@ export function EdgeTools({ edges, onUpdate, onRemove }: EdgeToolsProps) {
                   aria-label={`Out ${index + 1}`}
                   value={edge.out}
                   onChange={(event) =>
-                    onUpdate(edge.id, { out: event.target.value as DiagramEdge["out"] })
+                    onAnchors(edge.id, { out: event.target.value as DiagramEdge["out"] })
                   }
                   className={rowControl}
                 >
@@ -118,7 +125,7 @@ export function EdgeTools({ edges, onUpdate, onRemove }: EdgeToolsProps) {
                   aria-label={`In ${index + 1}`}
                   value={edge.inn}
                   onChange={(event) =>
-                    onUpdate(edge.id, { inn: event.target.value as DiagramEdge["inn"] })
+                    onAnchors(edge.id, { inn: event.target.value as DiagramEdge["inn"] })
                   }
                   className={rowControl}
                 >
