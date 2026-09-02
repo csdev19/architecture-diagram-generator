@@ -36,12 +36,12 @@ the canvas.
 | `apps/fullstack-fn-only/src/components/editor/diagram-stage.tsx`      | The canvas: pointer handling, drag and drop, halos, and the framed render   |
 | `apps/fullstack-fn-only/src/components/editor/use-stage-view.ts`      | The camera — pan, zoom and fit over an unbounded plane                      |
 | `apps/fullstack-fn-only/src/components/editor/use-diagram-editing.ts` | Every visual edit, as a pure text → text transformation                     |
-| `apps/fullstack-fn-only/src/components/editor/pointer-geometry.ts`    | Hit-testing tiles and groups, and the client → world transform              |
-| `apps/fullstack-fn-only/src/components/editor/selection.ts`           | What is picked: one slot holding a node **or** a group                      |
+| `apps/fullstack-fn-only/src/components/editor/pointer-geometry.ts`    | Hit-testing tiles and boundaries, and the client → world transform          |
+| `apps/fullstack-fn-only/src/components/editor/selection.ts`           | What is picked: one slot holding a node **or** a boundary                   |
 | `apps/fullstack-fn-only/src/components/editor/tile-palette.tsx`       | The draggable palette, built from the icon registry                         |
 | `apps/fullstack-fn-only/src/components/editor/stage-toolbar.tsx`      | The five tools, each labelled                                               |
 | `apps/fullstack-fn-only/src/components/editor/node-inspector.tsx`     | The panel for the selected tile                                             |
-| `apps/fullstack-fn-only/src/components/editor/group-inspector.tsx`    | The panel for the selected group — label, tone, geometry                    |
+| `apps/fullstack-fn-only/src/components/editor/boundary-inspector.tsx` | The panel for the selected boundary — label, tone, geometry                 |
 | `apps/fullstack-fn-only/src/components/editor/diagram-panel.tsx`      | The panel with nothing selected: the paper tone                             |
 | `apps/fullstack-fn-only/src/components/editor/side-panel.tsx`         | The collapsible JSON / Inspector / Edges panel                              |
 | `apps/fullstack-fn-only/src/components/editor/editor-chrome.tsx`      | Local button, input and label primitives on the editor's own tokens         |
@@ -64,28 +64,28 @@ paper and grid reach every edge of the window and nothing is off-canvas. Export
 calls the same renderer with no frame and gets the one the diagram implies.
 
 Every gesture is a text transformation. A drag parses the text, moves the node
-and prints the JSON back; so does dropping a tile, drawing a group, or any field
+and prints the JSON back; so does dropping a tile, drawing a boundary, or any field
 in an inspector. Hit-testing reads the config's own coordinates rather than
-measuring the DOM, and prefers a tile over the group it sits in.
+measuring the DOM, and prefers a tile over the boundary it sits in.
 
 ## Decisions
 
-| Decision                                       | Why                                                                                                                                                                               | Alternatives Considered                                   |
-| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| The canvas is the window; panels float over it | A column takes its width from the diagram permanently, read or not. Floating means closing the JSON hands the space straight back                                                 | A three-column grid                                       |
-| The renderer draws the editor's surface too    | Passing the visible rectangle as a frame means what you look at and what you export come from one function, background and grid included                                          | A CSS grid behind a separately rendered sheet             |
-| Everything derives from one state value        | Any second source of truth eventually disagrees with the text on screen                                                                                                           | Holding a parsed config alongside the raw text            |
-| The last valid config keeps drawing            | Half of authoring JSON is spent in states that do not parse. Losing the picture at each one makes the panel unusable                                                              | Blanking the canvas on any error                          |
-| Mutations never validate before writing        | An edit that breaks the config is written anyway and reported in the existing error list. Silently refusing a keystroke leaves the author with no idea what happened              | Rejecting edits that would fail validation                |
-| Hit-testing reads the config, not the DOM      | The renderer already fixed every tile's coordinates. Measuring the rendered SVG is a second source of truth that stops agreeing the moment the view is scaled                     | `document.elementFromPoint`, or per-tile DOM listeners    |
-| One selection slot, two kinds                  | The bin, the Delete key and the inspector all need to know _what_ they are looking at. Separate node and group ids would let both be set and make every reader invent a tie-break | `selectedNodeId` and `selectedGroupId` side by side       |
-| A tile wins over the group containing it       | The tile is the smaller, more specific target, and it is drawn on top                                                                                                             | Requiring a click on the group's border                   |
-| Chrome is drawn in an overlay SVG              | Halos and the group being dragged out never enter the scene, so the exported document is the renderer's output byte for byte — with nothing to strip                              | Marking chrome inside the scene and removing it on export |
-| A drawn group lands neutral, named `GROUP`     | The tone is a claim about the system and the label is the author's words. Neither is something a drag can guess, so it opens in the inspector instead                             | Prompting for a name mid-gesture                          |
-| Deleting a group keeps its tiles               | A group is a box drawn around nodes, not a parent of them — which is what makes trying one cheap                                                                                  | Cascading the delete to everything inside                 |
-| The editor runs its own chrome theme           | The app shell forces `.dark` on `<html>`; the editor reads `data-chrome` on its own root, so its light and dark palettes are independent of the rest of the app                   | Reusing the app's shadcn tokens                           |
-| Local chrome primitives, not `web-ui`          | The shared components carry `dark:` variants keyed to `.dark` on `<html>`, so inside the editor they would follow the app's theme rather than the editor's                        | Overriding the shared components per instance             |
-| Enum fields are native `<select>`s             | A dense panel of small controls keeps keyboard behaviour, label association and screen-reader semantics for free, without a portal per field                                      | The design system's base-ui `Select`                      |
+| Decision                                         | Why                                                                                                                                                                                  | Alternatives Considered                                   |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| The canvas is the window; panels float over it   | A column takes its width from the diagram permanently, read or not. Floating means closing the JSON hands the space straight back                                                    | A three-column grid                                       |
+| The renderer draws the editor's surface too      | Passing the visible rectangle as a frame means what you look at and what you export come from one function, background and grid included                                             | A CSS grid behind a separately rendered sheet             |
+| Everything derives from one state value          | Any second source of truth eventually disagrees with the text on screen                                                                                                              | Holding a parsed config alongside the raw text            |
+| The last valid config keeps drawing              | Half of authoring JSON is spent in states that do not parse. Losing the picture at each one makes the panel unusable                                                                 | Blanking the canvas on any error                          |
+| Mutations never validate before writing          | An edit that breaks the config is written anyway and reported in the existing error list. Silently refusing a keystroke leaves the author with no idea what happened                 | Rejecting edits that would fail validation                |
+| Hit-testing reads the config, not the DOM        | The renderer already fixed every tile's coordinates. Measuring the rendered SVG is a second source of truth that stops agreeing the moment the view is scaled                        | `document.elementFromPoint`, or per-tile DOM listeners    |
+| One selection slot, two kinds                    | The bin, the Delete key and the inspector all need to know _what_ they are looking at. Separate node and boundary ids would let both be set and make every reader invent a tie-break | `selectedNodeId` and `selectedBoundaryId` side by side    |
+| A tile wins over the boundary containing it      | The tile is the smaller, more specific target, and it is drawn on top                                                                                                                | Requiring a click on the boundary's border                |
+| Chrome is drawn in an overlay SVG                | Halos and the boundary being dragged out never enter the scene, so the exported document is the renderer's output byte for byte — with nothing to strip                              | Marking chrome inside the scene and removing it on export |
+| A drawn boundary lands neutral, named `BOUNDARY` | The tone is a claim about the system and the label is the author's words. Neither is something a drag can guess, so it opens in the inspector instead                                | Prompting for a name mid-gesture                          |
+| Deleting a boundary keeps its tiles              | A boundary is a box drawn around nodes, not a parent of them — which is what makes trying one cheap                                                                                  | Cascading the delete to everything inside                 |
+| The editor runs its own chrome theme             | The app shell forces `.dark` on `<html>`; the editor reads `data-chrome` on its own root, so its light and dark palettes are independent of the rest of the app                      | Reusing the app's shadcn tokens                           |
+| Local chrome primitives, not `web-ui`            | The shared components carry `dark:` variants keyed to `.dark` on `<html>`, so inside the editor they would follow the app's theme rather than the editor's                           | Overriding the shared components per instance             |
+| Enum fields are native `<select>`s               | A dense panel of small controls keeps keyboard behaviour, label association and screen-reader semantics for free, without a portal per field                                         | The design system's base-ui `Select`                      |
 
 ## Gotchas & Warnings
 
@@ -118,8 +118,8 @@ bun run dev:fullstack-fn
 # 2. Drag a tile off the palette onto the canvas, far from everything else.
 # 3. Drag it again — the JSON's coordinates follow and snap to the half-grid.
 # 4. Press Escape mid-drag — the node returns to exactly where it started.
-# 5. Group, drag a box around two tiles, name it and pick a tone.
-# 6. Move the group — the tiles inside stay put. Delete it — they survive.
+# 5. Boundary, drag a box around two tiles, name it and pick a tone.
+# 6. Move the boundary — the tiles inside stay put. Delete it — they survive.
 # 7. Connect, click two tiles — the anchors face each other.
 # 8. Inspector with nothing selected — switch the paper to Legal pad.
 # 9. File ▸ Export PNG 2x — the PNG is the drawing, cropped to its own bounds.
