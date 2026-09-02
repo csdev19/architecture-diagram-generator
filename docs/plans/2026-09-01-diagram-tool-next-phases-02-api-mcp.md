@@ -65,17 +65,52 @@ apps/documentation/…                      feature docs + changelog
 The roadmap called this the place where the time goes. Nothing else in the plan
 starts until this proves out.
 
-- [ ] Add `@resvg/resvg-wasm` and `wrangler` to the catalog; install.
-- [ ] `src/server/resvg.ts`: import the `.wasm` as a module, `initWasm` behind a
+- [x] Add `@resvg/resvg-wasm` and `wrangler` to the catalog; install.
+- [x] `src/server/resvg.ts`: import the `.wasm` as a module, `initWasm` behind a
       module-level promise (once per isolate), `svgToPng(svg, fonts, scale)`
       with `loadSystemFonts: false`.
-- [ ] Prove it in dev: a throwaway server route renders
+- [x] Prove it in dev: a throwaway server route renders
       `EXAMPLE_DIAGRAM_CONFIG` to PNG; `curl … | file -` says PNG, and the
       image opens. If the Vite/Workers dev loop rejects the wasm import,
       resolve it here (`@cloudflare/vite-plugin` wasm-module support is the
       first lever) before touching anything else.
-- [ ] Record what was learned in the plan or docs — this is the step future
+- [x] Record what was learned in the plan or docs — this is the step future
       phases will want the notes from.
+
+### What the spike found
+
+The roadmap was right that this is where the time goes. Three findings, in the
+order they were paid for:
+
+1. **The wasm must be a bundled import. There is no alternative.** Fetching the
+   binary at runtime and handing the bytes to `initWasm` fails on Workers with
+   `CompileError: WebAssembly.instantiate(): Wasm code generation disallowed by
+embedder`. The platform compiles wasm ahead of time and refuses to do it in
+   an isolate, so `import wasm from "….wasm"` is the only shape that works —
+   the assets binding, `public/`, and same-origin `fetch` are all dead ends for
+   _code_. They remain fine for _data_, which is how Task 2 loads fonts.
+2. **Vite's dependency scanner breaks on the `.wasm` specifier, and lies about
+   it.** `vite:dep-scan` resolves `@resvg/resvg-wasm/index_bg.wasm` against the
+   app root rather than the package, fails, and abandons pre-bundling for the
+   whole app. The visible symptom is unrelated: every request 500s with
+   `There is a new version of the pre-bundle for …/react.js`. Neither
+   `optimizeDeps.exclude` nor `esbuildOptions.external` helps, because the
+   import is in our own source rather than in a dependency. What works is a
+   `resolve.alias` mapping the specifier to an absolute path via
+   `createRequire(import.meta.url).resolve(…)`.
+3. **`wrangler dev` and `vite dev` disagree, and both are worth having.** The
+   assets binding answers 403 for `public/` files under `vite dev` but serves
+   them under `wrangler dev`. Finding 1 only surfaced under `wrangler dev` —
+   `vite dev` never got far enough to attempt compilation. When a Worker-runtime
+   question is in doubt, `bunx wrangler dev` on a built `dist/` is the honest
+   answer.
+
+Verified: `GET /api/render-spike` returns `image/png`, 1400x720 for a 700x360
+canvas at 2x. Everything draws except text, which is expected until fonts ship
+in Task 2 (`loadSystemFonts: false` with no buffers renders no glyphs). The
+example's emoji node rendered blank while both `iconKey` nodes rendered
+perfectly — first-hand confirmation of why icons were sequenced before this
+plan.
 
 ## Task 2 — Fonts: one face on both sides
 
