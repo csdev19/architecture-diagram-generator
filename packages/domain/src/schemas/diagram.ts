@@ -1,7 +1,7 @@
 import { z } from "zod";
 import {
   ANCHOR_SIDES,
-  DIAGRAM_GEOMETRY,
+  CANVAS_TONES,
   DIAGRAM_LIMITS,
   EDGE_STYLES,
   GROUP_TONES,
@@ -94,28 +94,26 @@ export const diagramEdgeSchema = z.object({
 const diagramConfigShape = z.object({
   version: z.literal(1),
   title: z.string().trim().min(1, "Title is required").default("diagram"),
-  canvas: z.object({
-    w: z
-      .number()
-      .min(
-        DIAGRAM_LIMITS.CANVAS_MIN_WIDTH,
-        `Canvas width must be at least ${DIAGRAM_LIMITS.CANVAS_MIN_WIDTH}px`,
-      )
-      .max(
-        DIAGRAM_LIMITS.CANVAS_MAX_WIDTH,
-        `Canvas width must be at most ${DIAGRAM_LIMITS.CANVAS_MAX_WIDTH}px`,
-      ),
-    h: z
-      .number()
-      .min(
-        DIAGRAM_LIMITS.CANVAS_MIN_HEIGHT,
-        `Canvas height must be at least ${DIAGRAM_LIMITS.CANVAS_MIN_HEIGHT}px`,
-      )
-      .max(
-        DIAGRAM_LIMITS.CANVAS_MAX_HEIGHT,
-        `Canvas height must be at most ${DIAGRAM_LIMITS.CANVAS_MAX_HEIGHT}px`,
-      ),
-  }),
+  /**
+   * A fixed frame, for a diagram that needs an exact size — a slide, a page.
+   *
+   * Optional, and normally absent: the renderer derives the frame from what the
+   * diagram actually contains. Declaring it is what used to make coordinates a
+   * walled garden, where a node could be "outside the canvas" and an author had
+   * to grow a rectangle before they could put something down. Nothing is out of
+   * bounds any more, so nothing needs to be declared in advance.
+   */
+  canvas: z
+    .object({
+      w: z.number().positive("Canvas width must be positive"),
+      h: z.number().positive("Canvas height must be positive"),
+    })
+    .optional(),
+  /**
+   * The paper tone. Named rather than a hex, like every other colour choice in
+   * the format: the author picks a tint, the renderer owns the value.
+   */
+  background: z.enum(CANVAS_TONES).optional(),
   groups: z
     .array(diagramGroupSchema)
     .max(DIAGRAM_LIMITS.MAX_GROUPS, `At most ${DIAGRAM_LIMITS.MAX_GROUPS} groups`),
@@ -178,24 +176,9 @@ export const diagramConfigSchema = diagramConfigShape.superRefine((config, ctx) 
     }
   });
 
-  const { CANVAS_MARGIN } = DIAGRAM_GEOMETRY;
-  config.nodes.forEach((node, index) => {
-    const outOfBounds =
-      node.x < CANVAS_MARGIN ||
-      node.y < CANVAS_MARGIN ||
-      node.x > config.canvas.w - CANVAS_MARGIN ||
-      node.y > config.canvas.h - CANVAS_MARGIN;
-
-    if (outOfBounds) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["nodes", index],
-        message:
-          `nodes[${index}] "${node.id}" sits at (${node.x}, ${node.y}), inside the ${CANVAS_MARGIN}px margin ` +
-          `of a ${config.canvas.w}x${config.canvas.h} canvas — move it in, or grow the canvas`,
-      });
-    }
-  });
+  // There is deliberately no bounds check on coordinates. The frame is derived
+  // from the drawing, so no point is "outside" it — a node at (-800, 2400) is
+  // as legal as one at (110, 180), and the exported document simply covers it.
 });
 
 /** Renders a Zod path as the author wrote it: `nodes[0].name`. */
@@ -248,7 +231,6 @@ export type DiagramConfigInput = z.input<typeof diagramConfigSchema>;
 export const EXAMPLE_DIAGRAM_CONFIG: DiagramConfigInput = {
   version: 1,
   title: "api-simple",
-  canvas: { w: 700, h: 360 },
   groups: [
     {
       id: "cf",

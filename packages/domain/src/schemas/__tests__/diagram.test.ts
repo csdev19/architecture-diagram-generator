@@ -94,12 +94,15 @@ describe("diagramConfigSchema", () => {
     );
   });
 
-  it("rejects a node too close to the canvas edge, naming the node and the margin", () => {
+  it("accepts a coordinate anywhere, negatives included", () => {
+    // There is no canvas to be outside of any more: the exported frame is
+    // derived from the drawing, so an author placing a tile far off to the
+    // left is describing a wider diagram, not making a mistake.
     const config = validConfig();
-    (config.nodes as Array<Record<string, unknown>>)[0]!.x = 10;
+    (config.nodes as Array<Record<string, unknown>>)[0]!.x = -1800;
+    (config.nodes as Array<Record<string, unknown>>)[0]!.y = 9000;
 
-    const messages = messagesFor(config);
-    expect(messages.some((m) => m.includes('"user"') && m.includes("60"))).toBe(true);
+    expect(diagramConfigSchema.safeParse(config).success).toBe(true);
   });
 
   it("rejects a whitespace-only name", () => {
@@ -123,9 +126,16 @@ describe("diagramConfigSchema", () => {
     expect(diagramConfigSchema.safeParse(config).success).toBe(false);
   });
 
-  it("rejects a canvas smaller than the documented minimum", () => {
+  it("accepts a config with no canvas at all — that is the normal shape now", () => {
     const config = validConfig();
-    config.canvas = { w: 100, h: 100 };
+    delete config.canvas;
+
+    expect(diagramConfigSchema.safeParse(config).success).toBe(true);
+  });
+
+  it("still rejects a canvas that is not a positive size", () => {
+    const config = validConfig();
+    config.canvas = { w: 0, h: -10 };
 
     expect(diagramConfigSchema.safeParse(config).success).toBe(false);
   });

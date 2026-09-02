@@ -1,1 +1,94 @@
 @import "@diagram-tool/web-ui/styles.css";
+
+/*
+ * The editor's chrome palette.
+ *
+ * Scoped to `.diagram-editor` rather than folded into the app's shadcn tokens
+ * because the editor is the one surface with a hard style boundary: the chrome
+ * follows a theme, the diagram sheet never does. The sheet's colours are hex
+ * literals in `@diagram-tool/domain` — they are written into SVG attributes and
+ * must survive rasterisation to PNG where no stylesheet exists — so the sheet
+ * stays light in both chrome themes, on purpose. Never wire a `--ed-*` token
+ * into the renderer.
+ *
+ * The scope also insulates the editor from the app shell forcing `.dark` on
+ * `<html>`: the editor reads `data-chrome` on its own root instead.
+ */
+.diagram-editor {
+  --ed-surface: #ffffff;
+  --ed-surface-2: #f1f3f9;
+  --ed-surface-hover: #f6f7fb;
+  /* The table the sheet floats on. */
+  --ed-stage: #eceef4;
+  --ed-field: #fbfcfe;
+
+  --ed-text: #12141c;
+  --ed-text-2: #565d70;
+  --ed-text-3: #878ea3;
+
+  --ed-border: #e4e7ef;
+  --ed-border-strong: #12141c;
+
+  --ed-accent: #6c2bff;
+  --ed-accent-fg: #ffffff;
+  /* Second accent. Only ever the halo on a pending edge's source tile. */
+  --ed-accent-2: #f62bb6;
+
+  --ed-positive: #157f5b;
+  --ed-danger: #d0342c;
+  --ed-danger-quiet: #fdf1f0;
+
+  --ed-shadow-md: 0 1px 2px rgb(16 20 34 / 0.06), 0 6px 20px rgb(16 20 34 / 0.09);
+  --ed-shadow-lg: 0 2px 4px rgb(16 20 34 / 0.05), 0 18px 44px rgb(16 20 34 / 0.14);
+  --ed-focus-ring: 0 0 0 3px rgb(108 43 255 / 0.22);
+}
+
+.diagram-editor[data-chrome="dark"] {
+  --ed-surface: #16181f;
+  --ed-surface-2: #23262f;
+  --ed-surface-hover: #1d202a;
+  --ed-stage: #0c0d12;
+  --ed-field: #101219;
+
+  --ed-text: #eceef4;
+  --ed-text-2: #a3aabd;
+  --ed-text-3: #737b8f;
+
+  --ed-border: #282c37;
+  --ed-border-strong: #eceef4;
+
+  --ed-accent: #8b5cff;
+  --ed-accent-fg: #0c0d12;
+  --ed-accent-2: #ff5ac8;
+
+  --ed-positive: #4ade80;
+  --ed-danger: #ff6b60;
+  --ed-danger-quiet: #2a1717;
+
+  --ed-shadow-md: 0 1px 2px rgb(0 0 0 / 0.4), 0 6px 20px rgb(0 0 0 / 0.45);
+  --ed-shadow-lg: 0 2px 4px rgb(0 0 0 / 0.4), 0 18px 44px rgb(0 0 0 / 0.55);
+  --ed-focus-ring: 0 0 0 3px rgb(139 92 255 / 0.3);
+}
+
+/*
+ * `inline` so each utility emits `var(--ed-…)` rather than the value it had at
+ * build time — which is what lets one class resolve to both chrome themes.
+ */
+@theme inline {
+  --color-ed-surface: var(--ed-surface);
+  --color-ed-surface-2: var(--ed-surface-2);
+  --color-ed-surface-hover: var(--ed-surface-hover);
+  --color-ed-stage: var(--ed-stage);
+  --color-ed-field: var(--ed-field);
+  --color-ed-text: var(--ed-text);
+  --color-ed-text-2: var(--ed-text-2);
+  --color-ed-text-3: var(--ed-text-3);
+  --color-ed-border: var(--ed-border);
+  --color-ed-border-strong: var(--ed-border-strong);
+  --color-ed-accent: var(--ed-accent);
+  --color-ed-accent-fg: var(--ed-accent-fg);
+  --color-ed-accent-2: var(--ed-accent-2);
+  --color-ed-positive: var(--ed-positive);
+  --color-ed-danger: var(--ed-danger);
+  --color-ed-danger-quiet: var(--ed-danger-quiet);
+}

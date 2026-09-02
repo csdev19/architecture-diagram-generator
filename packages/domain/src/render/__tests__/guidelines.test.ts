@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DIAGRAM_GEOMETRY, DIAGRAM_LIMITS, GROUP_TONES } from "../../constants/diagram";
 import { DIAGRAM_ICON_KEYS } from "../../constants/diagram-icons";
+import { FRAME_PADDING } from "../frame";
 import { DIAGRAM_GUIDELINES } from "../guidelines";
 
 /**
@@ -15,9 +16,14 @@ describe("DIAGRAM_GUIDELINES", () => {
     expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_LIMITS.MAX_NODES));
     expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_LIMITS.MAX_GROUPS));
     expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_LIMITS.MAX_EDGES));
-    expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_LIMITS.CANVAS_MAX_WIDTH));
-    expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_GEOMETRY.CANVAS_MARGIN));
+    expect(DIAGRAM_GUIDELINES).toContain(String(FRAME_PADDING));
     expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_GEOMETRY.TILE_SIZE));
+  });
+
+  it("tells the author not to emit a canvas", () => {
+    // The frame is derived, so a model that keeps declaring one re-imposes the
+    // fixed sheet this was removed to get rid of.
+    expect(DIAGRAM_GUIDELINES).toContain("Do NOT emit a `canvas`");
   });
 
   it("names every group tone the schema accepts", () => {

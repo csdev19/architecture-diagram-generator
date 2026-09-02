@@ -1,6 +1,6 @@
 import { ANCHOR_SIDES, DIAGRAM_GEOMETRY } from "@diagram-tool/domain/constants";
 import type { AnchorSide } from "@diagram-tool/domain/constants";
-import type { DiagramConfig, DiagramNode } from "@diagram-tool/domain/schemas";
+import type { DiagramConfig, DiagramGroup, DiagramNode } from "@diagram-tool/domain/schemas";
 
 /**
  * Turning a pointer into a node.
@@ -29,6 +29,33 @@ export const hitTestNode = (config: DiagramConfig, point: Point): DiagramNode | 
     const node = config.nodes[index];
     if (!node) continue;
     if (Math.abs(point.x - node.x) <= half && Math.abs(point.y - node.y) <= half) return node;
+  }
+
+  return undefined;
+};
+
+/**
+ * The group whose box covers `point`, or `undefined`.
+ *
+ * Searched back to front, like nodes: the renderer draws groups in array order,
+ * so the last one painted is the one visually on top of any overlap. A nested
+ * group is therefore hit before the one containing it, as long as it was
+ * declared after — which is what `filled: false` nesting already requires.
+ *
+ * The whole box is a target, not just its border. These boxes are tinted, so
+ * they read as surfaces; clicking one and getting nothing would be the surprise.
+ */
+export const hitTestGroup = (config: DiagramConfig, point: Point): DiagramGroup | undefined => {
+  for (let index = config.groups.length - 1; index >= 0; index -= 1) {
+    const group = config.groups[index];
+    if (!group) continue;
+
+    const inside =
+      point.x >= group.x &&
+      point.x <= group.x + group.w &&
+      point.y >= group.y &&
+      point.y <= group.y + group.h;
+    if (inside) return group;
   }
 
   return undefined;

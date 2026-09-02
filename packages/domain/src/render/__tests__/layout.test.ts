@@ -13,7 +13,6 @@ const layout = (input: DiagramConfigInput) => layoutDiagram(diagramConfigSchema.
 /** A chain of nodes joined by solid edges, which is the shape layout is for. */
 const chain = (ids: string[], extra: Partial<DiagramConfigInput> = {}): DiagramConfigInput => ({
   version: 1,
-  canvas: { w: 700, h: 360 },
   groups: [],
   nodes: ids.map((id, index) => ({ id, x: 100 + index, y: 100, emoji: "🔥", name: id })),
   edges: ids.slice(1).map((id, index) => ({
@@ -145,11 +144,10 @@ describe("layoutDiagram", () => {
     expect(positionOf(result, "b").y).not.toBe(positionOf(result, "c").y);
   });
 
-  it("grows the canvas to fit what it placed", () => {
+  it("leaves the frame alone — placing the nodes is what resizes the diagram", () => {
     const result = layout(chain(["a", "b", "c", "d", "e", "f"]));
-    const rightmost = Math.max(...result.nodes.map((node) => node.x));
 
-    expect(result.canvas.w).toBeGreaterThan(rightmost);
+    expect(result.canvas, "layout re-introduced a fixed canvas").toBeUndefined();
     expect(validateDiagramConfig(result).ok, "layout produced a config it rejects").toBe(true);
   });
 

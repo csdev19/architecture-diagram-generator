@@ -60,6 +60,7 @@ const anchorPoint = (node: DiagramNode, side: AnchorSide): { x: number; y: numbe
 export const renderEdge = (
   edge: DiagramEdge,
   nodeById: ReadonlyMap<string, DiagramNode>,
+  paper: string,
 ): string => {
   const from = nodeById.get(edge.from);
   const to = nodeById.get(edge.to);
@@ -96,7 +97,7 @@ export const renderEdge = (
   // Without this the label collides with the background grid and is unreadable.
   const backing =
     `<rect x="${num(backingX)}" y="${num(labelY - height + 3)}" ` +
-    `width="${num(width)}" height="${num(height)}" fill="${DIAGRAM_COLORS.CANVAS_BG}"/>`;
+    `width="${num(width)}" height="${num(height)}" fill="${paper}"/>`;
 
   const text =
     `<text x="${num(labelX)}" y="${num(labelY)}" ` +

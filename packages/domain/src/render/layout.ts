@@ -1,4 +1,4 @@
-import { DIAGRAM_GEOMETRY, DIAGRAM_LIMITS, EDGE_STYLES } from "../constants/diagram";
+import { DIAGRAM_GEOMETRY, EDGE_STYLES } from "../constants/diagram";
 import type { DiagramConfig, DiagramNode } from "../schemas/diagram";
 
 /**
@@ -16,11 +16,7 @@ import type { DiagramConfig, DiagramNode } from "../schemas/diagram";
  * in the order the nodes were declared.
  */
 
-const { LAYOUT_ORIGIN, LAYOUT_COLUMN_GAP, NODE_SPACING, NODE_TEXT_BLOCK } = DIAGRAM_GEOMETRY;
-
-/** Clamps a canvas dimension into what the schema will accept. */
-const clamp = (value: number, min: number, max: number): number =>
-  Math.min(Math.max(value, min), max);
+const { LAYOUT_ORIGIN, LAYOUT_COLUMN_GAP, NODE_SPACING } = DIAGRAM_GEOMETRY;
 
 /**
  * Assigns each node a column, following the solid edges only.
@@ -143,24 +139,7 @@ export const layoutDiagram = (config: DiagramConfig): DiagramConfig => {
     };
   });
 
-  const right = Math.max(...placed.map((node) => node.x));
-  const bottom = Math.max(...placed.map((node) => node.y));
-
-  return {
-    ...config,
-    nodes: placed,
-    canvas: {
-      w: clamp(
-        right + LAYOUT_ORIGIN,
-        DIAGRAM_LIMITS.CANVAS_MIN_WIDTH,
-        DIAGRAM_LIMITS.CANVAS_MAX_WIDTH,
-      ),
-      // The text block hangs below a tile, so the bottom margin has to clear it.
-      h: clamp(
-        bottom + NODE_TEXT_BLOCK + LAYOUT_ORIGIN,
-        DIAGRAM_LIMITS.CANVAS_MIN_HEIGHT,
-        DIAGRAM_LIMITS.CANVAS_MAX_HEIGHT,
-      ),
-    },
-  };
+  // No canvas is computed. The frame follows the drawing, so placing the nodes
+  // *is* resizing the diagram — there is no second number to keep in step.
+  return { ...config, nodes: placed };
 };

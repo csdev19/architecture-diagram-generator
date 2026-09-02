@@ -46,6 +46,37 @@ export const GROUP_TONE_INFO: Record<GroupTone, GroupToneInfo> = {
   [GROUP_TONES.NEUTRAL]: { border: "#cbd5e1", fill: "#f8fafc", label: "#475569" },
 };
 
+/**
+ * The paper a diagram is drawn on.
+ *
+ * Five near-whites rather than a colour picker: the surface is meant to recede,
+ * and the moment it can be any colour someone will pick one that fights the
+ * tiles. These are the tints a notepad comes in — plain, cool, and two warm —
+ * which is enough to make a diagram feel chosen without letting it get loud.
+ */
+export const CANVAS_TONES = {
+  WHITE: "white",
+  /** Faintest cool grey. The default: paper, without being a light box. */
+  GREY: "grey",
+  BLUE: "blue",
+  /** Legal pad. */
+  CREAM: "cream",
+  BLUSH: "blush",
+} as const;
+
+export type CanvasTone = ObjectProperties<typeof CANVAS_TONES>;
+
+export const isValidCanvasTone = (value: unknown): value is CanvasTone =>
+  Object.values(CANVAS_TONES).includes(value as CanvasTone);
+
+export const CANVAS_TONE_INFO: Record<CanvasTone, string> = {
+  [CANVAS_TONES.WHITE]: "#ffffff",
+  [CANVAS_TONES.GREY]: "#f8f9fa",
+  [CANVAS_TONES.BLUE]: "#f5faff",
+  [CANVAS_TONES.CREAM]: "#fffce8",
+  [CANVAS_TONES.BLUSH]: "#fdf8f6",
+};
+
 /** Tile fill treatment for a node. `dark` is reserved for 2-3 key nodes. */
 export const TILE_VARIANTS = {
   LIGHT: "light",
@@ -98,8 +129,6 @@ export const DIAGRAM_GEOMETRY = {
   BOTTOM_ANCHOR_OFFSET: 34,
   /** Vertical space the name + sublabel occupy under a tile. */
   NODE_TEXT_BLOCK: 40,
-  /** A node centre must stay at least this far from every canvas edge. */
-  CANVAS_MARGIN: 60,
   /**
    * Minimum distance between node centres. The guidelines ask for this in both
    * directions, and auto-layout uses it as its vertical step.
@@ -133,8 +162,16 @@ export const DIAGRAM_TYPOGRAPHY = {
 } as const;
 
 export const DIAGRAM_COLORS = {
-  CANVAS_BG: "#f7f8fb",
-  GRID_LINE: "#e6eaf2",
+  /**
+   * Neutral, not blue, and drawn dashed rather than solid.
+   *
+   * The grid covers the whole editor window now, so a solid line at any useful
+   * weight reads as a mesh laid over the drawing. Dashing it drops the ink by
+   * more than half while keeping the alignment cue, which is the only thing the
+   * grid is for — and a neutral grey sits under all five paper tones without
+   * tinting any of them.
+   */
+  GRID_LINE: "#dcdcdc",
   TILE_LIGHT_FILL: "#ffffff",
   TILE_LIGHT_BORDER: "#e2e8f0",
   TILE_DARK_FILL: "#0f172a",
@@ -151,10 +188,6 @@ export const DIAGRAM_COLORS = {
  * renderer and any future layout code read the same numbers.
  */
 export const DIAGRAM_LIMITS = {
-  CANVAS_MIN_WIDTH: 400,
-  CANVAS_MAX_WIDTH: 2400,
-  CANVAS_MIN_HEIGHT: 300,
-  CANVAS_MAX_HEIGHT: 2400,
   MAX_GROUPS: 12,
   MIN_NODES: 1,
   MAX_NODES: 40,

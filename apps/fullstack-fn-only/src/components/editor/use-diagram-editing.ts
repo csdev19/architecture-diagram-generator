@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { DIAGRAM_GEOMETRY } from "@diagram-tool/domain/constants";
+import type { CanvasTone } from "@diagram-tool/domain/constants";
 import { layoutDiagram } from "@diagram-tool/domain/render";
 import { validateDiagramConfig } from "@diagram-tool/domain/schemas";
 import type { DiagramConfigInput } from "@diagram-tool/domain/schemas";
@@ -91,9 +92,16 @@ export const setNodePosition = (text: string, id: string, x: number, y: number):
     return true;
   });
 
-/** Moves a node's centre, snapped to the grid. */
+/** Moves a node's centre, snapped to the grid. Nothing is out of bounds. */
 export const moveNode = (text: string, id: string, x: number, y: number): string =>
-  setNodePosition(text, id, snapToGrid(x), snapToGrid(y));
+  editConfig(text, (config) => {
+    const node = findNode(config, id);
+    if (!node) return false;
+
+    node.x = snapToGrid(x);
+    node.y = snapToGrid(y);
+    return true;
+  });
 
 /** Patches a node's fields. A field set to `undefined` is removed. */
 export const updateNodeFields = (text: string, id: string, patch: NodePatch): string =>
@@ -105,6 +113,128 @@ export const updateNodeFields = (text: string, id: string, patch: NodePatch): st
       if (value === undefined) delete node[key];
       else node[key] = value;
     }
+    return true;
+  });
+
+/**
+ * Appends a node at a point on the canvas.
+ *
+ * Snapping happens here, like every other write of a coordinate. Nothing is
+ * clamped: there is no frame to be outside of, so a tile goes exactly where it
+ * was dropped, negative coordinates included.
+ *
+ * The caller owns id uniqueness; the schema reports a clash.
+ */
+export const addNode = (text: string, node: NodeInput): string =>
+  editConfig(text, (config) => {
+    if (!Array.isArray(config.nodes)) return false;
+
+    config.nodes.push({ ...node, x: snapToGrid(node.x), y: snapToGrid(node.y) });
+    return true;
+  });
+
+/**
+ * Removes a node and every edge that touched it.
+ *
+ * The edges go with it rather than being left dangling: an edge naming a node
+ * that no longer exists is invalid, and the author deleting a tile did not ask
+ * to be handed two validation errors about relations they can no longer see.
+ */
+export const removeNode = (text: string, id: string): string =>
+  editConfig(text, (config) => {
+    if (!Array.isArray(config.nodes)) return false;
+
+    const kept = config.nodes.filter((node) => !isRecord(node) || node.id !== id);
+    if (kept.length === config.nodes.length) return false;
+    config.nodes = kept;
+
+    if (Array.isArray(config.edges)) {
+      config.edges = config.edges.filter(
+        (edge) => !isRecord(edge) || (edge.from !== id && edge.to !== id),
+      );
+    }
+
+    return true;
+  });
+
+type GroupInput = DiagramConfigInput["groups"][number];
+
+/** A partial group update. An `undefined` value removes the field entirely. */
+export type GroupPatch = Partial<GroupInput>;
+
+/** The group with this id, if the config has one to find. */
+const findGroup = (config: RawRecord, id: string): RawRecord | undefined => {
+  if (!Array.isArray(config.groups)) return undefined;
+  return config.groups.find((group) => isRecord(group) && group.id === id) as RawRecord | undefined;
+};
+
+/**
+ * Appends a group, snapped to the grid.
+ *
+ * Prepended rather than pushed would be wrong: the renderer draws groups in
+ * array order, so the newest has to be last to sit on top of the ones it
+ * overlaps — which is also what makes hit-testing back-to-front correct.
+ */
+export const addGroup = (text: string, group: GroupInput): string =>
+  editConfig(text, (config) => {
+    if (!Array.isArray(config.groups)) return false;
+
+    config.groups.push({
+      ...group,
+      x: snapToGrid(group.x),
+      y: snapToGrid(group.y),
+      w: snapToGrid(group.w),
+      h: snapToGrid(group.h),
+    });
+    return true;
+  });
+
+/** Patches a group's fields. A field set to `undefined` is removed. */
+export const updateGroupFields = (text: string, id: string, patch: GroupPatch): string =>
+  editConfig(text, (config) => {
+    const group = findGroup(config, id);
+    if (!group) return false;
+
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === undefined) delete group[key];
+      else group[key] = value;
+    }
+    return true;
+  });
+
+/** Moves a group's top-left corner, snapped. Its size is unchanged. */
+export const moveGroup = (text: string, id: string, x: number, y: number): string =>
+  editConfig(text, (config) => {
+    const group = findGroup(config, id);
+    if (!group) return false;
+
+    group.x = snapToGrid(x);
+    group.y = snapToGrid(y);
+    return true;
+  });
+
+/**
+ * Removes a group.
+ *
+ * Nothing else goes with it: a group is a box drawn around nodes, not a parent
+ * of them. The nodes it enclosed stay exactly where they were, which is the
+ * whole reason grouping is cheap to try.
+ */
+export const removeGroup = (text: string, id: string): string =>
+  editConfig(text, (config) => {
+    if (!Array.isArray(config.groups)) return false;
+
+    const kept = config.groups.filter((group) => !isRecord(group) || group.id !== id);
+    if (kept.length === config.groups.length) return false;
+
+    config.groups = kept;
+    return true;
+  });
+
+/** Sets the paper tone. Part of the drawing, so it belongs in the config. */
+export const setBackground = (text: string, tone: CanvasTone): string =>
+  editConfig(text, (config) => {
+    config.background = tone;
     return true;
   });
 
@@ -150,7 +280,7 @@ export const removeEdge = (text: string, index: number): string =>
 /**
  * Re-places every node from the diagram's topology.
  *
- * Only coordinates and the canvas are written back. Running the laid-out config
+ * Only coordinates are written back. Running the laid-out config
  * through `JSON.stringify` wholesale would be simpler, but it would also stamp
  * every schema default into the author's file — `sub: ""`, `style: "solid"`,
  * `filled: true` — rewriting lines they never touched. A no-op if the config
@@ -174,11 +304,6 @@ export const arrangeNodes = (text: string): string =>
       node.y = position.y;
     }
 
-    if (isRecord(config.canvas)) {
-      config.canvas.w = laidOut.canvas.w;
-      config.canvas.h = laidOut.canvas.h;
-    }
-
     return true;
   });
 
@@ -197,6 +322,14 @@ export const useDiagramEditing = (setText: Dispatch<SetStateAction<string>>) =>
         setText((text) => setNodePosition(text, id, x, y)),
       updateNodeFields: (id: string, patch: NodePatch) =>
         setText((text) => updateNodeFields(text, id, patch)),
+      addNode: (node: NodeInput) => setText((text) => addNode(text, node)),
+      setBackground: (tone: CanvasTone) => setText((text) => setBackground(text, tone)),
+      addGroup: (group: GroupInput) => setText((text) => addGroup(text, group)),
+      updateGroupFields: (id: string, patch: GroupPatch) =>
+        setText((text) => updateGroupFields(text, id, patch)),
+      moveGroup: (id: string, x: number, y: number) => setText((text) => moveGroup(text, id, x, y)),
+      removeGroup: (id: string) => setText((text) => removeGroup(text, id)),
+      removeNode: (id: string) => setText((text) => removeNode(text, id)),
       addEdge: (edge: EdgeInput) => setText((text) => addEdge(text, edge)),
       updateEdgeFields: (index: number, patch: EdgePatch) =>
         setText((text) => updateEdgeFields(text, index, patch)),

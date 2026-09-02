@@ -9,12 +9,14 @@ const parse = (text: string) => JSON.parse(text) as typeof EXAMPLE_DIAGRAM_CONFI
 const configText = () => screen.getByLabelText<HTMLTextAreaElement>(/diagram config/i).value;
 
 describe("arrangeNodes", () => {
-  it("re-places every node and resizes the canvas", () => {
+  it("re-places every node", () => {
     const before = parse(seed());
     const after = parse(arrangeNodes(seed()));
 
     expect(after.nodes.map((node) => node.x)).not.toEqual(before.nodes.map((node) => node.x));
-    expect(after.canvas).not.toEqual(before.canvas);
+    // No frame to resize: the diagram is as big as what is on it, so moving
+    // the nodes is the whole of what arranging does.
+    expect(after.canvas).toBeUndefined();
   });
 
   it("writes coordinates without stamping schema defaults over the author's file", () => {

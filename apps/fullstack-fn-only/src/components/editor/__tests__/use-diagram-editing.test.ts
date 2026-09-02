@@ -2,8 +2,10 @@ import { EXAMPLE_DIAGRAM_CONFIG, validateDiagramConfig } from "@diagram-tool/dom
 import { describe, expect, it } from "vitest";
 import {
   addEdge,
+  addNode,
   moveNode,
   removeEdge,
+  removeNode,
   setNodePosition,
   snapToGrid,
   updateNodeFields,
@@ -114,6 +116,67 @@ describe("updateNodeFields", () => {
 
     expect(nodeById(after, "hono").name).toHaveLength(40);
     expect(validateDiagramConfig(parse(after)).ok).toBe(false);
+  });
+});
+
+describe("addNode", () => {
+  const redis = (x: number, y: number) => ({
+    id: "redis",
+    x,
+    y,
+    iconKey: "redis" as const,
+    name: "Redis",
+    sub: "cache",
+  });
+
+  it("appends a node and leaves the existing ones untouched", () => {
+    const before = seed();
+    const after = addNode(before, redis(130, 200));
+
+    expect(parse(after).nodes).toHaveLength(parse(before).nodes.length + 1);
+    expect(parse(after).nodes.slice(0, -1)).toEqual(parse(before).nodes);
+    expect(validateDiagramConfig(parse(after)).ok).toBe(true);
+  });
+
+  it("snaps the point it is given, like every other write of a coordinate", () => {
+    const after = addNode(seed(), redis(131, 197));
+
+    expect(parse(after).nodes.at(-1)).toMatchObject({ x: 130, y: 195 });
+  });
+
+  it("puts a tile exactly where it was dropped, however far out", () => {
+    // Nothing is clamped and nothing grows: there is no frame to be outside of,
+    // and the exported document simply covers wherever the tile ended up.
+    const after = addNode(seed(), redis(-900, 4000));
+
+    expect(parse(after).nodes.at(-1)).toMatchObject({ x: -897, y: 4004 });
+    expect(parse(after).canvas, "addNode re-introduced a fixed frame").toBeUndefined();
+    expect(validateDiagramConfig(parse(after)).ok).toBe(true);
+  });
+});
+
+describe("removeNode", () => {
+  it("takes every edge that touched the node with it", () => {
+    // Both seeded edges touch `hono`, so removing it must leave none behind:
+    // an edge naming a node that no longer exists does not validate.
+    const after = removeNode(seed(), "hono");
+
+    expect(parse(after).nodes.map((node: { id: string }) => node.id)).toEqual(["user", "d1"]);
+    expect(parse(after).edges).toEqual([]);
+  });
+
+  it("keeps the edges that did not touch it", () => {
+    const after = removeNode(seed(), "user");
+
+    expect(parse(after).edges).toEqual([
+      { from: "hono", to: "d1", out: "r", inn: "l", label: "SQL" },
+    ]);
+  });
+
+  it("is a no-op for a node that does not exist", () => {
+    const before = seed();
+
+    expect(removeNode(before, "ghost")).toBe(before);
   });
 });
 
