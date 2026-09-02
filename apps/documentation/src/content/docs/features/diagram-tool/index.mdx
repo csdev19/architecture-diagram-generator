@@ -38,6 +38,7 @@ the image a model generates over MCP can never disagree.
 | Colours are literal values, never theme tokens                    | They are written into SVG attributes and must survive rasterisation outside a browser, where no stylesheet or CSS variable exists                                                                                                                      |
 | Config authors choose semantics, never colour                     | A group picks a `tone` and a node picks an `iconKey`; the renderer owns the palette and decides what is legible on which tile. That is what keeps every diagram in one visual family, and it means a palette change re-styles every historical diagram |
 | Anything a model must choose from is interpolated from its source | Tone names, every limit and the full icon key list reach the authoring guidelines from the constants that enforce them. Guidance that contradicts validation is worse than no guidance                                                                 |
+| The editor's canvas is hand-written, not React Flow               | A node-graph library renders nodes as HTML and exports through the browser, which forfeits the server-rendered PNG and the parity that comes with it. Recorded in [ADR 0001](/architecture/decisions/adr-0001-no-canvas-library-for-the-editor)        |
 
 ## Shared Gotchas
 

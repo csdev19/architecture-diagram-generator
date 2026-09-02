@@ -1,0 +1,186 @@
+---
+title: "ADR 0001: No canvas library for the editor"
+description: Keep the hand-written SVG editor instead of adopting React Flow (@xyflow/react), because a single renderer is what guarantees the exported PNG matches the preview.
+---
+
+# ADR 0001: No canvas library for the editor
+
+_Keep the hand-written SVG canvas in `/editor`. Do not adopt React Flow
+(`@xyflow/react`) or an equivalent node-graph library._
+
+## Status
+
+| Field         | Value      |
+| ------------- | ---------- |
+| Status        | Accepted   |
+| Date          | 2026-09-02 |
+| Supersedes    | N/A        |
+| Superseded by | N/A        |
+
+## Context
+
+The phase-2 editor is written by hand: the preview injects the string produced
+by `renderSVG` and hit-tests pointer events against the config's own
+coordinates. It supports dragging with grid snap, selection, a node inspector
+and adding/removing edges — but not panning, zooming, multi-select, or dragging
+a connection out of a port.
+
+Those gaps raised a fair question: adopt a node-graph library instead of
+growing our own canvas? The concrete reference was a working node-editor
+implementation in a separate repository (`csdev19/VectorShift-tech-assessment`),
+built on `reactflow` 11.8.3 — a palette of draggable node types, a zustand store
+wired to `onNodesChange` / `onEdgesChange` / `onConnect`, `Handle`-based
+connections, minimap and viewport controls. It is a faithful use of the library
+and it works.
+
+The library evaluated for adoption here is its successor, `@xyflow/react`
+12.11.6 (MIT; peer `react >=17`; runtime deps `zustand@^4`, `classcat`,
+`@xyflow/system`). The 11.x `reactflow` package predates React 19, so adopting
+the older one was never on the table.
+
+Three properties of this codebase decide the question:
+
+1. **One renderer, two runtimes.** `renderSVG` in `packages/domain/src/render/`
+   is pure, DOM-free and Node-free, so the browser preview and the Cloudflare
+   Worker (`src/server/resvg.ts`, resvg-wasm) draw from the same function. That
+   is what makes the exported PNG provably the same drawing the editor showed,
+   and it is what phase 1's MCP `pngUrl` depends on.
+2. **The text is the single source of truth.** Every visual edit parses the
+   textarea's JSON, mutates it and prints it back (`use-diagram-editing.ts`).
+   Nothing holds a parsed config as editing state, so the canvas and the JSON
+   cannot disagree.
+3. **Hit-testing reads the config, not the DOM.** `pointer-geometry.ts`
+   resolves a pointer against node coordinates rather than measured elements,
+   which keeps working when the SVG is scaled to fit.
+
+React Flow's model is incompatible with all three:
+
+| Concern          | This editor                                    | React Flow                                   |
+| ---------------- | ---------------------------------------------- | -------------------------------------------- |
+| Node rendering   | `rect` / `text` inside one SVG document        | HTML `div` positioned by CSS `transform`     |
+| Export           | `renderSVG` → resvg in the Worker, server-side | `html-to-image` in the browser               |
+| Source of truth  | the JSON text in the editor                    | an internal zustand store                    |
+| Edge anchoring   | sides (`out` / `inn`, from `ANCHOR_SIDES`)     | `Handle` elements measured from the DOM      |
+| Server rendering | required (MCP returns a `pngUrl`)              | not possible — resvg does not rasterise HTML |
+
+## Decision
+
+**Do not adopt React Flow, or any library that owns the canvas.** The editor
+keeps its hand-written SVG surface, and `renderSVG` stays the only thing that
+draws a diagram.
+
+Missing canvas affordances are added directly when they are actually needed:
+pan and zoom by manipulating the SVG `viewBox`, node creation by dropping onto
+the preview, connection-by-drag by hit-testing the four anchor sides that
+`ANCHOR_SIDES` already defines.
+
+## Consequences
+
+**Positive:**
+
+- The preview/PNG parity invariant survives untouched. There is one drawing
+  routine, so there is nothing to keep in sync.
+- No `zustand` in the dependency tree (it is absent today), and no second
+  editing state next to the JSON text.
+- No dependency weighing ~1.2 MB unpacked, and no SSR workaround in TanStack
+  Start for a library that measures the DOM before it can lay out.
+- The gestures stay expressible as pure text-to-text transformations, which is
+  what makes them unit-testable without a browser.
+
+**Negative:**
+
+- Pan, zoom, minimap, multi-select, box-select and connection-by-drag are ours
+  to write. Each is small in isolation; together they are real work we have
+  chosen to pay for incrementally rather than import.
+- We forgo the accessibility, touch and keyboard handling a mature canvas
+  library ships with.
+
+**Neutral:**
+
+- The editor remains keyboard-light and mouse-first. Acceptable while the
+  primary authoring path is a model writing the config and a human doing the
+  last 10%.
+
+## Non-goals
+
+This decision is **not** a rejection of node-graph libraries in general, and it
+does not cover:
+
+- A future product surface that is a graph editor rather than a diagram editor
+  (pipelines, flows, executable graphs). That would be a different tool with
+  different invariants and deserves its own ADR.
+- Client-only visualisations that never need a server-rendered export.
+- The choice of drag-and-drop mechanics inside our own canvas — HTML5 drag and
+  drop and pointer events are both fine, and neither implies a library.
+
+## Alternatives considered
+
+### Adopt React Flow and drop `renderSVG`
+
+Rejected. It removes server-side rendering, and with it the MCP flow's
+`pngUrl`, the resvg pipeline and the guarantee that an export matches a
+preview. That guarantee is the product, not an implementation detail.
+
+### Dual renderer — React Flow to edit, `renderSVG` to export
+
+Rejected. This is how several commercial tools work, and it is technically
+viable, but it reintroduces exactly the failure the current design eliminates:
+two visual representations that drift apart. The editing canvas would not look
+like the exported image, and every renderer change would need porting twice.
+Reopen only if the editing surface grows features whose absence hurts more than
+the drift would.
+
+### Keep `reactflow` 11.x instead of `@xyflow/react` 12.x
+
+Not viable regardless of the above: 11.x predates React 19, which the app runs.
+
+### Build our own canvas library
+
+Rejected as a framing. We are not building a canvas library; we are adding
+specific affordances to a specific editor, in the order the product needs them.
+
+## What we take from the reference implementation anyway
+
+Adopting patterns costs nothing and does not bring the dependency in:
+
+- **A palette that drops nodes onto the canvas.** HTML5 drag and drop carrying
+  the node type in `dataTransfer`, and on drop, converting the pointer to
+  canvas coordinates. We already have that conversion — `clientToViewBox` in
+  `pointer-geometry.ts` — where React Flow uses `reactFlowInstance.project()`.
+  This is the editor's real gap today: nodes can be moved, but not created
+  without editing JSON by hand.
+- **A node-type registry driving the palette.** `DIAGRAM_ICONS` and `iconKey`
+  are already the equivalent; a palette grouped by technology falls out of it.
+- **Connection by dragging from an anchor**, which would replace the current
+  "arm the gesture, then click two tiles" flow.
+
+Three defects in that reference implementation are worth recording so they are
+not copied along with the patterns:
+
+- Node field state lives in each node's local `useState`, never reaching the
+  store — the store's `updateNodeField` is dead code — so what the user types
+  is missing from the payload sent to the backend.
+- That same function mutates `node.data` in place and returns the node
+  unchanged by identity, which does not reliably re-render.
+- `width: '100wv'` is a typo for `100vw`; the browser discards the declaration.
+
+## When to reopen this decision
+
+Any one of these is enough to revisit:
+
+- The editor has to handle diagrams large enough that panning and zooming stop
+  being a convenience — roughly 50+ nodes in routine use.
+- Port-level editing becomes a requirement: multiple typed connection points
+  per node, rather than four geometric sides.
+- Export stops needing to be server-side — no MCP `pngUrl`, no Worker
+  rasterisation — at which point the parity argument loses its force.
+- Our hand-written canvas code grows past roughly the size of the integration
+  it replaced, without delivering more than it.
+
+## References
+
+- Renderer and its invariant: `packages/domain/src/render/index.ts`
+- Server-side rasterisation: `apps/fullstack-fn-only/src/server/resvg.ts`
+- Editing as text transformations: `apps/fullstack-fn-only/src/components/editor/use-diagram-editing.ts`
+- Hit-testing and coordinate mapping: `apps/fullstack-fn-only/src/components/editor/pointer-geometry.ts`
+- [Editor Page](/features/diagram-tool/editor-page) · [Diagram Tool](/features/diagram-tool)
