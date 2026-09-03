@@ -1,0 +1,43 @@
+---
+title: "September 03, 2026 - Double-click enters a group again"
+description: The injected scene was rebuilt on every render, which stopped the browser from ever synthesising a click, so double-click-to-enter-a-group silently did nothing.
+date: 2026-09-03
+tags:
+  - changelog
+  - bugfix
+---
+
+🐛 **Fix** — double-clicking a tile inside a group now enters that group and
+selects the element under the pointer, so the members of a group can be
+rearranged again. Until now the gesture did nothing at all: the click selected
+the whole group, and clicking again selected the whole group.
+
+The grouping logic was never at fault. `DiagramStage` injects the rendered
+scene with `dangerouslySetInnerHTML={{ __html: svg }}`, and that object literal
+is a new object on every render. React 19 compares the prop by **object
+identity** and, when it differs, assigns `innerHTML` without ever looking at the
+string inside — so the entire `<svg>` was torn down and rebuilt on every hover,
+every selection and every keystroke, producing markup that was identical byte
+for byte.
+
+Identical markup is why it went unnoticed for so long. What it was not
+invisible to is the browser: Chrome synthesises `click` and `dblclick` from a
+press and a release that share a **live** target. Selecting on `pointerdown`
+re-rendered the stage, which detached the element the press had landed on, and
+Chrome then fired neither event. `onDoubleClick` was never called.
+
+The fix memoises the object on the string it wraps:
+
+```ts
+const sceneHtml = useMemo(() => ({ __html: svg ?? "" }), [svg]);
+```
+
+⚠️ **Gotcha worth remembering** — `fireEvent.doubleClick` dispatches the event
+itself rather than earning it from two presses, so no jsdom test could have
+caught this. The regression test asserts the thing that actually broke instead:
+the scene's `<svg>` must be the _same DOM node_ across a re-render. Any future
+`dangerouslySetInnerHTML` on an element that receives pointer events needs the
+same memoisation.
+
+The scene no longer being rebuilt on every keystroke is a free performance win
+on the side.

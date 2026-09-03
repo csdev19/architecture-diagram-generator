@@ -369,3 +369,32 @@ describe("hitTestNode", () => {
     expect(hitTestNode(seed, NOWHERE)).toBeUndefined();
   });
 });
+
+/**
+ * The injected scene must be the *same DOM node* from one render to the next.
+ *
+ * Nothing on screen depends on this, which is why it went unnoticed: the markup
+ * is identical either way. What depends on it is the browser's own synthesis of
+ * `click` and `dblclick`, which it derives from the press and the release
+ * sharing a live target. Replacing the `<svg>` between them detaches the
+ * element the press landed on, and Chrome then fires neither — so double-click
+ * to enter a group silently did nothing, while every jsdom test passed because
+ * `fireEvent.doubleClick` dispatches the event itself instead of earning it.
+ *
+ * React 19 compares the `dangerouslySetInnerHTML` *object* by identity and
+ * writes `innerHTML` whenever it differs, without looking at the string inside.
+ * A fresh `{ __html }` literal per render therefore rebuilds the whole scene on
+ * every keystroke, hover and selection.
+ */
+describe("the injected scene", () => {
+  it("survives a re-render, so the browser can still synthesise a click", () => {
+    render(<EditorPage />);
+    const before = canvas().querySelector("svg");
+
+    const { x, y } = at("api");
+    fireEvent.pointerDown(canvas(), { clientX: x, clientY: y, pointerId: 1 });
+    fireEvent.pointerUp(canvas(), { clientX: x, clientY: y, pointerId: 1 });
+
+    expect(canvas().querySelector("svg")).toBe(before);
+  });
+});
