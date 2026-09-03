@@ -15,7 +15,7 @@ the image a model generates over MCP can never disagree.
 - Domain: `packages/domain/src/schemas/diagram-document.ts` (the authored format), `packages/domain/src/schemas/diagram.ts` (the resolved contract), `packages/domain/src/constants/diagram.ts`, `packages/domain/src/constants/diagram-icons.ts`
 - Renderer: `packages/domain/src/render/` (including `resolve.ts`, which composes a document, `frame.ts`, which sizes the exported page, and `layout.ts`, the auto-layout)
 - Infrastructure: N/A — phase 0 runs entirely in the browser
-- Web UI: `apps/fullstack-fn-only/src/components/editor/` (the route file is wiring only)
+- Web UI: `apps/fullstack-fn-only/src/components/editor/` (the route file, `routes/index.tsx`, is wiring only — the editor is the app's only route)
 - Mobile: N/A
 - Desktop: N/A
 

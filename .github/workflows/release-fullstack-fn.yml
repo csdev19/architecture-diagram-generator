@@ -44,34 +44,19 @@ jobs:
 
       - name: Build app
         working-directory: apps/fullstack-fn-only
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
         run: bun run build
 
-      # `secrets:` names the variables uploaded to the Worker's runtime. The set
-      # has to match `fullstackServerEnvSchema`, which is parsed at module scope
-      # in `src/env/server.ts` — a missing one is not a degraded feature, it is
-      # a Worker that throws on its first request.
+      # No `secrets:` block, and that is the whole point: the app is the editor,
+      # the editor runs in the browser, and there is no server-side state to
+      # authenticate against. Nothing is read from the environment at runtime,
+      # so there is nothing to upload and nothing that can be missing.
       #
-      # CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are deploy credentials
-      # and deliberately not in that list: the Worker never reads them, and
-      # uploading them would hand its runtime the key to redeploy itself.
+      # The two Cloudflare values are deploy credentials, not Worker secrets:
+      # the app never reads them, and uploading them would hand its runtime the
+      # key to redeploy itself.
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3.14.1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/fullstack-fn-only
-          secrets: |
-            DATABASE_URL
-            BETTER_AUTH_SECRET
-            BETTER_AUTH_URL
-            JWT_PRIVATE_JWK
-            JWT_KID
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
-          BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL }}
-          JWT_PRIVATE_JWK: ${{ secrets.JWT_PRIVATE_JWK }}
-          JWT_KID: ${{ secrets.JWT_KID }}

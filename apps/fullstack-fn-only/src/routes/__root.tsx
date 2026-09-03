@@ -1,61 +1,31 @@
-import type { QueryClient } from "@tanstack/react-query";
-
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import {
-  HeadContent,
-  Outlet,
-  Scripts,
-  createRootRouteWithContext,
-  useRouterState,
-} from "@tanstack/react-router";
+import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
 import { Toaster } from "@diagram-tool/web-ui";
 
-import Header from "../components/header";
 import appCss from "../index.css?url";
-import { getAuthSession } from "@/lib/auth/get-auth-session";
-import type { AuthSession } from "@/lib/auth/types";
 
-export interface RouterAppContext {
-  queryClient: QueryClient;
-  isAuthenticated: boolean;
-  session: AuthSession | null;
-}
-
-export const Route = createRootRouteWithContext<RouterAppContext>()({
+/**
+ * The document, and nothing else.
+ *
+ * There is one route and it is the editor — a canvas application that owns the
+ * whole viewport, sets its own header and runs its own chrome theme. So there
+ * is no app shell here to speak of: no navbar to hide on some routes, no
+ * session to resolve before rendering, no layout the editor has to opt out of.
+ */
+export const Route = createRootRoute({
   head: () => ({
     meta: [
-      {
-        charSet: "utf-8",
-      },
-      {
-        name: "viewport",
-        content: "width=device-width, initial-scale=1",
-      },
-      {
-        title: "Fullstack Server Functions",
-      },
+      { charSet: "utf-8" },
+      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { title: "Diagram Editor" },
     ],
-    links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
-    ],
+    links: [{ rel: "stylesheet", href: appCss }],
   }),
   component: RootDocument,
-  staleTime: 10 * 60 * 1000, // 10 minutes
-  beforeLoad: async () => {
-    const session = await getAuthSession();
-    return {
-      session: session ?? null,
-      isAuthenticated: !!session,
-    };
-  },
 });
 
-// Critical inline styles to prevent flash of unstyled content
+// Critical inline styles to prevent flash of unstyled content.
 const criticalStyles = `
   html, body {
     background-color: oklch(14.5% 0 0);
@@ -65,23 +35,7 @@ const criticalStyles = `
   }
 `;
 
-/**
- * Routes that run their own full-viewport chrome.
- *
- * The editor is a canvas application: it owns the whole screen, sets its own
- * 52px header and runs a chrome theme independent of the app shell's. A second
- * fixed navbar above it would cost a strip of canvas and give two headers to
- * read.
- */
-const FULL_SCREEN_ROUTES = ["/editor"];
-
 function RootDocument() {
-  const context = Route.useRouteContext();
-  const { isAuthenticated, session } = context;
-
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const fullScreen = FULL_SCREEN_ROUTES.includes(pathname);
-
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <head>
@@ -90,20 +44,10 @@ function RootDocument() {
       </head>
       <body suppressHydrationWarning>
         <div className="min-h-svh">
-          {fullScreen ? null : (
-            <Header
-              isAuthenticated={isAuthenticated}
-              userName={session?.user?.name ?? ""}
-              userEmail={session?.user?.email ?? ""}
-            />
-          )}
-          <main className={fullScreen ? undefined : "pt-12"}>
-            <Outlet />
-          </main>
+          <Outlet />
         </div>
         <Toaster richColors />
         <TanStackRouterDevtools position="bottom-left" />
-        <ReactQueryDevtools position="bottom" buttonPosition="bottom-right" />
         <Scripts />
       </body>
     </html>

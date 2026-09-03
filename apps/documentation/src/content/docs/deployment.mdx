@@ -5,11 +5,10 @@ description: Where the app is served from, why it is a subdomain, and what still
 
 # Deployment
 
-> **Status: the origin and the pipeline are configured, the app is not
-> deployed.** `wrangler.jsonc` names the production hostname, and a tag now
-> triggers a deploy — but neither has run, because the database this app needs
-> is not reachable from a Worker yet. That blocker is the last section, and it
-> is real: nothing on this page claims a working deployment.
+> **Status: ready to deploy, not yet deployed.** The origin, the pipeline and
+> the three secrets it needs are all in place, and the app no longer depends on
+> a database — so nothing blocks a release. But no tag has been cut and no
+> workflow has run, so nothing on this page claims a deployment that happened.
 
 ## The origin
 
@@ -102,38 +101,40 @@ Both workflows read from the `production` environment.
 | `RELEASE_PLEASE_TOKEN`  | `release-please.yml`       | Opening the release PR and pushing the tag |
 | `CLOUDFLARE_API_TOKEN`  | `release-fullstack-fn.yml` | Authenticating the deploy                  |
 | `CLOUDFLARE_ACCOUNT_ID` | `release-fullstack-fn.yml` | Naming the account to deploy into          |
-| `DATABASE_URL`          | build + Worker runtime     |                                            |
-| `BETTER_AUTH_SECRET`    | build + Worker runtime     |                                            |
-| `BETTER_AUTH_URL`       | Worker runtime             | Must be `https://diagrams.cs19.dev`        |
-| `JWT_PRIVATE_JWK`       | Worker runtime             |                                            |
-| `JWT_KID`               | Worker runtime             |                                            |
 
-The last five are uploaded to the Worker by `wrangler-action`, and the set has
-to match `fullstackServerEnvSchema` exactly — it is parsed at module scope in
-`src/env/server.ts`, so a missing one is not a degraded feature but a Worker
-that throws on its first request.
+Three, and that is the whole list. **Nothing is uploaded to the Worker**: the
+app is the editor, the editor runs in the browser, and no code path reads the
+environment at runtime. There is no secret that can be missing, which is a
+property worth keeping — the moment one comes back, so does a class of failure
+where the deploy succeeds and the first request throws.
 
-The two Cloudflare credentials are deliberately **not** uploaded to the Worker:
-it never reads them, and shipping them into its runtime would hand it the key
-to redeploy itself.
+The two Cloudflare values are deploy credentials, not Worker secrets: the app
+never reads them, and shipping them into its runtime would hand it the key to
+redeploy itself.
 
 ## Why a subdomain and not `cs19.dev/editor`
 
-`cs19.dev` is a separate static site, already on Cloudflare. Serving this app
-from a path on it looks cheaper than it is.
+`cs19.dev` is a separate static site, already on Cloudflare, and `/editor` on it
+is a free path. This decision was made when the app still carried the template's
+auth stack, and **two of its four arguments died with that stack** — an honest
+accounting matters more than a tidy one:
 
-|                | Subdomain                                 | Path on the apex                                                                                                                              |
-| -------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Routing        | One custom domain, no patterns            | One Worker route per prefix this app owns — `/editor*`, `/auth/*`, `/api/auth/*` — each competing with the static site for the same namespace |
-| Session cookie | Scoped to `diagrams.cs19.dev`             | Scoped to the apex, so it travels on every request to the personal site too                                                                   |
-| Blast radius   | A bad deploy here cannot reach `cs19.dev` | Both projects share one request namespace; a wrong pattern takes down the home page                                                           |
-| Moving later   | Redirect from one hostname                | Every link is a path on someone else's site                                                                                                   |
+| Argument                                                             | Still holds?                                                                |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| The app owns six route prefixes, each to be won from the static site | **No.** It owns one route now                                               |
+| The session cookie would be scoped to the apex                       | **No.** There is no session and no cookie                                   |
+| A bad deploy here would share a request namespace with `cs19.dev`    | **Yes.** A wrong pattern still takes down the home page                     |
+| The address should be one the project can keep                       | **Yes.** A path is on someone else's site; a hostname moves with a redirect |
 
-This app is not a page. It owns `/`, `/editor`, `/auth/login`, `/auth/signup`,
-`/api/auth/*` and `/_authenticated/todos` — six prefixes that would each have to
-be won from the site already answering on that hostname. The alternative,
-moving the whole app under a base path, rewrites every route and every auth
-callback to buy nothing.
+What replaces the first argument is smaller but real: an app served from a path
+needs a Vite `base` and a router `basepath`, because it still requests
+`/assets/*` and its server-function endpoints from the root. That is
+configuration to write, verify and undo later — not much, but not nothing, and
+bought with the two arguments above still against it.
+
+So the conclusion is unchanged and the reasoning behind it is now thinner. If
+the trade ever reverses — the editor becomes a section of a personal site rather
+than a product — the honest move is to reopen this, not to defend it.
 
 ## Why not the `workers.dev` URL
 
@@ -159,46 +160,49 @@ secrets). Never add a `vars` block to `wrangler.jsonc`: Wrangler auto-loads
 Secrets — `DATABASE_URL`, `BETTER_AUTH_SECRET`, `JWT_PRIVATE_JWK` — are uploaded
 with `wrangler secret put`, not committed anywhere.
 
-## What still blocks a deploy
+## What the app is, and why nothing blocks the deploy
 
-**The database is Postgres, and a Worker cannot open a TCP connection to it.**
-`fullstackServerEnvSchema` requires `DATABASE_URL`, and
-`packages/infra-db/drizzle.config.ts` declares `dialect: "postgresql"`. A
-Worker's runtime has no raw TCP socket to a database, so the current
-configuration works in local dev and fails in production.
+The app is one route — the editor — and it is a client-side canvas. It parses,
+resolves and renders a diagram in the browser; the Worker's whole job is to
+serve the document and the assets.
 
-Three ways out, none of them chosen yet:
+That is what unblocked this. The blocker used to be the database: the template
+shipped a home page, sign-in and sign-up, a Todo CRUD example and better-auth
+over Postgres, and a Worker cannot open a TCP connection to Postgres. So the
+deploy would have produced something that served the editor and threw on
+everything else.
 
-| Option                     | What changes                                                                                   |
-| -------------------------- | ---------------------------------------------------------------------------------------------- |
-| Neon or Supabase over HTTP | A serverless driver replaces the node-postgres client; `DATABASE_URL` becomes an HTTP endpoint |
-| Hyperdrive                 | Cloudflare pools the connection; a binding is added and `DATABASE_URL` points at it            |
-| Cloudflare D1              | The dialect changes to SQLite — the largest change, and it touches every migration             |
+Removing the site removed the blocker rather than working around it. There is no
+`DATABASE_URL`, no auth, no server-side session, no `fullstackServerEnvSchema` to
+satisfy. The Worker reads nothing from its environment, so it cannot be deployed
+into a broken state by a secret nobody set.
 
-Until one is picked and implemented, `wrangler deploy` produces a Worker that
-serves the editor and fails on anything that reads the database — which is
-login, signup and todos. The editor itself runs entirely in the browser, so it
-would work; that is a coincidence of the architecture, not a deployment plan.
+The database packages — `infra-db`, `infra-auth`, the Todo use cases — are still
+in the repo. Nothing imports them from the app any more, and the day one is
+needed again, whichever option below is chosen has to be chosen deliberately:
+
+| Option                     | What it would change                                                            |
+| -------------------------- | ------------------------------------------------------------------------------- |
+| Neon or Supabase over HTTP | A serverless driver replaces the node-postgres client                           |
+| Hyperdrive                 | Cloudflare pools the connection behind a binding                                |
+| Cloudflare D1              | The dialect becomes SQLite — the largest change, and it touches every migration |
 
 ## Before the first release
 
 Nothing here has run. In order:
 
-1. **Create the PAT** and store it as `RELEASE_PLEASE_TOKEN` in the `production`
-   environment, along with the Cloudflare credentials and the five runtime
-   secrets above.
-2. **Resolve the database blocker.** Until then a deploy produces a Worker that
-   throws on its first request.
-3. **Land a `feat` or `fix` on `main`.** A batch of only `chore`/`docs`/`ci`
+1. **Store the three secrets** in the `production` environment:
+   `RELEASE_PLEASE_TOKEN`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`.
+2. **Land a `feat` or `fix` on `main`.** A batch of only `chore`/`docs`/`ci`
    commits is not releasable and no release PR appears — that is correct
    behaviour, not a broken bot.
-4. **Check the release PR** opens with a sane version and a changelog containing
+3. **Check the release PR** opens with a sane version and a changelog containing
    only commits since `bootstrap-sha`. Opening a PR ships nothing, so this step
    is free.
-5. **Merge it, and confirm the tag exists** and that
+4. **Merge it, and confirm the tag exists** and that
    `release-fullstack-fn.yml` actually started. A tag with no workflow run means
    the token is wrong — that is the failure to expect.
-6. **Re-run that deploy run once** from the Actions UI, to prove rollback works
+5. **Re-run that deploy run once** from the Actions UI, to prove rollback works
    before you need it.
 
 The old `deploy-production.yml`, which triggered on a `production` branch, is

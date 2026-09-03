@@ -1,0 +1,41 @@
+---
+title: "September 03, 2026 - The editor is the whole app"
+description: The template's home page, auth and Todo CRUD are deleted; the editor moves to / and becomes the only route, which is what unblocks the deploy.
+date: 2026-09-03
+tags:
+  - changelog
+  - refactor
+---
+
+✂️ **Removed** — the app is the editor, and now that is literally true. The
+template's marketing home page ("Fullstack Server Functions / No External API"),
+sign-in, sign-up, the `/api/auth/*` handler, the Todo CRUD example and the
+throwaway `/api/render-spike` are gone. The editor moved from `/editor` to `/`
+and is the only route the router knows.
+
+🚀 **What it unblocks** — the deploy. The blocker was never the editor: it was
+that a Worker cannot open a TCP connection to Postgres, and the app demanded
+`DATABASE_URL` before it would start. `fullstackServerEnvSchema` was parsed at
+module scope, so a missing variable was not a degraded feature but a Worker that
+threw on its first request.
+
+Deleting the site deleted the requirement rather than working around it. **The
+app now reads nothing from its environment**, so the deploy needs exactly three
+secrets — `RELEASE_PLEASE_TOKEN`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`
+— and there is no runtime secret that can be forgotten.
+
+Nine dependencies left with it: `better-auth`, `@tanstack/react-query` and its
+devtools, `react-query-with-query`, `@tanstack/react-form`, and the app's
+dependency on `@diagram-tool/application`, `infra-auth`, `infra-db` and
+`infra-env`.
+
+🧹 **What stayed** — `packages/infra-db`, `packages/infra-auth` and the Todo use
+cases are still in the tree and still build. Nothing in the app imports them.
+They are the scaffolding a future server-side feature starts from, and deleting
+them is a separate decision from deleting the pages that used them.
+
+⚠️ **The subdomain argument got thinner.** `diagrams.cs19.dev` was chosen partly
+because the app owned six route prefixes and a session cookie that would have
+been scoped to the apex. Both of those are now false. The
+[Deployment guide](/deployment) records which arguments survived and which did
+not, rather than quietly keeping the conclusion and dropping the reasoning.
