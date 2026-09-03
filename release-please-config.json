@@ -6,6 +6,7 @@
   "packages": {
     ".": {
       "changelog-path": "CHANGELOG.md",
+      "bump-minor-pre-major": true,
       "exclude-paths": ["apps/documentation"],
       "changelog-sections": [
         { "type": "feat", "section": "Features" },

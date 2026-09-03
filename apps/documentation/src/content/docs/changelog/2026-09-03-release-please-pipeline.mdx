@@ -23,6 +23,12 @@ deliberately not versioned individually: none is published, so their version
 numbers would be decoration nobody resolves, and their commits already count
 toward the single line.
 
+**Seeded at `0.0.0`, not `1.0.0`.** The root `package.json` carried `1.0.0`
+from the monorepo template, which was a claim no release supported — this
+product has never shipped, not even an alpha. With `bump-minor-pre-major` on, a
+breaking change bumps the minor while the major is `0`, so the first release
+cuts `v0.1.0` and `1.0.0` stays a deliberate act for later.
+
 🐛 **Fix on the way through** — the old deploy uploaded two of the five secrets
 `fullstackServerEnvSchema` requires, and `env` is parsed at module scope, so the
 Worker would have thrown on its first request. It also uploaded

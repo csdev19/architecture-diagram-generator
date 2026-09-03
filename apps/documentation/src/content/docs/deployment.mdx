@@ -65,6 +65,23 @@ line.
 `apps/documentation` is in `exclude-paths` — it has no deploy pipeline, so a
 docs-only change should not cut a release.
 
+### Pre-1.0, deliberately
+
+The version line is seeded at **`0.0.0`** and `bump-minor-pre-major` is on.
+Nothing has shipped — there has not even been an alpha — so a `1.0.0` inherited
+from the monorepo template would have been a claim about stability that no
+release supports.
+
+While the major is `0`, a breaking change bumps the **minor** rather than
+declaring `1.0.0` by accident. The first release cuts `v0.1.0`. Declaring
+`1.0.0` is a deliberate act later: a `Release-As: 1.0.0` footer in a commit
+body.
+
+The workspace packages still read `1.0.0` in their own `package.json` files.
+That is the template's number and it is inert — nothing resolves it, nothing
+publishes them, and only the root package's version is the one release-please
+maintains.
+
 ### The token is the part that breaks
 
 `release-please.yml` uses `RELEASE_PLEASE_TOKEN`, a PAT, and not the default
