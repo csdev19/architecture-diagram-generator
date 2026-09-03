@@ -28,6 +28,11 @@ export const moveNode = (text: string, id: string, x: number, y: number): string
 /**
  * Writes several positions at once, so a group drag is one entry in the undo
  * history rather than one per tile.
+ *
+ * Written verbatim, unlike a single move: snapping each position on its own
+ * would move the members by different amounts and shear the group apart. The
+ * caller snaps the delta once instead, which keeps every internal distance
+ * exactly as it was.
  */
 export const moveNodes = (text: string, points: Readonly<Record<string, Point>>): string =>
   editDocument(text, (document) => {
@@ -36,7 +41,7 @@ export const moveNodes = (text: string, points: Readonly<Record<string, Point>>)
 
     const branch = layoutBranch(document, "nodes");
     for (const [id, point] of entries) {
-      branch[id] = { x: snapToGrid(point.x), y: snapToGrid(point.y) };
+      branch[id] = { x: point.x, y: point.y };
     }
 
     return true;

@@ -55,6 +55,18 @@ const clickAt = ({ x, y }: { x: number; y: number }) => {
   fireEvent.pointerUp(canvas(), { clientX: x, clientY: y, pointerId: 1 });
 };
 
+/**
+ * Picks one element rather than the group it belongs to.
+ *
+ * Everything in the seed is grouped, and a single click selects the outermost
+ * group — so reaching an element means entering its group first, which is what
+ * a double-click does.
+ */
+const selectInside = ({ x, y }: { x: number; y: number }) => {
+  clickAt({ x, y });
+  fireEvent.doubleClick(canvas(), { clientX: x, clientY: y });
+};
+
 const pickTool = (name: RegExp) => fireEvent.click(screen.getByRole("button", { name }));
 
 beforeEach(stubScreenCTM);
@@ -85,7 +97,7 @@ describe("node inspector", () => {
 
   it("opens on the node that was clicked", () => {
     render(<EditorPage />);
-    clickAt(at("api"));
+    selectInside(at("api"));
 
     // Selecting a tile is what brings the inspector forward; no tab press.
     expect(screen.getByRole("region", { name: /node api/i })).toBeInTheDocument();
@@ -95,7 +107,7 @@ describe("node inspector", () => {
 
   it("writes a renamed node into content, and nowhere else", () => {
     render(<EditorPage />);
-    clickAt(at("api"));
+    selectInside(at("api"));
     const before = parsed().layout;
 
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Gateway" } });
@@ -106,7 +118,7 @@ describe("node inspector", () => {
 
   it("stops the name at the schema's own limit", () => {
     render(<EditorPage />);
-    clickAt(at("api"));
+    selectInside(at("api"));
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "x".repeat(40) } });
 
     // A labelled field enforces the limit it knows. The textarea stays the
@@ -117,7 +129,7 @@ describe("node inspector", () => {
 
   it("swaps an icon node to an emoji and back", () => {
     render(<EditorPage />);
-    clickAt(at("api"));
+    selectInside(at("api"));
 
     fireEvent.change(screen.getByLabelText("Mark"), { target: { value: "" } });
     expect(nodeById("api")).not.toHaveProperty("iconKey");
@@ -131,16 +143,16 @@ describe("node inspector", () => {
 
   it("offers the emoji field only while the node has no icon", () => {
     render(<EditorPage />);
-    clickAt(at("ci"));
+    selectInside(at("ci"));
     expect(screen.getByLabelText("Emoji")).toBeInTheDocument();
 
-    clickAt(at("api"));
+    selectInside(at("api"));
     expect(screen.queryByLabelText("Emoji")).not.toBeInTheDocument();
   });
 
   it("darkens a tile and counts the emphasis already spent", () => {
     render(<EditorPage />);
-    clickAt(at("api"));
+    selectInside(at("api"));
     fireEvent.click(screen.getByRole("button", { name: /dark — emphasis/ }));
 
     expect(nodeById("api")?.tile).toBe("dark");
@@ -150,7 +162,7 @@ describe("node inspector", () => {
 
   it("clears the selection when a press misses every tile", () => {
     render(<EditorPage />);
-    clickAt(at("api"));
+    selectInside(at("api"));
     clickAt(NOWHERE);
 
     expect(screen.queryByRole("region", { name: /node api/i })).not.toBeInTheDocument();
@@ -221,7 +233,7 @@ describe("boundaries", () => {
 
   it("offers padding instead of a rectangle for a boundary that frames a group", () => {
     render(<EditorPage />);
-    clickAt(insideBoundary());
+    selectInside(insideBoundary());
 
     expect(screen.getByRole("region", { name: /boundary cf/i })).toBeInTheDocument();
     expect(screen.queryByLabelText("Boundary width")).not.toBeInTheDocument();
@@ -234,19 +246,25 @@ describe("boundaries", () => {
     expect(parsed().layout?.boundaries?.cf).toBeUndefined();
   });
 
-  it("selects the boundary a press lands in, and the tile if there is one", () => {
+  it("selects the group a press lands in, and the element once it is entered", () => {
     render(<EditorPage />);
+
+    // A press anywhere inside picks the whole group: it reads as one object.
     clickAt(insideBoundary());
+    expect(screen.getByRole("region", { name: /group runtime/i })).toBeInTheDocument();
+
+    // Entering it reaches the boundary itself…
+    selectInside(insideBoundary());
     expect(screen.getByRole("region", { name: /boundary cf/i })).toBeInTheDocument();
 
-    // A tile inside it still wins: it is the smaller, more specific target.
+    // …and a tile inside still wins over the boundary it sits in.
     clickAt(at("api"));
     expect(screen.getByRole("region", { name: /node api/i })).toBeInTheDocument();
   });
 
   it("deletes a boundary without taking the tiles inside it", () => {
     render(<EditorPage />);
-    clickAt(insideBoundary());
+    selectInside(insideBoundary());
     fireEvent.keyDown(window, { key: "Delete" });
 
     expect(parsed().content.boundaries).toHaveLength(0);

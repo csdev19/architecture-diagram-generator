@@ -15,13 +15,29 @@ import { EDITOR_TOOLS, TOOL_ORDER } from "@/components/editor/editor-tools";
 import type { EditorTool } from "@/components/editor/editor-tools";
 import { JsonPanel } from "@/components/editor/json-panel";
 import { NodeInspector } from "@/components/editor/node-inspector";
-import type { Selection } from "@/components/editor/selection";
+import { GroupInspector } from "@/components/editor/group-inspector";
+import {
+  onlyId,
+  sameSelection,
+  selectionOf,
+  toggled,
+  type MaybeSelection,
+} from "@/components/editor/selection";
+import {
+  descendantNodeIds,
+  groupBounds,
+  isInsideGroup,
+  outermostGroup,
+  parentGroup,
+} from "@/components/editor/group-tree";
+import { REFUSAL_MESSAGES, groupRefusal } from "@/components/editor/edits/group-edits";
 import type { Point } from "@/components/editor/pointer-geometry";
 import { SIDE_PANEL_TABS, SIDE_PANEL_WIDTH, SidePanel } from "@/components/editor/side-panel";
 import type { SidePanelTab } from "@/components/editor/side-panel";
 import { PALETTE_TILES, findPaletteTile, uniqueNodeId } from "@/components/editor/tile-catalog";
 import type { PaletteTile } from "@/components/editor/tile-catalog";
 import { TILE_PALETTE_WIDTH, TilePalette } from "@/components/editor/tile-palette";
+import { snapToGrid } from "@/components/editor/edits/edit-document";
 import { useDiagramEditing } from "@/components/editor/use-diagram-editing";
 import { useChromeTheme } from "@/components/editor/use-chrome-theme";
 
@@ -131,7 +147,16 @@ export function EditorPage() {
   const [text, setText] = useState(() => JSON.stringify(EXAMPLE_DIAGRAM_DOCUMENT, null, 2));
   const [tool, setTool] = useState<EditorTool>(EDITOR_TOOLS.SELECT);
   const [tileKey, setTileKey] = useState(() => PALETTE_TILES[0]?.key ?? "");
-  const [selection, setSelection] = useState<Selection>(null);
+  const [selection, setSelection] = useState<MaybeSelection>(null);
+  /**
+   * The group the pointer is working inside.
+   *
+   * A click selects the outermost group an element belongs to, which is what
+   * makes a group feel like one object. Entering one is how you get back to
+   * the elements: from then on a click inside it reaches the child rather than
+   * the whole. Escape leaves again.
+   */
+  const [entered, setEntered] = useState<string | null>(null);
   const [edgeFrom, setEdgeFrom] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(true);
   const [panelOpen, setPanelOpen] = useState(true);
@@ -160,14 +185,27 @@ export function EditorPage() {
   // can re-flow, and knows the geometry a boundary had if its group dissolves.
   const edit = useDiagramEditing(setText, shown?.diagram ?? null);
 
+  /** The one element an inspector edits, or `null` when several are picked. */
+  const selectedId = onlyId(selection);
+
   const selectedNode =
-    selection?.kind === "node"
-      ? (shown?.diagram.nodes.find((node) => node.id === selection.id) ?? null)
+    selection?.kind === "node" && selectedId
+      ? (shown?.diagram.nodes.find((node) => node.id === selectedId) ?? null)
       : null;
   const selectedBoundary =
-    selection?.kind === "boundary"
-      ? (shown?.diagram.boundaries.find((boundary) => boundary.id === selection.id) ?? null)
+    selection?.kind === "boundary" && selectedId
+      ? (shown?.diagram.boundaries.find((boundary) => boundary.id === selectedId) ?? null)
       : null;
+  const selectedGroup =
+    selection?.kind === "group" && selectedId
+      ? (shown?.document.content.groups.find((group) => group.id === selectedId) ?? null)
+      : null;
+  /** The dashed rectangle around a selected group, drawn only as chrome. */
+  const groupOutline =
+    shown && selection?.kind === "group" && selectedId
+      ? groupBounds(shown.document.content, shown.diagram, selectedId)
+      : null;
+
   const tile = findPaletteTile(tileKey);
   const tileLabel = tile?.label ?? "tile";
 
@@ -186,13 +224,66 @@ export function EditorPage() {
    * take away what the JSON tab exists for — watching the text rewrite itself
    * as the tile moves.
    */
-  const handleSelect = (next: Selection) => {
-    const changed = next?.kind !== selection?.kind || next?.id !== selection?.id;
-    if (next && changed) {
+  const handleSelect = (next: MaybeSelection) => {
+    if (next && !sameSelection(next, selection)) {
       setPanelOpen(true);
       setTab(SIDE_PANEL_TABS.INSPECTOR);
     }
+
+    // Leaving whatever was entered, unless the new selection is still inside
+    // it: a click on the outside world is how you get back out of a group.
+    if (next && entered && !next.ids.every((id) => isInside(entered, id))) setEntered(null);
+    if (!next) setEntered(null);
+
     setSelection(next);
+  };
+
+  const isInside = (groupId: string, id: string): boolean =>
+    Boolean(shown && (id === groupId || isInsideGroup(shown.document.content, groupId, id)));
+
+  /**
+   * What a press on an element selects.
+   *
+   * The outermost group it belongs to, so a group reads as one object — unless
+   * that group has been entered, in which case the press reaches the child of
+   * it on the way down. Exactly what Figma, tldraw and Excalidraw do, and the
+   * reason entering a group is a gesture at all.
+   */
+  const resolveSelection = (kind: "node" | "boundary", id: string): MaybeSelection => {
+    if (!shown) return selectionOf(kind, id);
+    const { content } = shown.document;
+
+    if (entered && isInside(entered, id)) {
+      let current = id;
+      let parent = parentGroup(content, current);
+
+      while (parent && parent.id !== entered) {
+        current = parent.id;
+        parent = parentGroup(content, current);
+      }
+
+      return current === id ? selectionOf(kind, id) : selectionOf("group", current);
+    }
+
+    const outermost = outermostGroup(content, id);
+    return outermost ? selectionOf("group", outermost.id) : selectionOf(kind, id);
+  };
+
+  const handleToggleSelect = (kind: "node" | "boundary", id: string) => {
+    setSelection((current) => toggled(current, kind, id));
+    setPanelOpen(true);
+    setTab(SIDE_PANEL_TABS.INSPECTOR);
+  };
+
+  /** Steps inside the group an element belongs to, and picks the element. */
+  const handleEnterGroup = (kind: "node" | "boundary", id: string) => {
+    if (!shown) return;
+
+    const parent = parentGroup(shown.document.content, id);
+    if (!parent) return;
+
+    setEntered(parent.id);
+    handleSelect(selectionOf(kind, id));
   };
 
   /**
@@ -206,8 +297,73 @@ export function EditorPage() {
    */
   const gestureTextRef = useRef<string | null>(null);
 
+  /** Where every node in the selection was when the gesture began. */
+  const dragOriginRef = useRef<Map<string, Point>>(new Map());
+
   const handleGestureStart = () => {
     gestureTextRef.current = text;
+
+    const nodes = shown?.diagram.nodes ?? [];
+    dragOriginRef.current = new Map(nodes.map((node) => [node.id, { x: node.x, y: node.y }]));
+  };
+
+  /**
+   * Moves everything in the selection by one delta.
+   *
+   * Measured from where the nodes were when the gesture began rather than from
+   * where they are now, so a drag never accumulates its own rounding. The
+   * *delta* is snapped, not the positions: rounding each member to the grid
+   * separately moves them by different amounts and shears the group apart.
+   */
+  const handleSelectionMove = (dx: number, dy: number) => {
+    if (!shown || !selection) return;
+
+    const ids =
+      selection.kind === "group"
+        ? selection.ids.flatMap((id) => descendantNodeIds(shown.document.content, id))
+        : selection.ids;
+
+    const stepX = snapToGrid(dx);
+    const stepY = snapToGrid(dy);
+
+    const points: Record<string, Point> = {};
+    for (const id of ids) {
+      const origin = dragOriginRef.current.get(id);
+      if (origin) points[id] = { x: origin.x + stepX, y: origin.y + stepY };
+    }
+
+    edit.moveNodes(points);
+  };
+
+  /** Groups what is selected, or says why it cannot. */
+  const handleGroup = () => {
+    if (!shown || !selection || selection.ids.length < 2) {
+      toast.error(REFUSAL_MESSAGES["not-enough"]);
+      return;
+    }
+
+    const refusal = groupRefusal(text, selection.ids);
+    if (refusal) {
+      toast.error(refusal === "unparseable" ? "Fix the JSON first." : REFUSAL_MESSAGES[refusal]);
+      return;
+    }
+
+    const id = uniqueNodeId(
+      "group",
+      shown.document.content.groups.map((group) => group.id),
+    );
+
+    edit.createGroup(id, selection.ids);
+    handleSelect(selectionOf("group", id));
+  };
+
+  /** Dissolves the selected group, leaving everything exactly where it is. */
+  const handleUngroup = () => {
+    if (selection?.kind !== "group") return;
+
+    for (const id of selection.ids) edit.ungroup(id);
+    setSelection(null);
+    setEntered(null);
   };
 
   const handleGestureCancel = () => {
@@ -268,7 +424,7 @@ export function EditorPage() {
       point,
     );
 
-    setSelection({ kind: "node", id });
+    setSelection(selectionOf("node", id));
   };
 
   /** The click-then-click path, which places whatever the palette has armed. */
@@ -286,10 +442,16 @@ export function EditorPage() {
   const handleDeleteSelected = () => {
     if (!selection) return;
 
-    if (selection.kind === "node") edit.removeNode(selection.id);
-    else edit.removeBoundary(selection.id);
+    for (const id of selection.ids) {
+      // Deleting a group deletes the relation, not the things it held: those
+      // are still in the diagram, they have just stopped travelling together.
+      if (selection.kind === "node") edit.removeNode(id);
+      else if (selection.kind === "boundary") edit.removeBoundary(id);
+      else edit.ungroup(id);
+    }
 
     setSelection(null);
+    setEntered(null);
   };
 
   /**
@@ -302,19 +464,43 @@ export function EditorPage() {
   const handleDrawBoundary = (box: { x: number; y: number; w: number; h: number }) => {
     if (!shown) return;
 
-    const id = uniqueNodeId(
-      "boundary",
-      shown.diagram.boundaries.map((boundary) => boundary.id),
-    );
+    const taken = [
+      ...shown.diagram.boundaries.map((boundary) => boundary.id),
+      ...shown.document.content.groups.map((group) => group.id),
+    ];
+    const id = uniqueNodeId("boundary", taken);
 
-    // Drawn boxes belong to no group yet, so this one carries its own
-    // rectangle. Grouping what it encloses is a gesture of its own.
     edit.addBoundary(
       { id, label: "BOUNDARY", tone: BOUNDARY_TONES.NEUTRAL, padding: BOUNDARY_PADDINGS.NORMAL },
       box,
     );
+
+    /**
+     * Drawing a box says "these belong together".
+     *
+     * The tiles whose centres fall inside it, plus the boundary itself, become
+     * a group — so the rectangle that appears afterwards is the derived one and
+     * may snap tighter or looser on release. That is what ⌘G does everywhere
+     * else. A box drawn around nothing has no members to derive from, so it
+     * stays the placed rectangle it was drawn as: the decorative boundary.
+     */
+    const enclosed = shown.diagram.nodes
+      .filter(
+        (node) =>
+          node.x >= box.x && node.x <= box.x + box.w && node.y >= box.y && node.y <= box.y + box.h,
+      )
+      .map((node) => node.id);
+
     changeTool(EDITOR_TOOLS.SELECT);
-    handleSelect({ kind: "boundary", id });
+
+    if (enclosed.length === 0) {
+      handleSelect(selectionOf("boundary", id));
+      return;
+    }
+
+    const groupId = uniqueNodeId("group", taken);
+    edit.createGroup(groupId, [id, ...enclosed]);
+    handleSelect(selectionOf("group", groupId));
   };
 
   // `1`–`6` pick a tool, Escape backs out of whatever is armed, and Delete
@@ -322,11 +508,20 @@ export function EditorPage() {
   // modifier is held, so a browser shortcut still means what it always did.
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
       if (isTypingTarget(event.target)) return;
+
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "g") {
+        event.preventDefault();
+        if (event.shiftKey) handleUngroup();
+        else handleGroup();
+        return;
+      }
+
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
 
       if (event.key === "Escape") {
         setEdgeFrom(null);
+        setEntered(null);
         setSelection(null);
         return;
       }
@@ -335,9 +530,7 @@ export function EditorPage() {
         if (!selection) return;
         event.preventDefault();
 
-        if (selection.kind === "node") edit.removeNode(selection.id);
-        else edit.removeBoundary(selection.id);
-        setSelection(null);
+        handleDeleteSelected();
         return;
       }
 
@@ -351,7 +544,7 @@ export function EditorPage() {
     // `changeTool` is recreated every render but closes over nothing that can
     // go stale; the pieces that can are listed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selection, edit]);
+  }, [selection, entered, edit, text, shown]);
 
   const handleFile = async (file: File | undefined) => {
     if (!file) return;
@@ -436,6 +629,11 @@ export function EditorPage() {
         onToolChange={changeTool}
         selection={selection}
         onSelect={handleSelect}
+        resolveSelection={resolveSelection}
+        onToggleSelect={handleToggleSelect}
+        onEnterGroup={handleEnterGroup}
+        groupOutline={groupOutline}
+        onSelectionMove={handleSelectionMove}
         edgeFrom={edgeFrom}
         onPickEdgeEnd={handlePickEdgeEnd}
         tileLabel={tileLabel}
@@ -478,6 +676,23 @@ export function EditorPage() {
               onChange={(patch) => edit.updateBoundaryFields(selectedBoundary.id, patch)}
               onGeometryChange={(rect) => edit.resizeBoundary(selectedBoundary.id, rect)}
             />
+          ) : selectedGroup && shown ? (
+            <GroupInspector
+              group={selectedGroup}
+              content={shown.document.content}
+              onUngroup={handleUngroup}
+              onRemoveMember={(id) => edit.removeMember(selectedGroup.id, id)}
+            />
+          ) : selection && selection.ids.length > 1 ? (
+            <section aria-label="Selection" className="space-y-3 pb-2">
+              <p className="text-[13px] text-ed-text">
+                {selection.ids.length} selected. Press ⌘G to group them.
+              </p>
+              <p className="text-[12.5px] text-ed-text-3">
+                A group keeps things together: they move as one, and auto-layout places them side by
+                side.
+              </p>
+            </section>
           ) : shown ? (
             <DiagramPanel diagram={shown.diagram} onBackgroundChange={edit.setBackground} />
           ) : null

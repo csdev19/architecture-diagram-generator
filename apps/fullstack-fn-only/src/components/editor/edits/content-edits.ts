@@ -13,6 +13,7 @@ import {
   snapToGrid,
   type RawRecord,
 } from "./edit-document";
+import { repairGroups } from "./group-repair";
 
 /**
  * Edits that write only inside `content`.
@@ -295,85 +296,5 @@ const dropFromGroups = (document: RawRecord, id: string): void => {
   for (const group of groups) {
     if (!isRecord(group) || !Array.isArray(group.members)) continue;
     group.members = group.members.filter((member) => member !== id);
-  }
-};
-
-/**
- * Dissolves any group left holding no node, and gives an orphaned boundary a
- * rectangle.
- *
- * Deleting the last tile inside a group leaves a group with nothing to keep
- * together and, if it was framed, a boundary with nothing to enclose — a
- * document the validator rejects. Rather than hand the author that error for a
- * gesture that was perfectly reasonable, the group is dissolved and whatever it
- * held is promoted to where the group used to be. A boundary that ends up in no
- * group needs geometry of its own, and the rectangle it had on screen a moment
- * ago is the only answer that does not move it.
- */
-const repairGroups = (document: RawRecord, diagram: ResolvedDiagram | null): void => {
-  const content = contentOf(document);
-  if (!content) return;
-
-  const nodeIds = new Set(
-    (collectionOf(document, "nodes") ?? []).filter(isRecord).map((node) => String(node.id)),
-  );
-
-  const groupsOf = () =>
-    (collectionOf(document, "groups") ?? []).filter(isRecord).map((group) => ({
-      id: String(group.id),
-      members: Array.isArray(group.members) ? group.members.map(String) : [],
-      raw: group,
-    }));
-
-  // Dissolving one group can empty its parent, so this runs until nothing else
-  // changes rather than once. Bounded by the number of groups.
-  for (let pass = 0; pass < 32; pass += 1) {
-    const groups = groupsOf();
-    const byId = new Map(groups.map((group) => [group.id, group]));
-
-    const holdsNode = (group: (typeof groups)[number], seen: Set<string>): boolean => {
-      if (seen.has(group.id)) return false;
-      seen.add(group.id);
-
-      return group.members.some((member) => {
-        if (nodeIds.has(member)) return true;
-        const nested = byId.get(member);
-        return nested ? holdsNode(nested, seen) : false;
-      });
-    };
-
-    const doomed = groups.find((group) => !holdsNode(group, new Set()));
-    if (!doomed) break;
-
-    content.groups = groups
-      .filter((group) => group.id !== doomed.id)
-      .map((group) => {
-        if (!group.members.includes(doomed.id)) return group.raw;
-
-        // Promoted rather than dropped: whatever the dissolved group held still
-        // belongs where the group itself belonged.
-        group.raw.members = group.members.flatMap((member) =>
-          member === doomed.id ? doomed.members : [member],
-        );
-        return group.raw;
-      });
-  }
-
-  // Any boundary that is no longer in a group has to carry its own rectangle.
-  const grouped = new Set(
-    (collectionOf(document, "groups") ?? [])
-      .filter(isRecord)
-      .flatMap((group) => (Array.isArray(group.members) ? group.members.map(String) : [])),
-  );
-
-  for (const boundary of (collectionOf(document, "boundaries") ?? []).filter(isRecord)) {
-    const id = String(boundary.id);
-    if (grouped.has(id)) continue;
-    if (existingLayoutBranch(document, "boundaries")?.[id]) continue;
-
-    const drawn = diagram?.boundaries.find((candidate) => candidate.id === id);
-    layoutBranch(document, "boundaries")[id] = drawn
-      ? { x: drawn.x, y: drawn.y, w: drawn.w, h: drawn.h }
-      : { x: 0, y: 0, w: 200, h: 140 };
   }
 };

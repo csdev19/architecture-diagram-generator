@@ -18,10 +18,10 @@ has no geometry at all._
 | Supersedes    | N/A        |
 | Superseded by | N/A        |
 
-**Implementation status.** The rename ships with the boundaries plan; the
-`groups` relation is modelled in the document format plan and becomes an editor
-gesture in the grouping plan. This ADR records the decision, not a finished
-feature — the branch that introduces it contains boundaries and edge ids only.
+**Implementation status.** Implemented. Boundaries and groups are both in the
+format, resolution derives a grouped boundary's rectangle from what its group
+holds, and the editor can make a group, dissolve one, move one and work inside
+one.
 
 ## Context
 
@@ -119,6 +119,11 @@ different feature.
 - A grouped boundary can no longer be resized by hand. `padding` —
   `tight` / `normal` / `loose` — replaces it, which keeps the renderer the owner
   of pixels exactly as it owns colour.
+- A click selects the outermost group an element belongs to, so entering a group
+  becomes a gesture the editor needs: without it, everything inside one would be
+  unreachable. Double-clicking is that gesture.
+- Moving a group moves its members, which is a capability the v1 box never had —
+  and the reason the drag snaps its delta rather than each member's position.
 - `tone` becomes `BOUNDARY_TONES`, `MAX_GROUPS` becomes `MAX_BOUNDARIES`, and
   `renderGroup` becomes `renderBoundary`. Renaming the whole vocabulary at once
   is what makes the word "group" safe to reuse.
