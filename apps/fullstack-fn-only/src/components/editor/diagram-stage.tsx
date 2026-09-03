@@ -544,6 +544,23 @@ export function DiagramStage({
     />
   ) : null;
 
+  /**
+   * The markup handed to `dangerouslySetInnerHTML`, memoised on the string.
+   *
+   * React 19 compares this prop by *object* identity and, when it differs,
+   * assigns `innerHTML` without ever looking at the string inside. A fresh
+   * `{ __html }` literal per render therefore tears down and rebuilds the whole
+   * scene on every hover, selection and keystroke — invisibly, because the
+   * markup that comes back is identical.
+   *
+   * What it is not invisible to is the browser. Chrome synthesises `click` and
+   * `dblclick` from a press and a release that share a live target, so a scene
+   * rebuilt between `pointerdown` and `pointerup` detaches the element the
+   * press landed on and neither event is ever fired. That is what made
+   * double-click-to-enter-a-group do nothing: the handler was never called.
+   */
+  const sceneHtml = useMemo(() => ({ __html: svg ?? "" }), [svg]);
+
   const cursor = gestureRef.current?.kind === "pan" ? "grabbing" : STAGE_CURSORS[tool];
 
   return (
@@ -573,7 +590,7 @@ export function DiagramStage({
             }
             data-selected-group={selection?.kind === "group" ? selection.ids.join(" ") : undefined}
             className="absolute inset-0 [&>svg]:h-full [&>svg]:w-full"
-            dangerouslySetInnerHTML={{ __html: svg }}
+            dangerouslySetInnerHTML={sceneHtml}
           />
           <svg
             aria-hidden
