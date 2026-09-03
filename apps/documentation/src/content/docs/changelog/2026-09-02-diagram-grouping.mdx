@@ -1,0 +1,40 @@
+---
+title: "September 02, 2026 - Groups you can make by hand"
+description: Select several things and press Cmd-G. A group moves as one, a double-click works inside it, and drawing a box around tiles is now a grouping gesture.
+date: 2026-09-02
+tags:
+  - changelog
+  - feature
+---
+
+✨ **Feature** — the relation the format has carried since the document format
+landed is now something a person can make.
+
+- **Shift-click** adds to the selection; **⌘G** groups it; **⌘⇧G** gives the
+  pieces back exactly where they are.
+- A **click selects the outermost group** an element belongs to, which is what
+  makes a group read as one object. **Double-click enters it**, so the next
+  click reaches inside — the model Figma, tldraw and Excalidraw share, and the
+  only way to reach a boundary that frames a group.
+- **Dragging a group moves its members** by one delta, in one entry in the undo
+  history. The delta is snapped rather than each member's position: rounding
+  them separately moves them by different amounts and shears the group apart.
+- The **inspector for a group** lists what is in it, in the diagram's own words,
+  and offers the two ways to change it — take one out, or ungroup entirely.
+
+📦 **The boundary tool became a grouping gesture.** Drawing a box around tiles
+now means "these belong together": they and the new boundary become a group, and
+the rectangle you see afterwards is the derived one, which may snap tighter or
+looser on release. A box drawn around nothing has nothing to derive from and
+stays exactly where it was drawn — that is the decorative boundary.
+
+🚫 **Every refusal says why.** A gesture that would put a group inside itself,
+put two boundaries in one group, or leave a group with no tile in it writes
+nothing and says so. A refused gesture that looks identical to a broken one is
+the worst of the three outcomes available.
+
+Grouping nests rather than steals: grouping a subset of a group's members puts
+the new group _inside_ it. Pulling them out into a sibling would leave the
+parent holding only its boundary, with nothing to frame — a document the
+editor's own validator rejects. Recorded in
+[ADR 0003](/architecture/decisions/adr-0003-a-boundary-is-an-element-a-group-is-a-relation).
