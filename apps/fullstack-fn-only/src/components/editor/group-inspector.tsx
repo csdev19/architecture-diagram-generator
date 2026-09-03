@@ -1,54 +1,39 @@
-import type { ReactNode } from "react";
-import { DIAGRAM_LIMITS, GROUP_TONES, GROUP_TONE_INFO } from "@diagram-tool/domain/constants";
-import type { GroupTone } from "@diagram-tool/domain/constants";
-import type { DiagramGroup } from "@diagram-tool/domain/schemas";
+import { Ungroup, X } from "lucide-react";
+import type { DiagramContent, DiagramGroup } from "@diagram-tool/domain/schemas";
 import { cn } from "@diagram-tool/web-ui";
-import { EditorInput, MicroLabel, MonoText } from "@/components/editor/editor-chrome";
-import type { GroupPatch } from "@/components/editor/use-diagram-editing";
+import { MicroLabel, MonoText } from "@/components/editor/editor-chrome";
 
 /**
  * The panel for the selected group.
  *
- * `tone` is the field that matters and the one that is easiest to get wrong, so
- * it is not a dropdown of colour names: each choice says what it *means*, and
- * the swatch beside it is the consequence. A group is a boundary in the system
- * being drawn — a cloud, a runtime, a monorepo — and the palette follows from
- * that, never the other way round.
+ * A group has no fields worth editing — no tone, no label, no geometry. What it
+ * has is members, so that is what the panel is: the list, and the two ways to
+ * change it. Anything more would be inventing properties for a relation that
+ * deliberately has none.
  */
 
 interface GroupInspectorProps {
   group: DiagramGroup;
-  onChange: (patch: GroupPatch) => void;
+  content: DiagramContent;
+  onUngroup: () => void;
+  onRemoveMember: (id: string) => void;
 }
 
-const { TEXT_MAX } = DIAGRAM_LIMITS;
+/** What an id is, said the way the diagram says it. */
+const describe = (content: DiagramContent, id: string): { name: string; kind: string } => {
+  const node = content.nodes.find((candidate) => candidate.id === id);
+  if (node) return { name: node.name, kind: "tile" };
 
-/** What each tone is *for*. The hex is the renderer's business. */
-const TONE_MEANINGS: Record<GroupTone, string> = {
-  [GROUP_TONES.ORANGE]: "Cloud or runtime",
-  [GROUP_TONES.BLUE]: "Tooling, monorepo, build",
-  [GROUP_TONES.GREEN]: "External services and data",
-  [GROUP_TONES.NEUTRAL]: "Anything else",
+  const boundary = content.boundaries.find((candidate) => candidate.id === id);
+  if (boundary) return { name: boundary.label, kind: "boundary" };
+
+  const group = content.groups.find((candidate) => candidate.id === id);
+  if (group) return { name: group.id, kind: `group of ${group.members.length}` };
+
+  return { name: id, kind: "missing" };
 };
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <span className="block text-[12.5px] font-medium text-ed-text">{label}</span>
-      {children}
-      {hint ? <span className="block text-[11.5px] text-ed-text-3">{hint}</span> : null}
-    </div>
-  );
-}
-
-export function GroupInspector({ group, onChange }: GroupInspectorProps) {
-  /** A half-typed number is not a coordinate yet. */
-  const handleNumber = (field: "x" | "y" | "w" | "h", raw: string) => {
-    const value = Number(raw);
-    if (raw === "" || Number.isNaN(value)) return;
-    onChange({ [field]: value });
-  };
-
+export function GroupInspector({ group, content, onUngroup, onRemoveMember }: GroupInspectorProps) {
   return (
     <section aria-label={`Group ${group.id}`} className="space-y-4 pb-2">
       <header className="flex items-center justify-between gap-2">
@@ -56,119 +41,52 @@ export function GroupInspector({ group, onChange }: GroupInspectorProps) {
         <MicroLabel>Group</MicroLabel>
       </header>
 
-      <Field label="Label" hint={`${TEXT_MAX} characters max. Short and upper case reads best.`}>
-        <EditorInput
-          aria-label="Label"
-          value={group.label}
-          maxLength={TEXT_MAX}
-          onChange={(event) => onChange({ label: event.target.value.slice(0, TEXT_MAX) })}
-        />
-      </Field>
+      <p className="text-[12.5px] leading-relaxed text-ed-text-2">
+        A group keeps these together: they move as one, and auto-layout places them side by side. It
+        is never drawn — the box around them is a boundary, which is a member like any other.
+      </p>
 
-      <Field label="Icon">
-        <EditorInput
-          aria-label="Icon"
-          value={group.icon}
-          placeholder="Optional emoji"
-          onChange={(event) => onChange({ icon: event.target.value })}
-        />
-      </Field>
+      <ul className="space-y-1">
+        {group.members.map((id) => {
+          const { name, kind } = describe(content, id);
 
-      <Field label="Tone" hint="Pick what the boundary is. The renderer picks the colour.">
-        <div role="group" aria-label="Tone" className="space-y-1">
-          {Object.values(GROUP_TONES).map((tone) => (
-            <button
-              key={tone}
-              type="button"
-              aria-pressed={group.tone === tone}
-              onClick={() => onChange({ tone })}
-              className={cn(
-                "flex w-full items-center gap-2.5 rounded-[8px] border px-2 py-1.5 text-left",
-                "text-[12.5px] transition-colors duration-[140ms] outline-none",
-                "focus-visible:shadow-[var(--ed-focus-ring)]",
-                group.tone === tone
-                  ? "border-ed-border-strong bg-ed-surface-2 text-ed-text"
-                  : "border-ed-border text-ed-text-2 hover:bg-ed-surface-hover",
-              )}
+          return (
+            <li
+              key={id}
+              className="flex items-center gap-2 rounded-[8px] border border-ed-border px-2 py-1.5"
             >
-              <span
-                aria-hidden
-                className="size-4 shrink-0 rounded-[5px] border"
-                style={{
-                  backgroundColor: GROUP_TONE_INFO[tone].fill,
-                  borderColor: GROUP_TONE_INFO[tone].border,
-                }}
-              />
-              {TONE_MEANINGS[tone]}
-            </button>
-          ))}
-        </div>
-      </Field>
+              <span className="min-w-0 flex-1 truncate text-[12.5px] text-ed-text">{name}</span>
+              <MicroLabel>{kind}</MicroLabel>
+              <button
+                type="button"
+                aria-label={`Remove ${name} from ${group.id}`}
+                onClick={() => onRemoveMember(id)}
+                className={cn(
+                  "flex size-[26px] shrink-0 items-center justify-center rounded-[6px]",
+                  "text-ed-text-3 transition-colors duration-[140ms] outline-none",
+                  "hover:bg-ed-danger-quiet hover:text-ed-danger",
+                  "focus-visible:shadow-[var(--ed-focus-ring)]",
+                )}
+              >
+                <X className="size-[14px]" strokeWidth={1.75} aria-hidden />
+              </button>
+            </li>
+          );
+        })}
+      </ul>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="x">
-          <EditorInput
-            aria-label="Group x"
-            type="number"
-            value={group.x}
-            onChange={(event) => handleNumber("x", event.target.value)}
-          />
-        </Field>
-        <Field label="y">
-          <EditorInput
-            aria-label="Group y"
-            type="number"
-            value={group.y}
-            onChange={(event) => handleNumber("y", event.target.value)}
-          />
-        </Field>
-        <Field label="width">
-          <EditorInput
-            aria-label="Group width"
-            type="number"
-            value={group.w}
-            onChange={(event) => handleNumber("w", event.target.value)}
-          />
-        </Field>
-        <Field label="height">
-          <EditorInput
-            aria-label="Group height"
-            type="number"
-            value={group.h}
-            onChange={(event) => handleNumber("h", event.target.value)}
-          />
-        </Field>
-      </div>
-
-      <div className="space-y-2 rounded-[12px] border border-ed-border p-3">
-        {[
-          {
-            key: "filled" as const,
-            label: "Filled",
-            hint: "Off draws the border only — how a nested group is made.",
-            value: group.filled,
-          },
-          {
-            key: "dashed" as const,
-            label: "Dashed border",
-            hint: "For a boundary that is logical rather than physical.",
-            value: group.dashed,
-          },
-        ].map((option) => (
-          <label key={option.key} className="flex cursor-pointer items-start gap-2.5">
-            <input
-              type="checkbox"
-              checked={option.value}
-              onChange={(event) => onChange({ [option.key]: event.target.checked })}
-              className="mt-0.5 size-4 shrink-0 accent-[var(--ed-accent)]"
-            />
-            <span className="min-w-0">
-              <span className="block text-[12.5px] font-medium text-ed-text">{option.label}</span>
-              <span className="block text-[11.5px] text-ed-text-3">{option.hint}</span>
-            </span>
-          </label>
-        ))}
-      </div>
+      <button
+        type="button"
+        onClick={onUngroup}
+        className={cn(
+          "flex w-full items-center justify-center gap-2 rounded-[8px] border border-ed-border",
+          "px-2 py-1.5 text-[12.5px] text-ed-text transition-colors duration-[140ms]",
+          "outline-none hover:bg-ed-surface-hover focus-visible:shadow-[var(--ed-focus-ring)]",
+        )}
+      >
+        <Ungroup className="size-[15px]" strokeWidth={1.75} aria-hidden />
+        Ungroup
+      </button>
     </section>
   );
 }

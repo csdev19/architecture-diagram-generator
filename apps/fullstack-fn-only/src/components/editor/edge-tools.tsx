@@ -2,15 +2,19 @@ import { X } from "lucide-react";
 import { ANCHOR_SIDES, DIAGRAM_LIMITS, EDGE_STYLES } from "@diagram-tool/domain/constants";
 import type { DiagramEdge } from "@diagram-tool/domain/schemas";
 import { cn } from "@diagram-tool/web-ui";
-import type { EdgePatch } from "@/components/editor/use-diagram-editing";
+import type { EdgePatch } from "@/components/editor/edits/content-edits";
 
 /**
  * The edges tab.
  *
- * Edges have no id, so everything here addresses them by position — which is
- * the config's own model rather than a shortcut: an edge is a relation between
- * two node ids, not an entity. Removing one therefore renumbers the rows below
- * it.
+ * Label and style go to `content`; the anchor sides go to `layout`. The panel
+ * edits both halves of the document, and which half a control writes to is
+ * exactly the difference between what a relation is and how it is drawn.
+ *
+ * Every row addresses its edge by id, so removing one leaves the others
+ * pointing at exactly what they pointed at before. The number beside a control
+ * is only there to keep the accessible names apart on screen; nothing edits by
+ * position any more.
  *
  * Adding is a two-click gesture with the arrow tool rather than a pair of
  * dropdowns: picking tiles is how you think about a diagram, and it lets the
@@ -20,8 +24,11 @@ import type { EdgePatch } from "@/components/editor/use-diagram-editing";
 
 interface EdgeToolsProps {
   edges: DiagramEdge[];
-  onUpdate: (index: number, patch: EdgePatch) => void;
-  onRemove: (index: number) => void;
+  /** Label and style: what the relation *is*. */
+  onUpdate: (id: string, patch: EdgePatch) => void;
+  /** The sides the line leaves and arrives at: where it is drawn. */
+  onAnchors: (id: string, anchors: { out?: DiagramEdge["out"]; inn?: DiagramEdge["inn"] }) => void;
+  onRemove: (id: string) => void;
 }
 
 const rowControl = cn(
@@ -30,7 +37,7 @@ const rowControl = cn(
   "outline-none focus-visible:border-ed-accent focus-visible:shadow-[var(--ed-focus-ring)]",
 );
 
-export function EdgeTools({ edges, onUpdate, onRemove }: EdgeToolsProps) {
+export function EdgeTools({ edges, onUpdate, onAnchors, onRemove }: EdgeToolsProps) {
   if (edges.length === 0) {
     return (
       <p className="text-[13px] text-ed-text-2">
@@ -46,10 +53,7 @@ export function EdgeTools({ edges, onUpdate, onRemove }: EdgeToolsProps) {
           const dashed = edge.style === EDGE_STYLES.DASHED;
 
           return (
-            // Edges are positional and two of them may be identical in every
-            // field, so the index genuinely is the identity here.
-            // eslint-disable-next-line react/no-array-index-key
-            <li key={index} className="space-y-1.5 border-b border-ed-border py-2.5">
+            <li key={edge.id} className="space-y-1.5 border-b border-ed-border py-2.5">
               <div className="flex items-center gap-2">
                 <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-ed-text">
                   {edge.from} → {edge.to}
@@ -59,7 +63,7 @@ export function EdgeTools({ edges, onUpdate, onRemove }: EdgeToolsProps) {
                   type="button"
                   aria-label={`Edge ${index + 1} style`}
                   onClick={() =>
-                    onUpdate(index, {
+                    onUpdate(edge.id, {
                       style: dashed ? EDGE_STYLES.SOLID : EDGE_STYLES.DASHED,
                     })
                   }
@@ -76,7 +80,7 @@ export function EdgeTools({ edges, onUpdate, onRemove }: EdgeToolsProps) {
                 <button
                   type="button"
                   aria-label={`Remove edge ${edge.from} to ${edge.to}`}
-                  onClick={() => onRemove(index)}
+                  onClick={() => onRemove(edge.id)}
                   className={cn(
                     "flex size-[30px] shrink-0 items-center justify-center rounded-[6px]",
                     "text-ed-text-3 transition-colors duration-[140ms] outline-none",
@@ -95,7 +99,7 @@ export function EdgeTools({ edges, onUpdate, onRemove }: EdgeToolsProps) {
                   value={edge.label ?? ""}
                   maxLength={DIAGRAM_LIMITS.TEXT_MAX}
                   onChange={(event) =>
-                    onUpdate(index, {
+                    onUpdate(edge.id, {
                       label: event.target.value.slice(0, DIAGRAM_LIMITS.TEXT_MAX) || undefined,
                     })
                   }
@@ -106,7 +110,7 @@ export function EdgeTools({ edges, onUpdate, onRemove }: EdgeToolsProps) {
                   aria-label={`Out ${index + 1}`}
                   value={edge.out}
                   onChange={(event) =>
-                    onUpdate(index, { out: event.target.value as DiagramEdge["out"] })
+                    onAnchors(edge.id, { out: event.target.value as DiagramEdge["out"] })
                   }
                   className={rowControl}
                 >
@@ -121,7 +125,7 @@ export function EdgeTools({ edges, onUpdate, onRemove }: EdgeToolsProps) {
                   aria-label={`In ${index + 1}`}
                   value={edge.inn}
                   onChange={(event) =>
-                    onUpdate(index, { inn: event.target.value as DiagramEdge["inn"] })
+                    onAnchors(edge.id, { inn: event.target.value as DiagramEdge["inn"] })
                   }
                   className={rowControl}
                 >

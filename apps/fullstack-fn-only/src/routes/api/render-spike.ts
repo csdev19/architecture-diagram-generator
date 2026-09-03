@@ -1,6 +1,6 @@
 import { svgToPng } from "@/server/resvg";
 import { renderSVG } from "@diagram-tool/domain/render";
-import { EXAMPLE_DIAGRAM_CONFIG, diagramConfigSchema } from "@diagram-tool/domain/schemas";
+import { EXAMPLE_RESOLVED_DIAGRAM, resolvedDiagramSchema } from "@diagram-tool/domain/schemas";
 import { createFileRoute } from "@tanstack/react-router";
 
 /**
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/api/render-spike")({
   server: {
     handlers: {
       GET: async () => {
-        const svg = renderSVG(diagramConfigSchema.parse(EXAMPLE_DIAGRAM_CONFIG));
+        const svg = renderSVG(resolvedDiagramSchema.parse(EXAMPLE_RESOLVED_DIAGRAM));
         const png = await svgToPng(svg);
 
         return new Response(png, {

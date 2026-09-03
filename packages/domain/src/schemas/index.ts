@@ -18,16 +18,38 @@ export {
 
 // Diagram schemas
 export {
-  diagramConfigSchema,
+  resolvedDiagramSchema,
   diagramNodeSchema,
-  diagramGroupSchema,
+  diagramBoundarySchema,
   diagramEdgeSchema,
-  validateDiagramConfig,
+  deriveEdgeIds,
+  validateResolvedDiagram,
   formatDiagramIssues,
-  EXAMPLE_DIAGRAM_CONFIG,
-  type DiagramConfig,
-  type DiagramConfigInput,
+  EXAMPLE_RESOLVED_DIAGRAM,
+  type ResolvedDiagram,
+  type ResolvedDiagramInput,
   type DiagramNode,
-  type DiagramGroup,
+  type DiagramBoundary,
   type DiagramEdge,
 } from "./diagram";
+
+// The v2 document: content, layout, and the validator over both
+export {
+  diagramDocumentSchema,
+  diagramContentSchema,
+  diagramLayoutSchema,
+  diagramGroupSchema,
+  contentNodeSchema,
+  contentBoundarySchema,
+  contentEdgeSchema,
+  validateDiagramDocument,
+  EXAMPLE_DIAGRAM_DOCUMENT,
+  type DiagramDocument,
+  type DiagramDocumentInput,
+  type DiagramContent,
+  type DiagramLayout,
+  type DiagramGroup,
+  type ContentNode,
+  type ContentBoundary,
+  type ContentEdge,
+} from "./diagram-document";

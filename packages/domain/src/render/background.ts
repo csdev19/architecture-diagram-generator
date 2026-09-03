@@ -30,7 +30,7 @@ export const renderGridPattern = (): string => {
  * The paper and the grid on top of it — the bottom two layers.
  *
  * `paper` is passed rather than read from a constant because the author picks
- * it, and two other places have to match it exactly: an unfilled group's label
+ * it, and two other places have to match it exactly: an unfilled boundary's label
  * cover and an edge label's backing rect both punch a hole in whatever is
  * behind them.
  */

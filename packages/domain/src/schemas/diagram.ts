@@ -1,17 +1,22 @@
 import { z } from "zod";
 import {
   ANCHOR_SIDES,
+  BOUNDARY_TONES,
   CANVAS_TONES,
   DIAGRAM_LIMITS,
   EDGE_STYLES,
-  GROUP_TONES,
   TILE_VARIANTS,
 } from "../constants/diagram";
 import { DIAGRAM_ICON_KEYS } from "../constants/diagram-icons";
 
 /**
- * `DiagramConfig` — the contract at the centre of the diagram tool. A model
- * writes it, the editor edits it, the renderer draws it.
+ * `ResolvedDiagram` — the renderer's input: a diagram with every coordinate,
+ * rectangle and anchor already decided.
+ *
+ * Nobody authors this. A person or a model writes a `DiagramDocument`, and
+ * `resolveDiagram` composes its content and its layout into this. It therefore
+ * carries no `version`: a version belongs to the format someone writes down,
+ * and this shape is never persisted.
  *
  * Failure messages are written for the author, not the library: they name the
  * offending value and the fix. Cross-field rules run in one `superRefine` so a
@@ -30,59 +35,87 @@ const tileText = (field: string) =>
       `${field} must be at most ${DIAGRAM_LIMITS.TEXT_MAX} characters — abbreviate it to fit the tile`,
     );
 
+/**
+ * Everything a node is, apart from where it sits.
+ *
+ * Exported as a raw shape rather than a schema because the document format
+ * needs the same fields without `x`/`y`, and Zod cannot `.omit()` from a schema
+ * that carries a refinement. One shape, two schemas, no chance of the two
+ * drifting on what a node's name may be.
+ */
+export const nodeIdentityShape = {
+  id: z.string().trim().min(1, "Node id is required"),
+  /** Fallback mark for a technology with no logo in the registry. */
+  emoji: z.string().trim().min(1, "Node emoji must not be empty").optional(),
+  /** A brand mark from the icon registry. Takes precedence over `emoji`. */
+  iconKey: z.enum(DIAGRAM_ICON_KEYS).optional(),
+  name: tileText("Node name"),
+  sub: z
+    .string()
+    .trim()
+    .max(
+      DIAGRAM_LIMITS.TEXT_MAX,
+      `Node sublabel must be at most ${DIAGRAM_LIMITS.TEXT_MAX} characters — abbreviate it to fit the tile`,
+    )
+    .default(""),
+  tile: z.enum(TILE_VARIANTS).default(TILE_VARIANTS.LIGHT),
+};
+
+/**
+ * A node has to show something.
+ *
+ * The rule travels with the node rather than living in a config-level
+ * `superRefine`, so it holds wherever a single node is parsed — the editor's
+ * field-level mutations included.
+ */
+export const requireNodeMark = (
+  node: { id: string; emoji?: string | undefined; iconKey?: string | undefined },
+  ctx: z.RefinementCtx,
+): void => {
+  if (node.emoji || node.iconKey) return;
+
+  ctx.addIssue({
+    code: "custom",
+    message:
+      `"${node.id}" has neither emoji nor iconKey — a node must show one of the two. ` +
+      `Use iconKey when the technology has a brand mark; the authoring guidelines list every ` +
+      `available key. Otherwise pick an emoji.`,
+  });
+};
+
 export const diagramNodeSchema = z
   .object({
-    id: z.string().trim().min(1, "Node id is required"),
+    ...nodeIdentityShape,
     /** Centre of the tile, not its top-left corner. */
     x: z.number(),
     y: z.number(),
-    /** Fallback mark for a technology with no logo in the registry. */
-    emoji: z.string().trim().min(1, "Node emoji must not be empty").optional(),
-    /** A brand mark from the icon registry. Takes precedence over `emoji`. */
-    iconKey: z.enum(DIAGRAM_ICON_KEYS).optional(),
-    name: tileText("Node name"),
-    sub: z
-      .string()
-      .trim()
-      .max(
-        DIAGRAM_LIMITS.TEXT_MAX,
-        `Node sublabel must be at most ${DIAGRAM_LIMITS.TEXT_MAX} characters — abbreviate it to fit the tile`,
-      )
-      .default(""),
-    tile: z.enum(TILE_VARIANTS).default(TILE_VARIANTS.LIGHT),
   })
-  /**
-   * A node has to show something. The rule lives on the node rather than in the
-   * config-level `superRefine` so it travels with the schema wherever a single
-   * node is parsed — the editor's field-level mutations included.
-   */
-  .superRefine((node, ctx) => {
-    if (node.emoji || node.iconKey) return;
+  .superRefine(requireNodeMark);
 
-    ctx.addIssue({
-      code: "custom",
-      message:
-        `"${node.id}" has neither emoji nor iconKey — a node must show one of the two. ` +
-        `Use iconKey when the technology has a brand mark; the authoring guidelines list every ` +
-        `available key. Otherwise pick an emoji.`,
-    });
-  });
-
-export const diagramGroupSchema = z.object({
-  id: z.string().trim().min(1, "Group id is required"),
-  label: tileText("Group label"),
+export const diagramBoundarySchema = z.object({
+  id: z.string().trim().min(1, "Boundary id is required"),
+  label: tileText("Boundary label"),
   icon: z.string().default(""),
   x: z.number(),
   y: z.number(),
-  w: z.number().positive("Group width must be positive"),
-  h: z.number().positive("Group height must be positive"),
-  tone: z.enum(GROUP_TONES),
+  w: z.number().positive("Boundary width must be positive"),
+  h: z.number().positive("Boundary height must be positive"),
+  tone: z.enum(BOUNDARY_TONES),
   dashed: z.boolean().default(false),
-  /** `false` draws the border only — used for nested groups. */
+  /** `false` draws the border only — used for a nested boundary. */
   filled: z.boolean().default(true),
 });
 
 export const diagramEdgeSchema = z.object({
+  /**
+   * Stable identity, so a position in an array is never a handle.
+   *
+   * Optional to write and always present after parsing: an author should not
+   * have to invent a name for something whose identity is already its two
+   * endpoints, but everything downstream — an editor addressing an edge, a
+   * layout keyed by id — needs one that survives reordering.
+   */
+  id: z.string().trim().min(1, "Edge id must not be empty").optional(),
   from: z.string().trim().min(1, "Edge source is required"),
   to: z.string().trim().min(1, "Edge target is required"),
   out: z.enum(ANCHOR_SIDES),
@@ -91,8 +124,47 @@ export const diagramEdgeSchema = z.object({
   style: z.enum(EDGE_STYLES).default(EDGE_STYLES.SOLID),
 });
 
-const diagramConfigShape = z.object({
-  version: z.literal(1),
+/** The least an edge has to be for its id to be derivable. */
+interface EdgeIdentity {
+  id?: string | undefined;
+  from: string;
+  to: string;
+}
+
+/**
+ * Fills in the id an author left out, from the endpoints that already identify
+ * the edge.
+ *
+ * Ids written by hand are reserved before anything is derived, so a derived one
+ * can never take a name the author used further down the array — which would
+ * make the outcome depend on declaration order in a way nobody could predict.
+ *
+ * Exported because the editor mutates raw JSON that may legitimately have no
+ * ids in it, and has to reach the same edge the schema would. Two copies of
+ * this rule would be two answers to "which edge is that", one of them wrong.
+ */
+export const deriveEdgeIds = <T extends EdgeIdentity>(
+  edges: readonly T[],
+): Array<T & { id: string }> => {
+  const taken = new Set(edges.map((edge) => edge.id).filter((id): id is string => Boolean(id)));
+
+  return edges.map((edge) => {
+    if (edge.id) return { ...edge, id: edge.id };
+
+    const base = `${edge.from}-${edge.to}`;
+    let id = base;
+    let suffix = 2;
+    while (taken.has(id)) {
+      id = `${base}-${suffix}`;
+      suffix += 1;
+    }
+
+    taken.add(id);
+    return { ...edge, id };
+  });
+};
+
+const resolvedDiagramShape = z.object({
   title: z.string().trim().min(1, "Title is required").default("diagram"),
   /**
    * A fixed frame, for a diagram that needs an exact size — a slide, a page.
@@ -114,23 +186,31 @@ const diagramConfigShape = z.object({
    * the format: the author picks a tint, the renderer owns the value.
    */
   background: z.enum(CANVAS_TONES).optional(),
-  groups: z
-    .array(diagramGroupSchema)
-    .max(DIAGRAM_LIMITS.MAX_GROUPS, `At most ${DIAGRAM_LIMITS.MAX_GROUPS} groups`),
+  boundaries: z
+    .array(diagramBoundarySchema)
+    .max(DIAGRAM_LIMITS.MAX_BOUNDARIES, `At most ${DIAGRAM_LIMITS.MAX_BOUNDARIES} boundaries`),
   nodes: z
     .array(diagramNodeSchema)
     .min(DIAGRAM_LIMITS.MIN_NODES, "A diagram needs at least one node")
     .max(DIAGRAM_LIMITS.MAX_NODES, `At most ${DIAGRAM_LIMITS.MAX_NODES} nodes`),
   edges: z
     .array(diagramEdgeSchema)
-    .max(DIAGRAM_LIMITS.MAX_EDGES, `At most ${DIAGRAM_LIMITS.MAX_EDGES} edges`),
+    .max(DIAGRAM_LIMITS.MAX_EDGES, `At most ${DIAGRAM_LIMITS.MAX_EDGES} edges`)
+    .transform(deriveEdgeIds),
 });
+
+/** The singular noun each collection's duplicate message speaks in. */
+const ITEM_NOUN = {
+  nodes: "node",
+  boundaries: "boundary",
+  edges: "edge",
+} as const;
 
 /** Reports the first duplicate of each repeated id in `items`. */
 const addDuplicateIdIssues = (
   ctx: z.RefinementCtx,
   items: ReadonlyArray<{ id: string }>,
-  field: "nodes" | "groups",
+  field: keyof typeof ITEM_NOUN,
 ) => {
   const seen = new Set<string>();
   const reported = new Set<string>();
@@ -141,16 +221,17 @@ const addDuplicateIdIssues = (
       ctx.addIssue({
         code: "custom",
         path: [field, index, "id"],
-        message: `${field}[${index}]: duplicate id "${item.id}" — every ${field === "nodes" ? "node" : "group"} id must be unique`,
+        message: `${field}[${index}]: duplicate id "${item.id}" — every ${ITEM_NOUN[field]} id must be unique`,
       });
     }
     seen.add(item.id);
   });
 };
 
-export const diagramConfigSchema = diagramConfigShape.superRefine((config, ctx) => {
+export const resolvedDiagramSchema = resolvedDiagramShape.superRefine((config, ctx) => {
   addDuplicateIdIssues(ctx, config.nodes, "nodes");
-  addDuplicateIdIssues(ctx, config.groups, "groups");
+  addDuplicateIdIssues(ctx, config.boundaries, "boundaries");
+  addDuplicateIdIssues(ctx, config.edges, "edges");
 
   const nodeIds = new Set(config.nodes.map((node) => node.id));
   const available = config.nodes.map((node) => node.id).join(", ");
@@ -207,31 +288,32 @@ export const formatDiagramIssues = (error: z.ZodError): string[] =>
  * render or every problem with it. Phase 1's `/validate` endpoint and the MCP
  * `validate_diagram` tool are thin wrappers over this.
  */
-export const validateDiagramConfig = (
+export const validateResolvedDiagram = (
   input: unknown,
-): { ok: true; config: DiagramConfig } | { ok: false; errors: string[] } => {
-  const parsed = diagramConfigSchema.safeParse(input);
+): { ok: true; config: ResolvedDiagram } | { ok: false; errors: string[] } => {
+  const parsed = resolvedDiagramSchema.safeParse(input);
   return parsed.success
     ? { ok: true, config: parsed.data }
     : { ok: false, errors: formatDiagramIssues(parsed.error) };
 };
 
 export type DiagramNode = z.infer<typeof diagramNodeSchema>;
-export type DiagramGroup = z.infer<typeof diagramGroupSchema>;
-export type DiagramEdge = z.infer<typeof diagramEdgeSchema>;
-export type DiagramConfig = z.infer<typeof diagramConfigSchema>;
+export type DiagramBoundary = z.infer<typeof diagramBoundarySchema>;
+export type ResolvedDiagram = z.infer<typeof resolvedDiagramSchema>;
+
+/** An edge as it is drawn: its id is filled in by the time anyone reads one. */
+export type DiagramEdge = ResolvedDiagram["edges"][number];
 
 /** The authoring shape, before defaults are filled in. */
-export type DiagramConfigInput = z.input<typeof diagramConfigSchema>;
+export type ResolvedDiagramInput = z.input<typeof resolvedDiagramSchema>;
 
 /**
  * The canonical example from the design docs. Doubles as the seed the editor
  * loads on first visit, so there is one example to keep correct rather than two.
  */
-export const EXAMPLE_DIAGRAM_CONFIG: DiagramConfigInput = {
-  version: 1,
+export const EXAMPLE_RESOLVED_DIAGRAM: ResolvedDiagramInput = {
   title: "api-simple",
-  groups: [
+  boundaries: [
     {
       id: "cf",
       label: "CLOUDFLARE",
@@ -240,7 +322,7 @@ export const EXAMPLE_DIAGRAM_CONFIG: DiagramConfigInput = {
       y: 60,
       w: 420,
       h: 240,
-      tone: GROUP_TONES.ORANGE,
+      tone: BOUNDARY_TONES.ORANGE,
     },
   ],
   nodes: [

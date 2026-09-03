@@ -13,10 +13,11 @@ import type { ObjectProperties } from "../types";
  */
 
 /**
- * Semantic tone of a group box. The config author picks meaning, never a
- * colour — that is what keeps every diagram in the same visual family.
+ * Semantic tone of a boundary — the box drawn around what shares a perimeter.
+ * The author picks meaning, never a colour, which is what keeps every diagram
+ * in the same visual family.
  */
-export const GROUP_TONES = {
+export const BOUNDARY_TONES = {
   /** Cloud provider or primary runtime. */
   ORANGE: "orange",
   /** Tooling, monorepo, build. */
@@ -27,23 +28,49 @@ export const GROUP_TONES = {
   NEUTRAL: "neutral",
 } as const;
 
-export type GroupTone = ObjectProperties<typeof GROUP_TONES>;
+export type BoundaryTone = ObjectProperties<typeof BOUNDARY_TONES>;
 
-export const isValidGroupTone = (value: unknown): value is GroupTone =>
-  Object.values(GROUP_TONES).includes(value as GroupTone);
+export const isValidBoundaryTone = (value: unknown): value is BoundaryTone =>
+  Object.values(BOUNDARY_TONES).includes(value as BoundaryTone);
 
-/** Border, fill and label colour for each group tone. */
-export interface GroupToneInfo {
+/**
+ * How much room a derived boundary leaves around what it encloses.
+ *
+ * Named rather than numeric, like every other visual choice in the format: the
+ * author says how tightly the box should read and the renderer owns the pixels.
+ * This is what replaces resizing a grouped boundary by hand — its rectangle is
+ * computed from its members, so there is nothing to drag.
+ */
+export const BOUNDARY_PADDINGS = {
+  TIGHT: "tight",
+  NORMAL: "normal",
+  LOOSE: "loose",
+} as const;
+
+export type BoundaryPadding = ObjectProperties<typeof BOUNDARY_PADDINGS>;
+
+export const isValidBoundaryPadding = (value: unknown): value is BoundaryPadding =>
+  Object.values(BOUNDARY_PADDINGS).includes(value as BoundaryPadding);
+
+/** Whitespace a derived boundary leaves on each side, per padding. */
+export const BOUNDARY_PADDING_SIZE: Record<BoundaryPadding, number> = {
+  [BOUNDARY_PADDINGS.TIGHT]: 30,
+  [BOUNDARY_PADDINGS.NORMAL]: 60,
+  [BOUNDARY_PADDINGS.LOOSE]: 90,
+};
+
+/** Border, fill and label colour for each boundary tone. */
+export interface BoundaryToneInfo {
   border: string;
   fill: string;
   label: string;
 }
 
-export const GROUP_TONE_INFO: Record<GroupTone, GroupToneInfo> = {
-  [GROUP_TONES.ORANGE]: { border: "#f6a04d", fill: "#fdf3e7", label: "#c2410c" },
-  [GROUP_TONES.BLUE]: { border: "#93c5fd", fill: "#f3f8ff", label: "#1d4ed8" },
-  [GROUP_TONES.GREEN]: { border: "#86efac", fill: "#f0fdf4", label: "#15803d" },
-  [GROUP_TONES.NEUTRAL]: { border: "#cbd5e1", fill: "#f8fafc", label: "#475569" },
+export const BOUNDARY_TONE_INFO: Record<BoundaryTone, BoundaryToneInfo> = {
+  [BOUNDARY_TONES.ORANGE]: { border: "#f6a04d", fill: "#fdf3e7", label: "#c2410c" },
+  [BOUNDARY_TONES.BLUE]: { border: "#93c5fd", fill: "#f3f8ff", label: "#1d4ed8" },
+  [BOUNDARY_TONES.GREEN]: { border: "#86efac", fill: "#f0fdf4", label: "#15803d" },
+  [BOUNDARY_TONES.NEUTRAL]: { border: "#cbd5e1", fill: "#f8fafc", label: "#475569" },
 };
 
 /**
@@ -120,7 +147,7 @@ export const DIAGRAM_GEOMETRY = {
   /** Tile is a square of this side. */
   TILE_SIZE: 62,
   TILE_RADIUS: 14,
-  GROUP_RADIUS: 14,
+  BOUNDARY_RADIUS: 14,
   /** Background grid cell. */
   GRID_CELL: 26,
   /** Gap between a tile edge and the start of its edge line. */
@@ -157,7 +184,7 @@ export const DIAGRAM_TYPOGRAPHY = {
   EMOJI_SIZE: 28,
   NAME_SIZE: 13.5,
   SUB_SIZE: 10.5,
-  GROUP_LABEL_SIZE: 11,
+  BOUNDARY_LABEL_SIZE: 11,
   EDGE_LABEL_SIZE: 10.5,
 } as const;
 
@@ -188,6 +215,8 @@ export const DIAGRAM_COLORS = {
  * renderer and any future layout code read the same numbers.
  */
 export const DIAGRAM_LIMITS = {
+  MAX_BOUNDARIES: 12,
+  /** Groups are the relation, not the box: a diagram may name as many as boxes. */
   MAX_GROUPS: 12,
   MIN_NODES: 1,
   MAX_NODES: 40,

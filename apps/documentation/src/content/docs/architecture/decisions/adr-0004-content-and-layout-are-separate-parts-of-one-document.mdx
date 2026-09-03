@@ -1,0 +1,135 @@
+---
+title: "ADR 0004: Content and layout are separate parts of one document"
+description: Split the diagram format into a content part and an optional layout part inside a single envelope, and compose them with a pure resolver before rendering.
+---
+
+# ADR 0004: Content and layout are separate parts of one document
+
+_The authored format becomes `{ version: 2, content, layout }`. `content` is
+what the architecture is; `layout` is how it is composed, and it is optional.
+`resolveDiagram` composes the two into the renderer's input._
+
+## Status
+
+| Field         | Value      |
+| ------------- | ---------- |
+| Status        | Accepted   |
+| Date          | 2026-09-02 |
+| Supersedes    | N/A        |
+| Superseded by | N/A        |
+
+**Implementation status.** Implemented. The format, the validator and the
+resolver live in `packages/domain`, and the editor's text is a v2 document: it
+parses, validates and resolves on every keystroke, and every gesture writes to
+one half of it.
+
+## Context
+
+v1's `DiagramConfig` put two independent kinds of change in one object.
+
+**Content** is what the architecture is: technologies, names, roles,
+relationships, what belongs together. **Layout** is how it is composed: tile
+coordinates, rectangles, the sides an edge leaves and enters.
+
+For a small hand-authored config that costs nothing. It becomes expensive at
+both ends of the tool:
+
+- A model asked for an architecture diagram has to solve architecture _and_
+  geometry in one response, and it is much better at the first. Coordinates it
+  invents are worse than coordinates derived from the edges it just described.
+- A person dragging a tile edits the same document that carries the
+  architectural meaning, so a positional change and a semantic change are
+  indistinguishable in a diff.
+
+The constraint that shapes the answer: the authoring flow has to stay **one JSON
+document**. Requiring two coordinated snippets would add friction at exactly the
+point the tool exists to remove it.
+
+## Decision
+
+One envelope, two named parts.
+
+```json
+{
+  "version": 2,
+  "content": { "title": "payments", "nodes": [], "boundaries": [], "groups": [], "edges": [] },
+  "layout": { "nodes": { "db": { "x": 510, "y": 320 } } }
+}
+```
+
+`layout` is optional and may be partial. It is not called `position` because it
+holds more than tile positions: an ungrouped boundary's rectangle, edge anchors,
+and ADR 0002's fixed `canvas` all belong to it.
+
+A pure domain function composes them:
+
+```ts
+resolveDiagram(document) -> ResolvedDiagram
+```
+
+It is the only place in the system that invents geometry. `renderSVG` keeps its
+role exactly — it draws a fully resolved diagram and never knows whether a
+coordinate came from a model, from auto-layout or from a drag.
+
+Two capabilities make resolution possible where the v1 auto-layout was not
+enough. Supplied positions are treated as **obstacles** rather than being
+re-placed, and a group is laid out as **one block**, recursively, so containment
+holds by construction and a derived boundary can be trusted.
+
+## Alternatives considered
+
+### Two files: `payments.diagram.json` + `payments.layout.json`
+
+The cleanest separation, and the natural fit for a repository where a drag
+should not touch the file a reviewer reads. Rejected as the _authoring_ format:
+the primary flow is pasting one document, and two coordinated snippets is
+friction where the tool is supposed to remove it. The envelope keeps the option
+open — the same two subtrees can be exported as two files later without changing
+the editor or a future MCP contract.
+
+### Keep one flat object and let the model omit coordinates
+
+`x` and `y` become optional on a node, and auto-layout fills the gaps. Half the
+benefit for none of the structure: a drag would still edit the same subtree as a
+rename, and there would be no place to put an edge's anchors or a boundary's
+rectangle without spreading geometry across the whole document.
+
+### A client-side graph store, with the text as an export
+
+The editor holds a parsed model and prints JSON when asked. Rejected because it
+reintroduces the one thing phase 0 removed: two representations that can
+disagree, and a canvas that is right while the text is stale.
+
+## Consequences
+
+- A model that returns only `content` still produces a complete, editable
+  diagram. That is now the documented default, and the authoring guidelines tell
+  it explicitly not to place anything.
+- A drag produces a diff confined to the `layout` subtree.
+- The resolved shape is no longer something anyone authors, so it loses its
+  `version` and gains the name `ResolvedDiagram`.
+- Resolution is **total over any document that validates**: everything the
+  validator rejects is a case the resolver would have had no answer for.
+- Stale layout keys are a validation error rather than a silent drop. The editor
+  keeps layout clean as it edits, so reaching one means it was hand-written.
+
+## Non-goals
+
+- Two files in the normal copy-and-paste workflow.
+- v1 compatibility or migration tooling: v2 replaces v1 outright.
+- Making model-supplied coordinates possible again. `layout` exists for the
+  editor and for a document being handed back; the guidelines forbid a model
+  from writing one.
+
+## When to reopen this decision
+
+If repository collaboration becomes a real workflow — several people editing one
+diagram in Git, where a drag must not touch the file a reviewer reads — the
+two-file export is the natural next step, and it needs no change to the editor
+or to the resolver.
+
+## References
+
+- [Diagram Document v2](/features/diagram-tool/diagram-document-v2)
+- [ADR 0003: A boundary is an element, a group is a relation](/architecture/decisions/adr-0003-a-boundary-is-an-element-a-group-is-a-relation)
+- [ADR 0002: The frame is derived, not declared](/architecture/decisions/adr-0002-the-frame-is-derived-not-declared)

@@ -17,7 +17,12 @@ description: The DiagramConfig contract, and validation written so a model can c
 
 ## What It Does
 
-Defines what a diagram _is_: a set of groups, nodes and edges. Every
+Two contracts, not one. `diagram-document.ts` is the **authored** format — the
+v2 envelope of `content` and `layout` that a person pastes and a model returns.
+`diagram.ts` is the **resolved** contract that `renderSVG` consumes, which
+nobody writes: `resolveDiagram` produces it. This page covers both.
+
+Together they define what a diagram _is_: a set of boundaries, nodes and edges. Every
 surface reads this one contract — the editor validates against it, the renderer
 consumes it, and from phase 1 the MCP tool will accept it. Its failure messages
 are written for whoever authored the config, so a model that gets a config wrong
@@ -37,9 +42,10 @@ can usually fix it without a human stepping in.
 
 ### Domain Model
 
-`DiagramConfig` is the aggregate: arrays of `DiagramGroup`,
-`DiagramNode` and `DiagramEdge`. Groups and nodes are positioned rectangles;
-an edge is a reference between two node ids plus the sides it leaves and enters.
+`DiagramConfig` is the aggregate: arrays of `DiagramBoundary`,
+`DiagramNode` and `DiagramEdge`. Boundaries and nodes are positioned rectangles;
+an edge is a reference between two node ids plus the sides it leaves and enters,
+carrying an `id` of its own so nothing has to address it by array position.
 All four are plain inferred types — data, no behaviour. A node identifies itself
 with either an `iconKey` from the brand registry or an `emoji`; both fields are
 optional on their own, and a node-level rule requires at least one of them.
@@ -56,16 +62,17 @@ list of strings.
 
 ## Decisions
 
-| Decision                                                                        | Why                                                                                                                                                                                                   | Alternatives Considered                                                        |
-| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| One `superRefine` for all cross-field rules                                     | A model that receives three errors at once fixes them in one retry; one error per turn burns three turns                                                                                              | A chain of `.refine()` calls, which stop at the first failure                  |
-| Messages state the fix, not the rule                                            | "`edges[3].to`: \"d2\" does not exist. Available nodes: user, hono, d1" is actionable; a raw Zod path is not                                                                                          | Default Zod messages                                                           |
-| Enums come from the constant objects                                            | `z.enum(GROUP_TONES)` keeps one source; re-listing the literals creates a second that drifts                                                                                                          | Inline string unions                                                           |
-| Text fields chain `.trim()` before `.min(1)`                                    | `.min(1)` alone accepts a string of spaces                                                                                                                                                            | Trimming at the call site                                                      |
-| No overlap detection between nodes                                              | A deliberately tight diagram would trip it, and a false rejection is worse than a cramped render. Spacing guidance lives in the authoring guidelines instead                                          | A hard minimum-distance rule                                                   |
-| `emoji` relaxed to optional rather than kept required                           | Requiring both would force a meaningless glyph onto every node that already has a logo. Requiring neither would let a node render blank. One-of-the-two is the only rule that is both honest and safe | Keeping `emoji` required and treating `iconKey` as decoration                  |
-| The emoji-or-iconKey rule sits on the node schema, not the config `superRefine` | It travels with `diagramNodeSchema` wherever a single node is parsed — the editor's field-level mutations in phase 2 included                                                                         | Adding it to the config-level `superRefine` beside the other cross-field rules |
-| Icon keys derive from the registry via `z.enum(DIAGRAM_ICON_KEYS)`              | A hand-written union would drift the moment an icon is added. Zod's own message lists every valid key, which is exactly the correction a model needs                                                  | A `z.string().refine(isValidDiagramIconKey)` with a custom message             |
+| Decision                                                                        | Why                                                                                                                                                                                                                                                             | Alternatives Considered                                                        |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| One `superRefine` for all cross-field rules                                     | A model that receives three errors at once fixes them in one retry; one error per turn burns three turns                                                                                                                                                        | A chain of `.refine()` calls, which stop at the first failure                  |
+| Messages state the fix, not the rule                                            | "`edges[3].to`: \"d2\" does not exist. Available nodes: user, hono, d1" is actionable; a raw Zod path is not                                                                                                                                                    | Default Zod messages                                                           |
+| Enums come from the constant objects                                            | `z.enum(BOUNDARY_TONES)` keeps one source; re-listing the literals creates a second that drifts                                                                                                                                                                 | Inline string unions                                                           |
+| An edge's `id` is optional to write and derived from `from`/`to` when absent    | An author should not have to name something its own endpoints already identify, and everything downstream needs an identity that survives reordering. `deriveEdgeIds` is exported so the editor, which mutates raw JSON, reaches the same edge the schema would | Requiring an id on every edge; or keeping edges positional                     |
+| Text fields chain `.trim()` before `.min(1)`                                    | `.min(1)` alone accepts a string of spaces                                                                                                                                                                                                                      | Trimming at the call site                                                      |
+| No overlap detection between nodes                                              | A deliberately tight diagram would trip it, and a false rejection is worse than a cramped render. Spacing guidance lives in the authoring guidelines instead                                                                                                    | A hard minimum-distance rule                                                   |
+| `emoji` relaxed to optional rather than kept required                           | Requiring both would force a meaningless glyph onto every node that already has a logo. Requiring neither would let a node render blank. One-of-the-two is the only rule that is both honest and safe                                                           | Keeping `emoji` required and treating `iconKey` as decoration                  |
+| The emoji-or-iconKey rule sits on the node schema, not the config `superRefine` | It travels with `diagramNodeSchema` wherever a single node is parsed — the editor's field-level mutations in phase 2 included                                                                                                                                   | Adding it to the config-level `superRefine` beside the other cross-field rules |
+| Icon keys derive from the registry via `z.enum(DIAGRAM_ICON_KEYS)`              | A hand-written union would drift the moment an icon is added. Zod's own message lists every valid key, which is exactly the correction a model needs                                                                                                            | A `z.string().refine(isValidDiagramIconKey)` with a custom message             |
 
 ## Gotchas & Warnings
 

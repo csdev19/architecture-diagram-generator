@@ -1,15 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { diagramConfigSchema, type DiagramConfigInput } from "../../schemas/diagram";
+import { resolvedDiagramSchema, type ResolvedDiagramInput } from "../../schemas/diagram";
 import { FRAME_PADDING, contentFrame, resolveFrame } from "../frame";
 import { renderSVG } from "../index";
 
-const parse = (input: DiagramConfigInput) => diagramConfigSchema.parse(input);
+const parse = (input: ResolvedDiagramInput) => resolvedDiagramSchema.parse(input);
 
 const oneNode = (
-  overrides: Partial<DiagramConfigInput["nodes"][number]> = {},
-): DiagramConfigInput => ({
-  version: 1,
-  groups: [],
+  overrides: Partial<ResolvedDiagramInput["nodes"][number]> = {},
+): ResolvedDiagramInput => ({
+  boundaries: [],
   nodes: [{ id: "a", x: 0, y: 0, emoji: "🔥", name: "A", ...overrides }],
   edges: [],
 });
@@ -41,8 +40,7 @@ describe("contentFrame", () => {
     // This is the point of deriving the frame: there is no origin to be left of.
     const frame = contentFrame(
       parse({
-        version: 1,
-        groups: [],
+        boundaries: [],
         nodes: [
           { id: "a", x: -900, y: -400, emoji: "🔥", name: "A" },
           { id: "b", x: 300, y: 200, emoji: "🔥", name: "B" },
@@ -57,11 +55,10 @@ describe("contentFrame", () => {
     expect(frame.y + frame.h).toBeGreaterThan(200);
   });
 
-  it("includes a group, label band and all", () => {
+  it("includes a boundary, label band and all", () => {
     const frame = contentFrame(
       parse({
-        version: 1,
-        groups: [{ id: "g", label: "BOX", x: 400, y: 400, w: 300, h: 200, tone: "blue" }],
+        boundaries: [{ id: "g", label: "BOX", x: 400, y: 400, w: 300, h: 200, tone: "blue" }],
         nodes: [{ id: "a", x: 0, y: 0, emoji: "🔥", name: "A" }],
         edges: [],
       }),

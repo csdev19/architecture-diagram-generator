@@ -3,7 +3,7 @@ import { DIAGRAM_ICON_KEYS, DIAGRAM_LIMITS, TILE_VARIANTS } from "@diagram-tool/
 import type { DiagramNode } from "@diagram-tool/domain/schemas";
 import { cn } from "@diagram-tool/web-ui";
 import { EditorInput, EditorSelect, MicroLabel, MonoText } from "@/components/editor/editor-chrome";
-import type { NodePatch } from "@/components/editor/use-diagram-editing";
+import type { NodePatch } from "@/components/editor/edits/content-edits";
 
 /**
  * The panel for the selected tile.

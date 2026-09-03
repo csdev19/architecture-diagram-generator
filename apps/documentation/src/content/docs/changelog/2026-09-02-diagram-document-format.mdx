@@ -1,0 +1,46 @@
+---
+title: "September 02, 2026 - Content and layout, and a resolver between them"
+description: The v2 document format lands in the domain, with groups as a relation, a validator over both halves, and the pure function that composes them for the renderer.
+date: 2026-09-02
+tags:
+  - changelog
+  - feature
+---
+
+✨ **Feature** — the diagram format is now a document with two parts:
+
+```json
+{
+  "version": 2,
+  "content": { "title": "payments", "nodes": [], "boundaries": [], "groups": [], "edges": [] },
+  "layout": { "nodes": { "db": { "x": 510, "y": 320 } } }
+}
+```
+
+`content` is what the architecture is. `layout` is how it is composed, and it is
+optional — a document with no `layout` at all draws a complete diagram. That is
+the point: a model is good at architecture and bad at geometry, so it is now
+told to describe the first and explicitly forbidden from writing the second.
+Recorded in [ADR 0004](/architecture/decisions/adr-0004-content-and-layout-are-separate-parts-of-one-document).
+
+**Groups arrive as a relation.** `{ "id": "runtime", "members": ["cf", "api", "db"] }`
+has no geometry and never will. A group holds at most one boundary — which
+frames the group's other members — and at least one node, directly or through a
+group nested inside it. Membership is a strict tree.
+
+🔧 **`resolveDiagram`** is the only place in the system that invents geometry:
+positions from auto-layout, a grouped boundary's rectangle from what its group
+holds, an edge's anchors from where its endpoints ended up. `renderSVG` is
+untouched, which is the test that the split is real.
+
+Auto-layout gained the two capabilities that made resolution possible. A
+supplied position is an **obstacle** — the node keeps its coordinate exactly and
+everything computed steps around it — and a group is placed as **one block**, so
+containment holds by construction and nothing foreign lands between two members.
+A group carrying a boundary also pays for it during placement rather than after,
+because a box derived later still has to fit in the room reserved earlier.
+
+⚠️ **What changes for an author.** `version` is `2`, nodes no longer carry `x`
+and `y`, edges no longer carry `out` and `inn`, and `groups` means something new.
+The editor still edits a resolved diagram at this point; it moves to the document
+format next.

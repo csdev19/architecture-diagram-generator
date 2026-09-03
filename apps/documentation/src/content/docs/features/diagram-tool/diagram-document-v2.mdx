@@ -1,0 +1,224 @@
+---
+title: Diagram Document v2
+description: The accepted format that separates architecture content from visual layout, and splits the drawn box from the act of grouping.
+---
+
+# Diagram Document v2
+
+> **Status:** Implemented · **Date:** 2026-09-02 · **Scope:** the diagram input
+> contract, the editor and future API/MCP callers. The format, the resolver, the
+> editor and the grouping gestures are all built. What is still open is the
+> phase-1 API and MCP server, which will accept this same envelope.
+
+## Problem
+
+The v1 `DiagramConfig` is an effective renderer contract, but it puts two
+independent kinds of change into one object:
+
+- **Content** — what the architecture is: technologies, names, roles, grouping
+  and relationships.
+- **Layout** — how that architecture is composed: tile coordinates, rectangles
+  and edge anchor sides.
+
+That is convenient for a small, hand-authored config, but it asks a model to
+solve architecture and geometry in the same response, and it means a human
+dragging a tile modifies the same document that carries the architectural
+meaning.
+
+The authoring flow must stay **one JSON document**. Requiring two coordinated
+snippets would add friction at exactly the point the tool exists to remove it.
+
+## The document
+
+```json
+{
+  "version": 2,
+  "content": {
+    "title": "payments",
+    "nodes": [
+      { "id": "web", "iconKey": "react", "name": "Web", "sub": "portal" },
+      { "id": "api", "iconKey": "hono", "name": "API", "sub": "http server" },
+      { "id": "db", "iconKey": "cloudflare", "name": "D1", "sub": "sqlite", "tile": "dark" },
+      { "id": "ci", "emoji": "⚙️", "name": "CI", "sub": "deploy" }
+    ],
+    "boundaries": [{ "id": "cf", "label": "CLOUDFLARE", "tone": "orange", "padding": "normal" }],
+    "groups": [
+      { "id": "runtime", "members": ["cf", "api", "db"] },
+      { "id": "pipeline", "members": ["ci", "web"] }
+    ],
+    "edges": [
+      { "id": "web-api", "from": "web", "to": "api", "label": "HTTPS", "style": "solid" },
+      { "id": "api-db", "from": "api", "to": "db", "label": "SQL", "style": "solid" }
+    ]
+  },
+  "layout": {
+    "nodes": { "db": { "x": 510, "y": 320 } }
+  }
+}
+```
+
+`layout` is optional and may be partial. It is not called `position` because it
+holds more than tile positions: boundary rectangles, edge anchors and the fixed
+frame all belong to it.
+
+| Part      | Owns                                                                      | Does not own                           |
+| --------- | ------------------------------------------------------------------------- | -------------------------------------- |
+| `content` | Identity, nodes, boundaries, grouping, relationships, semantic style      | Coordinates, rectangles, anchor sides  |
+| `layout`  | Node positions, ungrouped boundary rectangles, edge anchors, fixed canvas | Names, relationships, membership, tone |
+| Resolved  | The complete renderer input                                               | A second persisted authoring format    |
+
+Every edge gets an `id`. It is optional to write — omit it and it is derived
+from `from` and `to` — but it always exists after parsing, because addressing an
+edge by array index is not stable when edges are reordered and gives layout no
+safe key to reference.
+
+## A boundary is an element; a group is a relation
+
+The v1 `group` was two ideas fused: a drawn rectangle, and the claim that some
+nodes belong together. v2 separates them.
+
+- A **boundary** is a drawable element, like a tile. It has a label, a tone and
+  a rectangle. It is Figma's Frame.
+- A **group** is a pure relation over N elements — nodes, boundaries and other
+  groups. It is never drawn and has no geometry, ever. It is Figma's Group and
+  Graphviz's cluster. Its only effects are that moving it moves every member,
+  and that auto-layout keeps its members together.
+
+An earlier draft kept one object carrying both a membership list and a
+rectangle, with a rule for who wins when they contradict. No mature tool does
+this: either the box derives from the membership (Figma Group, tldraw, Excalidraw
+`groupIds`, Graphviz clusters) or the membership derives from the box (Figma
+Frame, draw.io containers). **The direction of derivation is the object's
+identity**, and Figma avoided the conflict by shipping two objects rather than
+resolving it. So does v2, and the contradiction stops existing instead of being
+repaired. To be recorded as ADR 0003, written by the first implementation plan —
+it does not exist in the repository yet.
+
+### The invariants
+
+1. A group is never drawn and never has geometry. `layout.groups` does not exist.
+2. A group has **at most one direct boundary**. That boundary frames the group's
+   other direct members; nested groups may each have their own direct boundary.
+   Two sibling boundaries would have the same enclosing responsibility and no
+   unambiguous geometry, so the validator rejects them.
+3. A group contains **at least one node**, directly or through nesting. A group
+   whose only member is a boundary would ask the resolver to enclose nothing,
+   and resolution is total over every document that validates — so the document
+   with no answer has to be the one that does not validate.
+4. A boundary **in a group** derives its rectangle from its group siblings; a
+   boundary **in no group** carries its rectangle in `layout.boundaries[id]`.
+   Being grouped decides the direction of derivation, so there is no ambiguous
+   case.
+5. Resizing a grouped boundary changes its semantic `padding` — `tight`,
+   `normal` or `loose` — never a rectangle. The renderer stays the owner of
+   pixels, exactly as it owns colour.
+6. Moving a group moves every member by the same delta.
+7. Nothing changes membership except grouping and ungrouping. Dragging a tile
+   out of a boundary removes it from nothing; the derived box grows to follow it.
+
+Membership is a **strict tree**: an element has at most one direct group, and a
+group may contain another group. Overlapping membership is rejected — it leaves
+undefined which cluster auto-layout places a node in and what a click selects.
+
+## Resolution
+
+```ts
+resolveDiagram(document) -> ResolvedDiagram
+```
+
+A pure domain function, total over any document that validates:
+
+1. Node positions: supplied ones are used verbatim; missing ones come from
+   deterministic auto-layout that treats supplied ones as fixed obstacles.
+2. Boundary rectangles: a grouped boundary is sized to enclose its group
+   siblings plus its padding; an ungrouped one uses its layout rectangle. A
+   sibling's extent is its node's bounds, a nested boundary's resolved
+   rectangle, or — for a nested group carrying no boundary of its own — the
+   union of that group's members, taken recursively.
+3. Edge anchors: supplied pairs are used; missing ones are the facing pair.
+4. `renderSVG` is unchanged in its role — it draws a fully resolved diagram and
+   never knows whether the geometry came from a model, from auto-layout or from
+   a drag.
+
+Auto-layout gains two capabilities it did not have: it treats supplied positions
+as occupied space rather than re-placing everything, and it lays a group's
+members out as one block by condensing the graph and recursing, which guarantees
+containment and is what makes a derived boundary trustworthy. A group's block is
+measured including the rectangle its boundary will get — padding on four sides,
+label above — because a box derived after placement still has to be paid for
+during it, and one level of nesting is enough to push an unpaid one over the
+neighbouring column.
+
+## AI and MCP flow
+
+The default model task is to produce architecture, not pixels:
+
+```text
+System description
+  -> model returns { version: 2, content }
+  -> validate
+  -> resolveDiagram fills every position, rectangle and anchor
+  -> renderSVG -> preview, SVG or PNG
+  -> human adjusts layout in the editor
+```
+
+A model that returns only `content` always produces an editable diagram. The
+authoring guidelines change from coordinates-required to content-first: the
+model says what belongs together with a group and draws a boundary only when the
+group is a real named perimeter.
+
+## Editor behaviour
+
+One persisted document remains the source of truth, and the textarea's text
+remains the single copy of it.
+
+- Dragging a tile writes only `layout.nodes[id]`.
+- Changing a label, technology or relationship writes only `content`.
+- **Materialise on first touch:** the first gesture that writes layout also
+  writes the resolved positions of everything on screen. Auto-layout is a
+  function of the whole document, so pinning one tile could otherwise move the
+  tiles that were never pinned — correct for a document, wrong for a gesture.
+- Arrange deletes `layout.nodes` and hands placement back to auto-layout. It
+  rewrites layout and never content.
+- Deleting an element deletes its layout entries in the same edit, so the
+  document never contains a stale key.
+- **Grouping a subset nests, it does not steal.** Grouping elements that already
+  share a group puts the new group inside that group, in their place. Pulling
+  them out into a sibling would leave the parent holding a boundary with nothing
+  to frame — a document the editor's own validator rejects.
+- A gesture that would break an invariant writes nothing and says so: grouping
+  two boundaries, adding a second boundary to a group, or taking the last node
+  out of a group that still has one.
+- A grouped boundary is reached by entering its group: double-clicking inside
+  its rectangle, away from any tile, selects it and opens its padding control.
+
+## Compatibility
+
+There is none, and none is needed: no users, no stored documents. v2 replaces
+v1 outright, `version` is `2`, and the only v1 artefact that survives is the
+seed example, converted by hand. A validator reports actionable errors for
+unknown layout ids, duplicate edge ids, overlapping group membership, group
+cycles, multiple direct boundaries in one group, a group holding no node at all,
+and a boundary that is neither
+grouped nor placed.
+
+## Non-goals
+
+- Two JSON files in the normal copy-and-paste workflow. Splitting the envelope
+  into `payments.diagram.json` + `payments.layout.json` stays possible without
+  changing the editor or MCP contract, and is deferred until repository
+  collaboration is a demonstrated need.
+- A v1 compatibility layer or migration tooling.
+- A second renderer or a client-side graph store.
+- Overlapping group membership.
+- Frame-style clipping and reparenting-on-drop.
+- Changing the palette or the renderer's SVG contract.
+
+## Related
+
+- [Config Schema](config-schema) — the resolved contract the renderer consumes
+- [Authoring Guidelines](authoring-guidelines) — content-first in v2
+- [SVG Renderer](svg-renderer) — unchanged; it draws a resolved diagram
+- [Editor Page](editor-page) — where a gesture picks its half of the document
+- [ADR 0002](/architecture/decisions/adr-0002-the-frame-is-derived-not-declared) —
+  `canvas` survives as `layout.canvas`, still an escape hatch

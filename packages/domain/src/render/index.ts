@@ -1,10 +1,10 @@
 import { CANVAS_TONES, CANVAS_TONE_INFO, DIAGRAM_TYPOGRAPHY } from "../constants/diagram";
-import type { DiagramConfig, DiagramNode } from "../schemas/diagram";
+import type { ResolvedDiagram, DiagramNode } from "../schemas/diagram";
 import { renderBackground, renderGridPattern } from "./background";
 import { renderEdge, renderEdgeMarkers } from "./edge";
 import { resolveFrame } from "./frame";
 import type { DiagramFrame } from "./frame";
-import { renderGroup } from "./group";
+import { renderBoundary } from "./boundary";
 import { renderNode } from "./node";
 import { num } from "./svg";
 
@@ -28,7 +28,7 @@ export interface RenderOptions {
 }
 
 /**
- * Renders a validated `DiagramConfig` to a complete SVG document.
+ * Renders a validated `ResolvedDiagram` to a complete SVG document.
  *
  * Pure, deterministic, and free of DOM and Node APIs, so the browser preview
  * and a server-side rasteriser produce byte-identical output. That is the whole
@@ -36,10 +36,10 @@ export interface RenderOptions {
  * what the editor showed. `options` changes only the framing — which part of
  * the drawing is in view — never the drawing.
  *
- * Layer order matters — background, then groups, then edges, then nodes — so a
- * group tint never covers an edge and an edge never crosses over a tile.
+ * Layer order matters — background, then boundaries, then edges, then nodes — so a
+ * boundary tint never covers an edge and an edge never crosses over a tile.
  */
-export const renderSVG = (config: DiagramConfig, options: RenderOptions = {}): string => {
+export const renderSVG = (config: ResolvedDiagram, options: RenderOptions = {}): string => {
   const frame = options.frame ?? resolveFrame(config);
   const nodeById: ReadonlyMap<string, DiagramNode> = new Map(
     config.nodes.map((node) => [node.id, node]),
@@ -49,7 +49,7 @@ export const renderSVG = (config: DiagramConfig, options: RenderOptions = {}): s
   const paper = CANVAS_TONE_INFO[config.background ?? CANVAS_TONES.GREY];
 
   const defs = `<defs>${renderGridPattern()}${renderEdgeMarkers()}</defs>`;
-  const groups = config.groups.map((group) => renderGroup(group, paper)).join("");
+  const boundaries = config.boundaries.map((boundary) => renderBoundary(boundary, paper)).join("");
   const edges = config.edges.map((edge) => renderEdge(edge, nodeById, paper)).join("");
   const nodes = config.nodes.map(renderNode).join("");
 
@@ -59,7 +59,7 @@ export const renderSVG = (config: DiagramConfig, options: RenderOptions = {}): s
     `font-family="${DIAGRAM_TYPOGRAPHY.NAME_FAMILY}">` +
     defs +
     (options.background === false ? "" : renderBackground(frame, paper)) +
-    groups +
+    boundaries +
     edges +
     nodes +
     `</svg>`
@@ -71,3 +71,8 @@ export { DIAGRAM_GUIDELINES } from "./guidelines";
 export { layoutDiagram } from "./layout";
 export { contentFrame, resolveFrame, FRAME_PADDING } from "./frame";
 export type { DiagramFrame } from "./frame";
+export { boundaryBounds, nodeBounds, union } from "./bounds";
+export type { Bounds } from "./bounds";
+export { resolveDiagram } from "./resolve";
+export { facingSides } from "./anchors";
+export type { EdgeAnchors, Point } from "./anchors";

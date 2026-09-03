@@ -14,10 +14,14 @@ describe("EditorPage", () => {
   it("seeds the textarea with the canonical example", () => {
     render(<EditorPage />);
 
-    const textarea = screen.getByLabelText<HTMLTextAreaElement>(/diagram config/i);
+    const textarea = screen.getByLabelText<HTMLTextAreaElement>(/diagram document/i);
 
-    expect(textarea.value).toContain('"version": 1');
+    expect(textarea.value).toContain('"version": 2');
+    expect(textarea.value).toContain('"title": "payments"');
     expect(textarea.value, "the seed lost its brand icons").toContain('"iconKey": "hono"');
+    expect(textarea.value, "the seed should demonstrate a content-only document").not.toContain(
+      '"layout"',
+    );
   });
 
   it("renders the seeded diagram without reporting a problem", () => {
@@ -30,10 +34,10 @@ describe("EditorPage", () => {
   it("names the diagram and its size in the header", () => {
     render(<EditorPage />);
 
-    expect(screen.getByText(/api-simple · 3 nodes · 2 edges/)).toBeInTheDocument();
+    expect(screen.getByText(/payments · 4 nodes · 3 edges/)).toBeInTheDocument();
   });
 
-  it("offers both exports from the File menu once the config is valid", () => {
+  it("offers both exports from the File menu once the document is valid", () => {
     render(<EditorPage />);
     fireEvent.click(screen.getByRole("button", { name: "File" }));
 
