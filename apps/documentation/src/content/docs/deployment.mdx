@@ -66,20 +66,57 @@ docs-only change should not cut a release.
 
 ### Pre-1.0, deliberately
 
-The version line is seeded at **`0.0.0`** and `bump-minor-pre-major` is on.
-Nothing has shipped — there has not even been an alpha — so a `1.0.0` inherited
-from the monorepo template would have been a claim about stability that no
-release supports.
+The version line is seeded at **`0.0.0`**, with `initial-version` at `0.1.0` and
+`bump-minor-pre-major` on. Nothing has shipped — there has not even been an
+alpha — so a `1.0.0` inherited from the monorepo template would have been a
+claim about stability that no release supports.
 
-While the major is `0`, a breaking change bumps the **minor** rather than
-declaring `1.0.0` by accident. The first release cuts `v0.1.0`. Declaring
-`1.0.0` is a deliberate act later: a `Release-As: 1.0.0` footer in a commit
-body.
+**`bump-minor-pre-major` alone does not achieve this**, and assuming it does
+costs you a wrong first release. The schema is precise: _"Breaking changes only
+bump semver minor if version < 1.0.0."_ It governs breaking changes and nothing
+else. It never had an opinion about what a plain `feat` does.
+
+The setting that matters here is `initial-version`. From `0.0.0` release-please
+does not see a version to increment — it sees **no previous release**, and its
+default first release is `1.0.0`. That is what it proposed until
+`"initial-version": "0.1.0"` was added, which is what actually makes the first
+release `v0.1.0`.
+
+Once the line is running, `bump-minor-pre-major` earns its place: while the
+major is `0`, a breaking change bumps the minor rather than declaring `1.0.0` by
+accident. Declaring `1.0.0` stays a deliberate act — a `Release-As: 1.0.0`
+footer in a commit body.
 
 The workspace packages still read `1.0.0` in their own `package.json` files.
 That is the template's number and it is inert — nothing resolves it, nothing
 publishes them, and only the root package's version is the one release-please
 maintains.
+
+### Merge commits are counted twice
+
+A GitHub merge commit's body is the PR title by default:
+
+```
+Merge pull request #19 from csdev19/feat/deploy-custom-domain
+
+feat: give the app a production origin at diagrams.cs19.dev
+```
+
+That body is a valid conventional commit, so release-please counts it **and**
+the original commit it merged. Every PR then appears twice in the changelog —
+once under its real commit, once under the merge.
+
+The fix is one repository setting: **Settings ▸ General ▸ Pull Requests ▸
+Default commit message → `Blank`** for merge commits (`merge_commit_message:
+BLANK` over the API). The merge commit becomes `Merge pull request #19 from …`
+with no body, release-please skips it, and the merge-commit history is kept.
+
+Squash merges solve it too, by making one conventional commit per PR — at the
+cost of the individual commit messages inside a PR, which this repo uses.
+
+It only affects merges made **before** the setting is changed; those entries are
+already in history and can be tidied by editing `CHANGELOG.md` in the release PR
+before merging it.
 
 ### The token is the part that breaks
 
