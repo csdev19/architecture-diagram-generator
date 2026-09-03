@@ -18,7 +18,7 @@ jobs:
     if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -31,8 +31,13 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      # `bun run format:check`, so CI and a local check are the same command and
+      # both read `.oxfmtrc.json`. Its `ignorePatterns` is what keeps generated
+      # files out: release-please rewrites CHANGELOG.md and
+      # .release-please-manifest.json in its own style on every release, so
+      # formatting them is a fight that restarts each time.
       - name: Check formatting
-        run: bunx oxfmt --check .
+        run: bun run format:check
 
       - name: Build packages
         run: bun run build --filter='@diagram-tool/*'
