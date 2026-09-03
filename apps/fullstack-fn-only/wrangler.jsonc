@@ -7,6 +7,22 @@
   "observability": {
     "enabled": true,
   },
+  // The public origin. A custom domain takes the whole hostname, which is why
+  // this is a subdomain and not a route pattern on the apex: `cs19.dev` is a
+  // separate Pages site, and this Worker owns `/auth/*` and `/api/auth/*` —
+  // prefixes it would otherwise have to win from that site request by request.
+  //
+  // `BETTER_AUTH_URL` must name this exact origin. Changing one without the
+  // other invalidates every session.
+  //
+  // Wrangler creates the DNS record on deploy, and needs the `cs19.dev` zone to
+  // live in the same Cloudflare account as this Worker.
+  "routes": [
+    {
+      "pattern": "diagrams.cs19.dev",
+      "custom_domain": true,
+    },
+  ],
   "assets": {
     "directory": "dist/client",
     "binding": "ASSETS",

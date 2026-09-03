@@ -73,6 +73,7 @@ export default defineConfig({
           items: [
             { slug: "application-layer" },
             { slug: "constants-pattern" },
+            { slug: "deployment" },
             { slug: "domain-architecture-patterns" },
             { slug: "environment-variables" },
             { slug: "fullstack-tanstack-elysia" },
