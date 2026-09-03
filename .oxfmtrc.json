@@ -8,6 +8,8 @@
     "**/.astro/**",
     "**/.wrangler/**",
     "**/.source/**",
-    "**/convex/_generated/**"
+    "**/convex/_generated/**",
+    "CHANGELOG.md",
+    ".release-please-manifest.json"
   ]
 }

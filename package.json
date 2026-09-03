@@ -34,7 +34,6 @@
     "prepare": "husky",
     "lint": "oxlint",
     "format": "oxfmt --write .",
-    "format:tracked": "git ls-files | grep -E '\\.(ts|tsx|js|jsx|json|jsonc|md|mdx)$' | xargs oxfmt --write",
     "check": "bun run lint && bun run format",
     "dev": "turbo run dev",
     "build": "turbo run build",
@@ -47,7 +46,8 @@
     "db:push": "dotenvx run -f apps/fullstack-fn-only/.env -- turbo run db:push -F @diagram-tool/infra-db",
     "db:studio": "dotenvx run -f apps/fullstack-fn-only/.env -- turbo run db:studio -F @diagram-tool/infra-db",
     "db:generate": "dotenvx run -f apps/fullstack-fn-only/.env -- turbo run db:generate -F @diagram-tool/infra-db",
-    "db:migrate": "dotenvx run -f apps/fullstack-fn-only/.env -- turbo run db:migrate -F @diagram-tool/infra-db"
+    "db:migrate": "dotenvx run -f apps/fullstack-fn-only/.env -- turbo run db:migrate -F @diagram-tool/infra-db",
+    "format:check": "oxfmt --check ."
   },
   "dependencies": {
     "zod": "catalog:"
