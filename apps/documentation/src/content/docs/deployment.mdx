@@ -1,0 +1,89 @@
+---
+title: Deployment
+description: Where the app is served from, why it is a subdomain, and what still blocks a production deploy
+---
+
+# Deployment
+
+> **Status: the origin is configured, the app is not deployed.** `wrangler.jsonc`
+> names the production hostname and `wrangler deploy` would create it, but the
+> database this app needs is not reachable from a Worker yet. That blocker is
+> the last section, and it is real — nothing on this page claims a working
+> deployment.
+
+## The origin
+
+The app is served from **`https://diagrams.cs19.dev`**, a Worker with a custom
+domain on a zone that already lives on Cloudflare.
+
+```jsonc
+// apps/fullstack-fn-only/wrangler.jsonc
+"routes": [{ "pattern": "diagrams.cs19.dev", "custom_domain": true }]
+```
+
+Wrangler creates the DNS record on the first deploy. The `cs19.dev` zone has to
+be in the same Cloudflare account as the Worker; if it is not, the deploy fails
+naming the zone rather than silently serving nothing.
+
+## Why a subdomain and not `cs19.dev/editor`
+
+`cs19.dev` is a separate static site, already on Cloudflare. Serving this app
+from a path on it looks cheaper than it is.
+
+|                | Subdomain                                 | Path on the apex                                                                                                                              |
+| -------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Routing        | One custom domain, no patterns            | One Worker route per prefix this app owns — `/editor*`, `/auth/*`, `/api/auth/*` — each competing with the static site for the same namespace |
+| Session cookie | Scoped to `diagrams.cs19.dev`             | Scoped to the apex, so it travels on every request to the personal site too                                                                   |
+| Blast radius   | A bad deploy here cannot reach `cs19.dev` | Both projects share one request namespace; a wrong pattern takes down the home page                                                           |
+| Moving later   | Redirect from one hostname                | Every link is a path on someone else's site                                                                                                   |
+
+This app is not a page. It owns `/`, `/editor`, `/auth/login`, `/auth/signup`,
+`/api/auth/*` and `/_authenticated/todos` — six prefixes that would each have to
+be won from the site already answering on that hostname. The alternative,
+moving the whole app under a base path, rewrites every route and every auth
+callback to buy nothing.
+
+## Why not the `workers.dev` URL
+
+It is not less reliable — same edge, same certificate, same uptime. It is a bad
+_public_ address for three other reasons: it reads as a scratch URL to whoever
+you send it to, `*.workers.dev` is blocked by some corporate DNS filters, and
+the address cannot move with the project.
+
+It stays useful as the preview target. Production is the custom domain.
+
+## `BETTER_AUTH_URL` must name this exact origin
+
+better-auth builds its callback and cookie domain from `BETTER_AUTH_URL`. It has
+to be `https://diagrams.cs19.dev` in production, and changing the hostname later
+means changing this variable and invalidating every live session — which is the
+practical reason the address was chosen before the first deploy rather than
+after.
+
+Set it, like every other variable, in `.env` (and `.dev.vars` for local Worker
+secrets). Never add a `vars` block to `wrangler.jsonc`: Wrangler auto-loads
+`.env`, and a second copy in the config drifts from it.
+
+Secrets — `DATABASE_URL`, `BETTER_AUTH_SECRET`, `JWT_PRIVATE_JWK` — are uploaded
+with `wrangler secret put`, not committed anywhere.
+
+## What still blocks a deploy
+
+**The database is Postgres, and a Worker cannot open a TCP connection to it.**
+`fullstackServerEnvSchema` requires `DATABASE_URL`, and
+`packages/infra-db/drizzle.config.ts` declares `dialect: "postgresql"`. A
+Worker's runtime has no raw TCP socket to a database, so the current
+configuration works in local dev and fails in production.
+
+Three ways out, none of them chosen yet:
+
+| Option                     | What changes                                                                                   |
+| -------------------------- | ---------------------------------------------------------------------------------------------- |
+| Neon or Supabase over HTTP | A serverless driver replaces the node-postgres client; `DATABASE_URL` becomes an HTTP endpoint |
+| Hyperdrive                 | Cloudflare pools the connection; a binding is added and `DATABASE_URL` points at it            |
+| Cloudflare D1              | The dialect changes to SQLite — the largest change, and it touches every migration             |
+
+Until one is picked and implemented, `wrangler deploy` produces a Worker that
+serves the editor and fails on anything that reads the database — which is
+login, signup and todos. The editor itself runs entirely in the browser, so it
+would work; that is a coincidence of the architecture, not a deployment plan.

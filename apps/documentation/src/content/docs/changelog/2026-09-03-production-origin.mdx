@@ -1,0 +1,40 @@
+---
+title: "September 03, 2026 - The app has a production origin"
+description: The Worker now names diagrams.cs19.dev as its custom domain, with the reasoning for a subdomain over a path on the apex, and an honest account of what still blocks a deploy.
+date: 2026-09-03
+tags:
+  - changelog
+  - infrastructure
+---
+
+🚀 **Infrastructure** — the app has a production address:
+**`https://diagrams.cs19.dev`**, declared as a custom domain in
+`apps/fullstack-fn-only/wrangler.jsonc`. Wrangler creates the DNS record on the
+first deploy, on a zone already served by Cloudflare.
+
+The choice was between a subdomain, a path on the existing `cs19.dev` site, and
+the `workers.dev` URL. The subdomain won because **this is an app, not a page**:
+it owns `/`, `/editor`, `/auth/login`, `/auth/signup`, `/api/auth/*` and
+`/_authenticated/todos`. Serving it from `cs19.dev/editor` means one Worker
+route per prefix, each competing with the static site already answering on that
+hostname — or moving the whole app under a base path, which rewrites every route
+and every auth callback to buy nothing. It also scopes the better-auth session
+cookie to the apex, where it travels on every request to the personal site.
+
+The `workers.dev` URL is not less reliable — same edge, same certificate. It is
+a poor _public_ address: it reads as a scratch URL, `*.workers.dev` is blocked
+by some corporate DNS filters, and it cannot move with the project. It stays the
+preview target.
+
+⚠️ **Not deployed yet, and the blocker is real.** The database is Postgres
+(`dialect: "postgresql"`, a `DATABASE_URL` in `fullstackServerEnvSchema`) and a
+Worker cannot open a TCP connection to one. Until that is resolved — a
+serverless HTTP driver, Hyperdrive, or a move to D1 — a deploy would serve the
+editor, which runs entirely in the browser, and fail on login, signup and todos.
+The [Deployment guide](/deployment) records the three options and picks none of
+them.
+
+⚠️ **`BETTER_AUTH_URL` must name this exact origin.** better-auth builds its
+callbacks and cookie domain from it, so changing the hostname later means
+changing the variable and invalidating every live session. That is the practical
+reason the address was settled before the first deploy rather than after.
