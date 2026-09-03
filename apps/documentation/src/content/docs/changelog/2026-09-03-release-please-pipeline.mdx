@@ -1,0 +1,48 @@
+---
+title: "September 03, 2026 - Releases are tags, cut by release-please"
+description: The repo adopts release-please on a single version line, and the deploy moves from a production branch that never existed to the tag a release cuts.
+date: 2026-09-03
+tags:
+  - changelog
+  - infrastructure
+---
+
+🏷️ **Infrastructure** — the repo now versions itself. `release-please` maintains
+a rolling release PR on `main`; merging it bumps `package.json`, writes
+`CHANGELOG.md` and pushes a `vX.Y.Z` tag. A new workflow deploys the Worker from
+that tag.
+
+**`main` is the current state of the code; production is a tag.** Promotion is
+cutting a release, not merging a branch. The deploy checks out the tag, so
+rolling back is re-running the older tag's run from the Actions UI rather than
+reverting and rebuilding a moving target.
+
+**One version line**, because there is exactly one deployable — the closure rule
+has nothing to intersect. Tags are plain `vX.Y.Z`. The workspace packages are
+deliberately not versioned individually: none is published, so their version
+numbers would be decoration nobody resolves, and their commits already count
+toward the single line.
+
+**Seeded at `0.0.0`, not `1.0.0`.** The root `package.json` carried `1.0.0`
+from the monorepo template, which was a claim no release supported — this
+product has never shipped, not even an alpha. With `bump-minor-pre-major` on, a
+breaking change bumps the minor while the major is `0`, so the first release
+cuts `v0.1.0` and `1.0.0` stays a deliberate act for later.
+
+🐛 **Fix on the way through** — the old deploy uploaded two of the five secrets
+`fullstackServerEnvSchema` requires, and `env` is parsed at module scope, so the
+Worker would have thrown on its first request. It also uploaded
+`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` as Worker secrets — deploy
+credentials the app never reads, handed to the runtime that could then redeploy
+itself. The tag-triggered workflow uploads all five runtime secrets and neither
+credential.
+
+⚠️ **The token is what breaks this.** `release-please.yml` needs a PAT, not the
+default `GITHUB_TOKEN`: GitHub suppresses the events that token raises, so a tag
+it pushes triggers nothing. The release PR would open, merge and tag, and no
+deploy would run — silently.
+
+⚠️ **Still not deployed.** The database blocker from the
+[Deployment guide](/deployment) is unchanged, and none of these workflows has
+executed. The deleted `deploy-production.yml` triggered on a `production` branch
+that was never created, so removing it closed no path that existed.
