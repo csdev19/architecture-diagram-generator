@@ -114,7 +114,7 @@ export function NodeInspector({ node, darkTileCount, onChange }: NodeInspectorPr
         hint={`${darkTileCount} dark ${darkTileCount === 1 ? "tile" : "tiles"} in this diagram — keep it to two or three.`}
       >
         <div
-          role="group"
+          role="boundary"
           aria-label="Tile"
           className="flex gap-1 rounded-[8px] border border-ed-border bg-ed-field p-1"
         >

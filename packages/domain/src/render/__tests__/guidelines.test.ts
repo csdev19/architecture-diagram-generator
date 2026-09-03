@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DIAGRAM_GEOMETRY, DIAGRAM_LIMITS, GROUP_TONES } from "../../constants/diagram";
+import { DIAGRAM_GEOMETRY, DIAGRAM_LIMITS, BOUNDARY_TONES } from "../../constants/diagram";
 import { DIAGRAM_ICON_KEYS } from "../../constants/diagram-icons";
 import { FRAME_PADDING } from "../frame";
 import { DIAGRAM_GUIDELINES } from "../guidelines";
@@ -14,7 +14,7 @@ describe("DIAGRAM_GUIDELINES", () => {
   it("states the limits the schema enforces", () => {
     expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_LIMITS.TEXT_MAX));
     expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_LIMITS.MAX_NODES));
-    expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_LIMITS.MAX_GROUPS));
+    expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_LIMITS.MAX_BOUNDARIES));
     expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_LIMITS.MAX_EDGES));
     expect(DIAGRAM_GUIDELINES).toContain(String(FRAME_PADDING));
     expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_GEOMETRY.TILE_SIZE));
@@ -26,8 +26,8 @@ describe("DIAGRAM_GUIDELINES", () => {
     expect(DIAGRAM_GUIDELINES).toContain("Do NOT emit a `canvas`");
   });
 
-  it("names every group tone the schema accepts", () => {
-    for (const tone of Object.values(GROUP_TONES)) {
+  it("names every boundary tone the schema accepts", () => {
+    for (const tone of Object.values(BOUNDARY_TONES)) {
       expect(DIAGRAM_GUIDELINES, `guidelines never mention the "${tone}" tone`).toContain(tone);
     }
   });

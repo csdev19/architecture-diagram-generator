@@ -18,7 +18,7 @@ const singleNode = (
 ): DiagramConfigInput => ({
   version: 1,
   canvas: { w: 700, h: 360 },
-  groups: [],
+  boundaries: [],
   nodes: [{ id: "n1", x: 350, y: 180, emoji: "🔥", name: "Hono", ...node }],
   edges: [],
 });
@@ -54,7 +54,7 @@ describe("renderSVG", () => {
       const svg = render({
         version: 1,
         canvas: { w: 700, h: 360 },
-        groups: [],
+        boundaries: [],
         nodes: [
           { id: "a", x: 200, y: 180, emoji: "🖥️", name: "A" },
           { id: "b", x: 500, y: 180, emoji: "🔥", name: "B" },
@@ -65,11 +65,11 @@ describe("renderSVG", () => {
       expect(svg).toContain("a &amp; b");
     });
 
-    it("escapes XML metacharacters in a group label", () => {
+    it("escapes XML metacharacters in a boundary label", () => {
       const svg = render({
         version: 1,
         canvas: { w: 700, h: 360 },
-        groups: [{ id: "g", label: "R&D", x: 100, y: 60, w: 400, h: 240, tone: "blue" }],
+        boundaries: [{ id: "g", label: "R&D", x: 100, y: 60, w: 400, h: 240, tone: "blue" }],
         nodes: [{ id: "n1", x: 350, y: 180, emoji: "🔥", name: "Hono" }],
         edges: [],
       });
@@ -145,7 +145,7 @@ describe("renderSVG", () => {
       const svg = render(singleNode({ emoji: "🔥" }));
 
       expect(svg).toContain("🔥");
-      expect(svg, "an emoji node must not carry an icon group").not.toContain("scale(");
+      expect(svg, "an emoji node must not carry an icon boundary").not.toContain("scale(");
       expect(svg).toContain(`font-size="${DIAGRAM_TYPOGRAPHY.EMOJI_SIZE}"`);
     });
   });
@@ -154,7 +154,7 @@ describe("renderSVG", () => {
     const twoNodes = (style: "solid" | "dashed"): DiagramConfigInput => ({
       version: 1,
       canvas: { w: 700, h: 360 },
-      groups: [],
+      boundaries: [],
       nodes: [
         { id: "a", x: 200, y: 180, emoji: "🖥️", name: "A" },
         { id: "b", x: 500, y: 180, emoji: "🔥", name: "B" },
@@ -181,15 +181,15 @@ describe("renderSVG", () => {
   });
 
   describe("layer order", () => {
-    it("draws groups behind edges, and edges behind nodes", () => {
+    it("draws boundaries behind edges, and edges behind nodes", () => {
       const svg = render(EXAMPLE_DIAGRAM_CONFIG);
 
-      const group = svg.indexOf("CLOUDFLARE");
+      const boundary = svg.indexOf("CLOUDFLARE");
       const edge = svg.indexOf("HTTPS");
       const node = svg.indexOf("sqlite");
 
-      expect(group).toBeGreaterThan(-1);
-      expect(group).toBeLessThan(edge);
+      expect(boundary).toBeGreaterThan(-1);
+      expect(boundary).toBeLessThan(edge);
       expect(edge).toBeLessThan(node);
     });
   });

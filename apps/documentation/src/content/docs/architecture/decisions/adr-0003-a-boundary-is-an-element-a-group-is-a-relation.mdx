@@ -1,0 +1,141 @@
+---
+title: "ADR 0003: A boundary is an element, a group is a relation"
+description: Split the v1 group into a drawable boundary with a rectangle and a group that is pure membership with no geometry, so the drawing can never contradict the document.
+---
+
+# ADR 0003: A boundary is an element, a group is a relation
+
+_The v1 `group` becomes a `boundary`: a drawable element with a rectangle. The
+word "group" is reserved for a relation over elements that is never drawn and
+has no geometry at all._
+
+## Status
+
+| Field         | Value      |
+| ------------- | ---------- |
+| Status        | Accepted   |
+| Date          | 2026-09-02 |
+| Supersedes    | N/A        |
+| Superseded by | N/A        |
+
+**Implementation status.** The rename ships with the boundaries plan; the
+`groups` relation is modelled in the document format plan and becomes an editor
+gesture in the grouping plan. This ADR records the decision, not a finished
+feature — the branch that introduces it contains boundaries and edge ids only.
+
+## Context
+
+v1's `group` fused two ideas into one object:
+
+```json
+{ "id": "cf", "label": "CLOUDFLARE", "tone": "orange", "x": 240, "y": 60, "w": 420, "h": 240 }
+```
+
+It is a **rectangle to draw**, and it is the claim that **these nodes belong
+together**. In a hand-authored config that fusion costs nothing, because the
+author supplies the rectangle and the membership is whatever the rectangle
+happens to enclose.
+
+Diagram Document v2 breaks it. Once a model is asked to describe architecture
+without geometry, membership has to be expressible on its own — otherwise a
+content-only document cannot produce a single group box, because the box is pure
+geometry and geometry is exactly what the model must not invent.
+
+The obvious repair was to give the object both: a `nodeIds` list _and_ a
+rectangle, with a rule for who wins when they disagree, plus a "fit to members"
+button to repair the disagreement. That design has a state where the drawing
+lies about the document, reachable with one drag.
+
+## Decision
+
+Ship two objects instead of one rule.
+
+- A **boundary** is a drawable element, like a tile: a label, a tone, and a
+  rectangle. It is Figma's Frame, draw.io's container, Excalidraw's frame.
+- A **group** is a relation over N elements — nodes, boundaries, other groups.
+  It is never drawn and has no geometry, ever. It is Figma's Group, Excalidraw's
+  `groupIds`, Graphviz's `cluster`.
+
+The invariants that follow:
+
+1. A group is never drawn and never has geometry.
+2. A group has at most one direct boundary, which frames its other direct
+   members. A nested group may have its own.
+3. A group contains at least one node, directly or through nesting — otherwise a
+   boundary would be asked to enclose nothing.
+4. A boundary in a group derives its rectangle from its group siblings; a
+   boundary in no group carries its own. Being grouped decides the direction of
+   derivation, so no case is ambiguous.
+5. Resizing a grouped boundary changes its semantic padding, never a rectangle.
+6. Moving a group moves every member by the same delta.
+7. Nothing changes membership except grouping and ungrouping.
+
+Membership is a strict tree: an element has at most one direct group.
+
+## Alternatives considered
+
+### One object with both, and a rule for who wins
+
+`nodeIds` plus `{x,y,w,h}`, layout winning when present, and a "fit to members"
+action to reconcile them. Rejected after surveying the field:
+
+| Tool                               | Object      | Source of truth | Dragging a member out         |
+| ---------------------------------- | ----------- | --------------- | ----------------------------- |
+| Figma Group, tldraw group          | relation    | membership      | Stays a member; the box grows |
+| Excalidraw `groupIds`              | relation    | membership      | Stays a member; the box grows |
+| Figma Frame, Excalidraw frame      | element     | the rectangle   | Leaves the frame              |
+| draw.io / mxGraph container        | element     | the rectangle   | Is reparented out             |
+| Graphviz cluster, Mermaid subgraph | declarative | membership      | N/A — no direct manipulation  |
+
+Either the box derives from the membership or the membership derives from the
+box. **The direction of derivation is the object's identity**, and not one of
+these tools authors both. Figma did not resolve the conflict; it avoided the
+conflict by shipping two objects. A reconciliation rule would have been a design
+nobody else has needed, guarding a state that should not be representable.
+
+### Membership derived from the rectangle only
+
+Keep v1's box and compute `nodeIds` from what falls inside it. The editor gesture
+survives untouched and nothing can contradict anything — but a content-only
+document is again unable to express a group, which is the requirement that
+started this. Rejected.
+
+### Membership authoritative, rectangles never authorable
+
+Drop `layout.boundaries` entirely and always derive. One truth, trivial
+resolver. Rejected because it removes hand-resizing, the deliberately padded
+nested box, and the decorative boundary around empty space — and it pushes
+toward "moving a group moves its members" as the only model, which is a
+different feature.
+
+## Consequences
+
+- A content-only document can express structure: the model says what belongs
+  together, and the geometry is computed.
+- The contradiction the earlier draft needed a button for is not representable.
+- A drawn box becomes a grouping gesture — the tiles it encloses become members,
+  and the rectangle that appears is the derived one, which may snap tighter or
+  looser on release. That is what `⌘G` does everywhere else.
+- A grouped boundary can no longer be resized by hand. `padding` —
+  `tight` / `normal` / `loose` — replaces it, which keeps the renderer the owner
+  of pixels exactly as it owns colour.
+- `tone` becomes `BOUNDARY_TONES`, `MAX_GROUPS` becomes `MAX_BOUNDARIES`, and
+  `renderGroup` becomes `renderBoundary`. Renaming the whole vocabulary at once
+  is what makes the word "group" safe to reuse.
+
+## Non-goals
+
+- Frame-style clipping, and reparenting an element by dropping it into a box.
+- Overlapping membership: an element belongs to at most one group.
+- A group that draws anything of its own, now or later.
+
+## When to reopen this decision
+
+If a real need appears for a box that owns its contents — clipping them,
+reparenting on drop, or laying them out itself — that is Figma's Frame and it is
+a third object, not a change to either of these two.
+
+## References
+
+- [Diagram Document v2](/features/diagram-tool/diagram-document-v2)
+- [ADR 0002: The frame is derived, not declared](/architecture/decisions/adr-0002-the-frame-is-derived-not-declared)

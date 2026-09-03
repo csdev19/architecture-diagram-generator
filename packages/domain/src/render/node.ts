@@ -27,7 +27,7 @@ const renderMark = (node: DiagramNode): string => {
     const icon = DIAGRAM_ICONS[node.iconKey];
     const offset = ICON_SIZE / 2;
 
-    // simple-icons paths are authored at 24x24 from the origin, so the group is
+    // simple-icons paths are authored at 24x24 from the origin, so the boundary is
     // moved to where the mark's top-left corner belongs and scaled up from there.
     return (
       `<g transform="translate(${num(node.x - offset)} ${num(node.y - offset)}) ` +

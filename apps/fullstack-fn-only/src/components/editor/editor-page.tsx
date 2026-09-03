@@ -3,13 +3,13 @@ import { toast } from "sonner";
 import { EXAMPLE_DIAGRAM_CONFIG, validateDiagramConfig } from "@diagram-tool/domain/schemas";
 import type { DiagramConfig } from "@diagram-tool/domain/schemas";
 import { renderSVG } from "@diagram-tool/domain/render";
-import { GROUP_TONES, TILE_VARIANTS } from "@diagram-tool/domain/constants";
+import { BOUNDARY_TONES, TILE_VARIANTS } from "@diagram-tool/domain/constants";
 import { downloadConfig, downloadSvg, downloadSvgAsPng } from "@/lib/export-png";
 import { DiagramPanel } from "@/components/editor/diagram-panel";
 import { DiagramStage } from "@/components/editor/diagram-stage";
 import { EdgeTools } from "@/components/editor/edge-tools";
 import { EditorHeader } from "@/components/editor/editor-header";
-import { GroupInspector } from "@/components/editor/group-inspector";
+import { BoundaryInspector } from "@/components/editor/boundary-inspector";
 import { EDITOR_TOOLS, TOOL_ORDER } from "@/components/editor/editor-tools";
 import type { EditorTool } from "@/components/editor/editor-tools";
 import { JsonPanel } from "@/components/editor/json-panel";
@@ -128,9 +128,9 @@ export function EditorPage() {
     selection?.kind === "node"
       ? (shown?.config.nodes.find((node) => node.id === selection.id) ?? null)
       : null;
-  const selectedGroup =
-    selection?.kind === "group"
-      ? (shown?.config.groups.find((group) => group.id === selection.id) ?? null)
+  const selectedBoundary =
+    selection?.kind === "boundary"
+      ? (shown?.config.boundaries.find((boundary) => boundary.id === selection.id) ?? null)
       : null;
   const tile = findPaletteTile(tileKey);
   const tileLabel = tile?.label ?? "tile";
@@ -221,29 +221,29 @@ export function EditorPage() {
     if (!selection) return;
 
     if (selection.kind === "node") edit.removeNode(selection.id);
-    else edit.removeGroup(selection.id);
+    else edit.removeBoundary(selection.id);
 
     setSelection(null);
   };
 
   /**
-   * Commits a box drawn with the group tool.
+   * Commits a box drawn with the boundary tool.
    *
-   * It lands neutral and named `GROUP`, then opens in the inspector: the tone
+   * It lands neutral and named `BOUNDARY`, then opens in the inspector: the tone
    * is a claim about the system being drawn and the label is the author's
    * words, so neither is something a drag can guess.
    */
-  const handleDrawGroup = (box: { x: number; y: number; w: number; h: number }) => {
+  const handleDrawBoundary = (box: { x: number; y: number; w: number; h: number }) => {
     if (!shown) return;
 
     const id = uniqueNodeId(
-      "group",
-      shown.config.groups.map((group) => group.id),
+      "boundary",
+      shown.config.boundaries.map((boundary) => boundary.id),
     );
 
-    edit.addGroup({ id, label: "GROUP", tone: GROUP_TONES.NEUTRAL, ...box });
+    edit.addBoundary({ id, label: "BOUNDARY", tone: BOUNDARY_TONES.NEUTRAL, ...box });
     changeTool(EDITOR_TOOLS.SELECT);
-    handleSelect({ kind: "group", id });
+    handleSelect({ kind: "boundary", id });
   };
 
   // `1`–`6` pick a tool, Escape backs out of whatever is armed, and Delete
@@ -265,7 +265,7 @@ export function EditorPage() {
         event.preventDefault();
 
         if (selection.kind === "node") edit.removeNode(selection.id);
-        else edit.removeGroup(selection.id);
+        else edit.removeBoundary(selection.id);
         setSelection(null);
         return;
       }
@@ -372,8 +372,8 @@ export function EditorPage() {
         onDropTile={handleDropTile}
         onNodeMove={edit.moveNode}
         onNodeRestore={edit.setNodePosition}
-        onGroupMove={edit.moveGroup}
-        onDrawGroup={handleDrawGroup}
+        onBoundaryMove={edit.moveBoundary}
+        onDrawBoundary={handleDrawBoundary}
         onDeleteSelected={handleDeleteSelected}
         insets={insets}
       />
@@ -398,10 +398,10 @@ export function EditorPage() {
               darkTileCount={darkTileCount}
               onChange={(patch) => edit.updateNodeFields(selectedNode.id, patch)}
             />
-          ) : selectedGroup ? (
-            <GroupInspector
-              group={selectedGroup}
-              onChange={(patch) => edit.updateGroupFields(selectedGroup.id, patch)}
+          ) : selectedBoundary ? (
+            <BoundaryInspector
+              boundary={selectedBoundary}
+              onChange={(patch) => edit.updateBoundaryFields(selectedBoundary.id, patch)}
             />
           ) : shown ? (
             <DiagramPanel config={shown.config} onBackgroundChange={edit.setBackground} />

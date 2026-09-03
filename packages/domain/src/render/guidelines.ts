@@ -1,4 +1,9 @@
-import { CANVAS_TONES, DIAGRAM_GEOMETRY, DIAGRAM_LIMITS, GROUP_TONES } from "../constants/diagram";
+import {
+  CANVAS_TONES,
+  DIAGRAM_GEOMETRY,
+  DIAGRAM_LIMITS,
+  BOUNDARY_TONES,
+} from "../constants/diagram";
 import { FRAME_PADDING } from "./frame";
 import { DIAGRAM_ICON_KEYS } from "../constants/diagram-icons";
 
@@ -26,8 +31,8 @@ Return ONLY the JSON object — no markdown fence, no commentary.
 ## Process
 
 1. List the components of the system described. Each becomes a node.
-2. Group what genuinely shares a boundary: a cloud provider, a runtime, a
-   monorepo, third-party services. Do not invent a group that adds nothing.
+2. Draw a boundary around what genuinely shares a perimeter: a cloud provider, a
+   runtime, a monorepo, third-party services. Do not invent one that adds nothing.
 3. Trace the main request/data path. Those are \`solid\` edges, labelled with the
    protocol — "HTTPS", "SQL", "query", "WebSocket".
 4. Everything else — auth, deploy, hooks, queues, side channels — is a
@@ -62,11 +67,11 @@ that frame is then cropped. Leave it out unless the user asked for a size.)
   buckets) on the right.
 - Secondary nodes — auth, cache — go in a second row 140px below, aligned on \`x\`
   with whatever they attach to.
-- Tooling and infrastructure (build, lint, IaC) belong in their own group, in a
+- Tooling and infrastructure (build, lint, IaC) belong in their own boundary, in a
   lower band of their own.
 - Keep at least 140px between node centres, horizontally and vertically.
-- Give a group about 60px of padding around the nodes it contains. A nested
-  group uses \`filled: false\` and \`dashed: true\`.
+- Give a boundary about 60px of padding around the nodes it contains. A nested
+  boundary uses \`filled: false\` and \`dashed: true\`.
 
 ## Content
 
@@ -81,9 +86,9 @@ that frame is then cropped. Leave it out unless the user asked for a size.)
   \`${CANVAS_TONES.BLUE}\` as blueprint paper; the rest are neutral.
 - Edge labels: short and technical. Protocol names stay as they are; other words
   follow the language the user is writing in.
-- Group \`tone\` is semantic, never a colour: \`${GROUP_TONES.ORANGE}\` for the
-  primary cloud or runtime, \`${GROUP_TONES.BLUE}\` for tooling and the monorepo,
-  \`${GROUP_TONES.GREEN}\` for external services and data, \`${GROUP_TONES.NEUTRAL}\`
+- Boundary \`tone\` is semantic, never a colour: \`${BOUNDARY_TONES.ORANGE}\` for the
+  primary cloud or runtime, \`${BOUNDARY_TONES.BLUE}\` for tooling and the monorepo,
+  \`${BOUNDARY_TONES.GREEN}\` for external services and data, \`${BOUNDARY_TONES.NEUTRAL}\`
   for anything else. The renderer owns the palette — pick meaning and let it
   choose the hex.
 
@@ -113,10 +118,13 @@ noticeably longer line.
 
 - \`version\` must be 1.
 - Coordinates are unbounded. Nothing is rejected for being too far out.
-- At most ${DIAGRAM_LIMITS.MAX_GROUPS} groups, ${DIAGRAM_LIMITS.MIN_NODES}-${DIAGRAM_LIMITS.MAX_NODES} nodes, at most ${DIAGRAM_LIMITS.MAX_EDGES} edges.
-- Node ids and group ids must each be unique.
+- At most ${DIAGRAM_LIMITS.MAX_BOUNDARIES} boundaries, ${DIAGRAM_LIMITS.MIN_NODES}-${DIAGRAM_LIMITS.MAX_NODES} nodes, at most ${DIAGRAM_LIMITS.MAX_EDGES} edges.
+- Node ids and boundary ids must each be unique.
 - Every \`edge.from\` and \`edge.to\` must name a node that exists, and an edge
   cannot connect a node to itself.
+- An edge's \`id\` is optional. Leave it out and it is derived from \`from\` and
+  \`to\`; write one only when two edges connect the same pair and you want to be
+  able to tell them apart.
 - Every node carries an \`iconKey\` from the list above or an \`emoji\`.
 
 ## Check before answering

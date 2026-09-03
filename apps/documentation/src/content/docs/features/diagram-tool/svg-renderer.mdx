@@ -31,17 +31,17 @@ rectangle the camera is looking at instead — the same scene, framed differentl
 
 ### Files Changed
 
-| Path                                       | Purpose                                                    |
-| ------------------------------------------ | ---------------------------------------------------------- |
-| `packages/domain/src/render/index.ts`      | `renderSVG` — composes the layers and fixes their order    |
-| `packages/domain/src/render/svg.ts`        | XML escaping, coordinate formatting, text-width estimation |
-| `packages/domain/src/render/frame.ts`      | `contentFrame` — the document's bounds, from its contents  |
-| `packages/domain/src/render/background.ts` | Paper fill and the dashed grid pattern                     |
-| `packages/domain/src/render/group.ts`      | Group box, with its label punched through the top border   |
-| `packages/domain/src/render/node.ts`       | Tile, brand mark or emoji, name and sublabel               |
-| `packages/domain/src/render/edge.ts`       | Anchor geometry, line, arrowheads and labels               |
-| `packages/domain/src/render/layout.ts`     | `layoutDiagram` — coordinates derived from the topology    |
-| `packages/domain/tsdown.config.ts`         | Adds the `render` entry so the subpath export exists       |
+| Path                                       | Purpose                                                     |
+| ------------------------------------------ | ----------------------------------------------------------- |
+| `packages/domain/src/render/index.ts`      | `renderSVG` — composes the layers and fixes their order     |
+| `packages/domain/src/render/svg.ts`        | XML escaping, coordinate formatting, text-width estimation  |
+| `packages/domain/src/render/frame.ts`      | `contentFrame` — the document's bounds, from its contents   |
+| `packages/domain/src/render/background.ts` | Paper fill and the dashed grid pattern                      |
+| `packages/domain/src/render/boundary.ts`   | Boundary box, with its label punched through the top border |
+| `packages/domain/src/render/node.ts`       | Tile, brand mark or emoji, name and sublabel                |
+| `packages/domain/src/render/edge.ts`       | Anchor geometry, line, arrowheads and labels                |
+| `packages/domain/src/render/layout.ts`     | `layoutDiagram` — coordinates derived from the topology     |
+| `packages/domain/tsdown.config.ts`         | Adds the `render` entry so the subpath export exists        |
 
 ### Domain Model
 
@@ -50,8 +50,8 @@ N/A — the renderer consumes the domain model rather than defining one.
 ### Key Logic
 
 Each layer is a small pure function returning a string, and the composer
-concatenates them in a fixed order: background, groups, edges, nodes. That order
-is the whole layout contract — a group tint never covers an edge, and an edge
+concatenates them in a fixed order: background, boundaries, edges, nodes. That
+order is the whole layout contract — a boundary tint never covers an edge, and an edge
 never crosses over a tile. Edge anchors are computed from the side named in the
 config, offset clear of the tile, with the bottom side dropping further to clear
 the node's text. Coordinates round to two decimals so equal inputs always
@@ -70,7 +70,7 @@ tile and substitutes a legible one when the mark would otherwise disappear.
 | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | A string builder, not React components         | It must run in a Worker with no DOM. A React renderer would force a second implementation for the server, and the two would drift                                                                                                                                            | React components rendered with `renderToStaticMarkup`                                                    |
 | Deterministic output, no randomness or clocks  | Snapshots stay meaningful, and phase 1 can cache renders keyed on content                                                                                                                                                                                                    | Generating unique ids per render                                                                         |
-| The group icon is its own element              | An emoji set in the label's 11px monospace face renders as an illegible smudge                                                                                                                                                                                               | Prefixing the icon onto the label string                                                                 |
+| The boundary icon is its own element           | An emoji set in the label's 11px monospace face renders as an illegible smudge                                                                                                                                                                                               | Prefixing the icon onto the label string                                                                 |
 | Text widths are estimated, not measured        | There is no text measurement outside a browser. Backing rects are sized from character count and overshoot slightly                                                                                                                                                          | Shipping font metrics, or measuring in a headless browser                                                |
 | Straight lines only                            | Straight edges plus a deliberate layout cover almost everything; orthogonal routing around obstacles is a rabbit hole                                                                                                                                                        | Auto-routed orthogonal edges                                                                             |
 | `simple-icons` as the source of brand marks    | It ships every logo as plain data — a path string and a hex — so it needs no loader, no DOM and no bundler magic, which is what makes it usable inside a Worker. CC0-1.0 also sidesteps the brand-kit question for personal use                                              | A hand-maintained folder of `.svg` assets, which would need a raw-text loader and manual updates         |

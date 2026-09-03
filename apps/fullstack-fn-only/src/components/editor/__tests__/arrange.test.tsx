@@ -22,14 +22,14 @@ describe("arrangeNodes", () => {
   it("writes coordinates without stamping schema defaults over the author's file", () => {
     const after = parse(arrangeNodes(seed()));
     const user = after.nodes.find((node) => node.id === "user");
-    const group = after.groups[0];
+    const boundary = after.boundaries[0];
 
     // `sub` was written by the author and survives; `tile`, `dashed` and
     // `filled` were never written and must not appear.
     expect(user).toHaveProperty("sub");
     expect(user).not.toHaveProperty("tile");
-    expect(group).not.toHaveProperty("dashed");
-    expect(group).not.toHaveProperty("filled");
+    expect(boundary).not.toHaveProperty("dashed");
+    expect(boundary).not.toHaveProperty("filled");
     expect(after.edges[0]).not.toHaveProperty("style");
   });
 

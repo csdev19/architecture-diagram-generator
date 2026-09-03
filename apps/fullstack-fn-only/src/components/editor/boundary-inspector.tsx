@@ -1,34 +1,34 @@
 import type { ReactNode } from "react";
-import { DIAGRAM_LIMITS, GROUP_TONES, GROUP_TONE_INFO } from "@diagram-tool/domain/constants";
-import type { GroupTone } from "@diagram-tool/domain/constants";
-import type { DiagramGroup } from "@diagram-tool/domain/schemas";
+import { DIAGRAM_LIMITS, BOUNDARY_TONES, BOUNDARY_TONE_INFO } from "@diagram-tool/domain/constants";
+import type { BoundaryTone } from "@diagram-tool/domain/constants";
+import type { DiagramBoundary } from "@diagram-tool/domain/schemas";
 import { cn } from "@diagram-tool/web-ui";
 import { EditorInput, MicroLabel, MonoText } from "@/components/editor/editor-chrome";
-import type { GroupPatch } from "@/components/editor/use-diagram-editing";
+import type { BoundaryPatch } from "@/components/editor/use-diagram-editing";
 
 /**
- * The panel for the selected group.
+ * The panel for the selected boundary.
  *
  * `tone` is the field that matters and the one that is easiest to get wrong, so
  * it is not a dropdown of colour names: each choice says what it *means*, and
- * the swatch beside it is the consequence. A group is a boundary in the system
- * being drawn — a cloud, a runtime, a monorepo — and the palette follows from
- * that, never the other way round.
+ * the swatch beside it is the consequence. A boundary is a perimeter in the
+ * system being drawn — a cloud, a runtime, a monorepo — and the palette follows
+ * from that, never the other way round.
  */
 
-interface GroupInspectorProps {
-  group: DiagramGroup;
-  onChange: (patch: GroupPatch) => void;
+interface BoundaryInspectorProps {
+  boundary: DiagramBoundary;
+  onChange: (patch: BoundaryPatch) => void;
 }
 
 const { TEXT_MAX } = DIAGRAM_LIMITS;
 
 /** What each tone is *for*. The hex is the renderer's business. */
-const TONE_MEANINGS: Record<GroupTone, string> = {
-  [GROUP_TONES.ORANGE]: "Cloud or runtime",
-  [GROUP_TONES.BLUE]: "Tooling, monorepo, build",
-  [GROUP_TONES.GREEN]: "External services and data",
-  [GROUP_TONES.NEUTRAL]: "Anything else",
+const TONE_MEANINGS: Record<BoundaryTone, string> = {
+  [BOUNDARY_TONES.ORANGE]: "Cloud or runtime",
+  [BOUNDARY_TONES.BLUE]: "Tooling, monorepo, build",
+  [BOUNDARY_TONES.GREEN]: "External services and data",
+  [BOUNDARY_TONES.NEUTRAL]: "Anything else",
 };
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
@@ -41,7 +41,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-export function GroupInspector({ group, onChange }: GroupInspectorProps) {
+export function BoundaryInspector({ boundary, onChange }: BoundaryInspectorProps) {
   /** A half-typed number is not a coordinate yet. */
   const handleNumber = (field: "x" | "y" | "w" | "h", raw: string) => {
     const value = Number(raw);
@@ -50,16 +50,16 @@ export function GroupInspector({ group, onChange }: GroupInspectorProps) {
   };
 
   return (
-    <section aria-label={`Group ${group.id}`} className="space-y-4 pb-2">
+    <section aria-label={`Boundary ${boundary.id}`} className="space-y-4 pb-2">
       <header className="flex items-center justify-between gap-2">
-        <MonoText className="text-[15px] font-medium text-ed-text">{group.id}</MonoText>
-        <MicroLabel>Group</MicroLabel>
+        <MonoText className="text-[15px] font-medium text-ed-text">{boundary.id}</MonoText>
+        <MicroLabel>Boundary</MicroLabel>
       </header>
 
       <Field label="Label" hint={`${TEXT_MAX} characters max. Short and upper case reads best.`}>
         <EditorInput
           aria-label="Label"
-          value={group.label}
+          value={boundary.label}
           maxLength={TEXT_MAX}
           onChange={(event) => onChange({ label: event.target.value.slice(0, TEXT_MAX) })}
         />
@@ -68,25 +68,25 @@ export function GroupInspector({ group, onChange }: GroupInspectorProps) {
       <Field label="Icon">
         <EditorInput
           aria-label="Icon"
-          value={group.icon}
+          value={boundary.icon}
           placeholder="Optional emoji"
           onChange={(event) => onChange({ icon: event.target.value })}
         />
       </Field>
 
       <Field label="Tone" hint="Pick what the boundary is. The renderer picks the colour.">
-        <div role="group" aria-label="Tone" className="space-y-1">
-          {Object.values(GROUP_TONES).map((tone) => (
+        <div role="boundary" aria-label="Tone" className="space-y-1">
+          {Object.values(BOUNDARY_TONES).map((tone) => (
             <button
               key={tone}
               type="button"
-              aria-pressed={group.tone === tone}
+              aria-pressed={boundary.tone === tone}
               onClick={() => onChange({ tone })}
               className={cn(
                 "flex w-full items-center gap-2.5 rounded-[8px] border px-2 py-1.5 text-left",
                 "text-[12.5px] transition-colors duration-[140ms] outline-none",
                 "focus-visible:shadow-[var(--ed-focus-ring)]",
-                group.tone === tone
+                boundary.tone === tone
                   ? "border-ed-border-strong bg-ed-surface-2 text-ed-text"
                   : "border-ed-border text-ed-text-2 hover:bg-ed-surface-hover",
               )}
@@ -95,8 +95,8 @@ export function GroupInspector({ group, onChange }: GroupInspectorProps) {
                 aria-hidden
                 className="size-4 shrink-0 rounded-[5px] border"
                 style={{
-                  backgroundColor: GROUP_TONE_INFO[tone].fill,
-                  borderColor: GROUP_TONE_INFO[tone].border,
+                  backgroundColor: BOUNDARY_TONE_INFO[tone].fill,
+                  borderColor: BOUNDARY_TONE_INFO[tone].border,
                 }}
               />
               {TONE_MEANINGS[tone]}
@@ -108,33 +108,33 @@ export function GroupInspector({ group, onChange }: GroupInspectorProps) {
       <div className="grid grid-cols-2 gap-3">
         <Field label="x">
           <EditorInput
-            aria-label="Group x"
+            aria-label="Boundary x"
             type="number"
-            value={group.x}
+            value={boundary.x}
             onChange={(event) => handleNumber("x", event.target.value)}
           />
         </Field>
         <Field label="y">
           <EditorInput
-            aria-label="Group y"
+            aria-label="Boundary y"
             type="number"
-            value={group.y}
+            value={boundary.y}
             onChange={(event) => handleNumber("y", event.target.value)}
           />
         </Field>
         <Field label="width">
           <EditorInput
-            aria-label="Group width"
+            aria-label="Boundary width"
             type="number"
-            value={group.w}
+            value={boundary.w}
             onChange={(event) => handleNumber("w", event.target.value)}
           />
         </Field>
         <Field label="height">
           <EditorInput
-            aria-label="Group height"
+            aria-label="Boundary height"
             type="number"
-            value={group.h}
+            value={boundary.h}
             onChange={(event) => handleNumber("h", event.target.value)}
           />
         </Field>
@@ -145,14 +145,14 @@ export function GroupInspector({ group, onChange }: GroupInspectorProps) {
           {
             key: "filled" as const,
             label: "Filled",
-            hint: "Off draws the border only — how a nested group is made.",
-            value: group.filled,
+            hint: "Off draws the border only — how a nested boundary is made.",
+            value: boundary.filled,
           },
           {
             key: "dashed" as const,
             label: "Dashed border",
             hint: "For a boundary that is logical rather than physical.",
-            value: group.dashed,
+            value: boundary.dashed,
           },
         ].map((option) => (
           <label key={option.key} className="flex cursor-pointer items-start gap-2.5">

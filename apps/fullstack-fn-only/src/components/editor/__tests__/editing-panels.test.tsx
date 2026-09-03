@@ -138,8 +138,8 @@ describe("node inspector", () => {
   });
 });
 
-describe("groups", () => {
-  /** Drags a box out on the canvas, which is how a group is made. */
+describe("boundaries", () => {
+  /** Drags a box out on the canvas, which is how a boundary is made. */
   const drawBox = (from: { x: number; y: number }, to: { x: number; y: number }) => {
     pickTool(/drag a box around/i);
     fireEvent.pointerDown(canvas(), { clientX: from.x, clientY: from.y, pointerId: 1 });
@@ -151,10 +151,10 @@ describe("groups", () => {
     render(<EditorPage />);
     drawBox({ x: 200, y: 100 }, { x: 600, y: 400 });
 
-    expect(parsed().groups).toHaveLength(2);
-    expect(parsed().groups.at(-1)).toMatchObject({
-      id: "group",
-      label: "GROUP",
+    expect(parsed().boundaries).toHaveLength(2);
+    expect(parsed().boundaries.at(-1)).toMatchObject({
+      id: "boundary",
+      label: "BOUNDARY",
       // Neutral until the author says what the boundary is.
       tone: "neutral",
       x: 195,
@@ -162,22 +162,22 @@ describe("groups", () => {
       w: 403,
       h: 299,
     });
-    expect(screen.getByRole("region", { name: /group group/i })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: /boundary boundary/i })).toBeInTheDocument();
   });
 
   it("takes the box either way the drag went", () => {
     render(<EditorPage />);
     drawBox({ x: 600, y: 400 }, { x: 200, y: 100 });
 
-    expect(parsed().groups.at(-1)).toMatchObject({ x: 195, y: 104, w: 403, h: 299 });
+    expect(parsed().boundaries.at(-1)).toMatchObject({ x: 195, y: 104, w: 403, h: 299 });
   });
 
   it("ignores a drag too small to hold anything", () => {
     render(<EditorPage />);
     drawBox({ x: 200, y: 100 }, { x: 210, y: 110 });
 
-    // A click that slipped is not a group.
-    expect(parsed().groups).toHaveLength(1);
+    // A click that slipped is not a boundary.
+    expect(parsed().boundaries).toHaveLength(1);
   });
 
   it("renames and re-tones from the inspector", () => {
@@ -187,21 +187,21 @@ describe("groups", () => {
     fireEvent.change(screen.getByLabelText("Label"), { target: { value: "DATA" } });
     fireEvent.click(screen.getByRole("button", { name: /external services and data/i }));
 
-    expect(parsed().groups.at(-1)).toMatchObject({ label: "DATA", tone: "green" });
+    expect(parsed().boundaries.at(-1)).toMatchObject({ label: "DATA", tone: "green" });
   });
 
-  it("selects the group a press lands in, and the tile if there is one", () => {
+  it("selects the boundary a press lands in, and the tile if there is one", () => {
     render(<EditorPage />);
-    // The seed's CLOUDFLARE group spans 240,60 to 660,300 and holds Hono.
+    // The seed's CLOUDFLARE boundary spans 240,60 to 660,300 and holds Hono.
     clickTile(300, 100);
-    expect(screen.getByRole("region", { name: /group cf/i })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: /boundary cf/i })).toBeInTheDocument();
 
     // A tile inside it still wins: it is the smaller, more specific target.
     clickTile(HONO.x, HONO.y);
     expect(screen.getByRole("region", { name: /node hono/i })).toBeInTheDocument();
   });
 
-  it("moves a group by dragging it, leaving the tiles inside where they were", () => {
+  it("moves a boundary by dragging it, leaving the tiles inside where they were", () => {
     render(<EditorPage />);
     const honoBefore = nodeById("hono");
 
@@ -210,17 +210,17 @@ describe("groups", () => {
     fireEvent.pointerUp(canvas(), { clientX: 340, clientY: 160, pointerId: 1 });
 
     // Grabbed 60px into the box, so the corner keeps that offset, snapped.
-    expect(parsed().groups[0]).toMatchObject({ x: 286, y: 117 });
-    // A group is a box drawn around nodes, not a parent of them.
+    expect(parsed().boundaries[0]).toMatchObject({ x: 286, y: 117 });
+    // A boundary is a box drawn around nodes, not a parent of them.
     expect(nodeById("hono")).toEqual(honoBefore);
   });
 
-  it("deletes a group without taking the tiles inside it", () => {
+  it("deletes a boundary without taking the tiles inside it", () => {
     render(<EditorPage />);
     clickTile(300, 100);
     fireEvent.keyDown(window, { key: "Delete" });
 
-    expect(parsed().groups).toHaveLength(0);
+    expect(parsed().boundaries).toHaveLength(0);
     expect(parsed().nodes).toHaveLength(3);
   });
 });

@@ -1,10 +1,10 @@
 import { z } from "zod";
 import {
   ANCHOR_SIDES,
+  BOUNDARY_TONES,
   CANVAS_TONES,
   DIAGRAM_LIMITS,
   EDGE_STYLES,
-  GROUP_TONES,
   TILE_VARIANTS,
 } from "../constants/diagram";
 import { DIAGRAM_ICON_KEYS } from "../constants/diagram-icons";
@@ -68,21 +68,30 @@ export const diagramNodeSchema = z
     });
   });
 
-export const diagramGroupSchema = z.object({
-  id: z.string().trim().min(1, "Group id is required"),
-  label: tileText("Group label"),
+export const diagramBoundarySchema = z.object({
+  id: z.string().trim().min(1, "Boundary id is required"),
+  label: tileText("Boundary label"),
   icon: z.string().default(""),
   x: z.number(),
   y: z.number(),
-  w: z.number().positive("Group width must be positive"),
-  h: z.number().positive("Group height must be positive"),
-  tone: z.enum(GROUP_TONES),
+  w: z.number().positive("Boundary width must be positive"),
+  h: z.number().positive("Boundary height must be positive"),
+  tone: z.enum(BOUNDARY_TONES),
   dashed: z.boolean().default(false),
-  /** `false` draws the border only — used for nested groups. */
+  /** `false` draws the border only — used for a nested boundary. */
   filled: z.boolean().default(true),
 });
 
 export const diagramEdgeSchema = z.object({
+  /**
+   * Stable identity, so a position in an array is never a handle.
+   *
+   * Optional to write and always present after parsing: an author should not
+   * have to invent a name for something whose identity is already its two
+   * endpoints, but everything downstream — an editor addressing an edge, a
+   * layout keyed by id — needs one that survives reordering.
+   */
+  id: z.string().trim().min(1, "Edge id must not be empty").optional(),
   from: z.string().trim().min(1, "Edge source is required"),
   to: z.string().trim().min(1, "Edge target is required"),
   out: z.enum(ANCHOR_SIDES),
@@ -90,6 +99,46 @@ export const diagramEdgeSchema = z.object({
   label: z.string().trim().optional(),
   style: z.enum(EDGE_STYLES).default(EDGE_STYLES.SOLID),
 });
+
+/** The least an edge has to be for its id to be derivable. */
+interface EdgeIdentity {
+  id?: string | undefined;
+  from: string;
+  to: string;
+}
+
+/**
+ * Fills in the id an author left out, from the endpoints that already identify
+ * the edge.
+ *
+ * Ids written by hand are reserved before anything is derived, so a derived one
+ * can never take a name the author used further down the array — which would
+ * make the outcome depend on declaration order in a way nobody could predict.
+ *
+ * Exported because the editor mutates raw JSON that may legitimately have no
+ * ids in it, and has to reach the same edge the schema would. Two copies of
+ * this rule would be two answers to "which edge is that", one of them wrong.
+ */
+export const deriveEdgeIds = <T extends EdgeIdentity>(
+  edges: readonly T[],
+): Array<T & { id: string }> => {
+  const taken = new Set(edges.map((edge) => edge.id).filter((id): id is string => Boolean(id)));
+
+  return edges.map((edge) => {
+    if (edge.id) return { ...edge, id: edge.id };
+
+    const base = `${edge.from}-${edge.to}`;
+    let id = base;
+    let suffix = 2;
+    while (taken.has(id)) {
+      id = `${base}-${suffix}`;
+      suffix += 1;
+    }
+
+    taken.add(id);
+    return { ...edge, id };
+  });
+};
 
 const diagramConfigShape = z.object({
   version: z.literal(1),
@@ -114,23 +163,31 @@ const diagramConfigShape = z.object({
    * the format: the author picks a tint, the renderer owns the value.
    */
   background: z.enum(CANVAS_TONES).optional(),
-  groups: z
-    .array(diagramGroupSchema)
-    .max(DIAGRAM_LIMITS.MAX_GROUPS, `At most ${DIAGRAM_LIMITS.MAX_GROUPS} groups`),
+  boundaries: z
+    .array(diagramBoundarySchema)
+    .max(DIAGRAM_LIMITS.MAX_BOUNDARIES, `At most ${DIAGRAM_LIMITS.MAX_BOUNDARIES} boundaries`),
   nodes: z
     .array(diagramNodeSchema)
     .min(DIAGRAM_LIMITS.MIN_NODES, "A diagram needs at least one node")
     .max(DIAGRAM_LIMITS.MAX_NODES, `At most ${DIAGRAM_LIMITS.MAX_NODES} nodes`),
   edges: z
     .array(diagramEdgeSchema)
-    .max(DIAGRAM_LIMITS.MAX_EDGES, `At most ${DIAGRAM_LIMITS.MAX_EDGES} edges`),
+    .max(DIAGRAM_LIMITS.MAX_EDGES, `At most ${DIAGRAM_LIMITS.MAX_EDGES} edges`)
+    .transform(deriveEdgeIds),
 });
+
+/** The singular noun each collection's duplicate message speaks in. */
+const ITEM_NOUN = {
+  nodes: "node",
+  boundaries: "boundary",
+  edges: "edge",
+} as const;
 
 /** Reports the first duplicate of each repeated id in `items`. */
 const addDuplicateIdIssues = (
   ctx: z.RefinementCtx,
   items: ReadonlyArray<{ id: string }>,
-  field: "nodes" | "groups",
+  field: keyof typeof ITEM_NOUN,
 ) => {
   const seen = new Set<string>();
   const reported = new Set<string>();
@@ -141,7 +198,7 @@ const addDuplicateIdIssues = (
       ctx.addIssue({
         code: "custom",
         path: [field, index, "id"],
-        message: `${field}[${index}]: duplicate id "${item.id}" — every ${field === "nodes" ? "node" : "group"} id must be unique`,
+        message: `${field}[${index}]: duplicate id "${item.id}" — every ${ITEM_NOUN[field]} id must be unique`,
       });
     }
     seen.add(item.id);
@@ -150,7 +207,8 @@ const addDuplicateIdIssues = (
 
 export const diagramConfigSchema = diagramConfigShape.superRefine((config, ctx) => {
   addDuplicateIdIssues(ctx, config.nodes, "nodes");
-  addDuplicateIdIssues(ctx, config.groups, "groups");
+  addDuplicateIdIssues(ctx, config.boundaries, "boundaries");
+  addDuplicateIdIssues(ctx, config.edges, "edges");
 
   const nodeIds = new Set(config.nodes.map((node) => node.id));
   const available = config.nodes.map((node) => node.id).join(", ");
@@ -217,9 +275,11 @@ export const validateDiagramConfig = (
 };
 
 export type DiagramNode = z.infer<typeof diagramNodeSchema>;
-export type DiagramGroup = z.infer<typeof diagramGroupSchema>;
-export type DiagramEdge = z.infer<typeof diagramEdgeSchema>;
+export type DiagramBoundary = z.infer<typeof diagramBoundarySchema>;
 export type DiagramConfig = z.infer<typeof diagramConfigSchema>;
+
+/** An edge as it is drawn: its id is filled in by the time anyone reads one. */
+export type DiagramEdge = DiagramConfig["edges"][number];
 
 /** The authoring shape, before defaults are filled in. */
 export type DiagramConfigInput = z.input<typeof diagramConfigSchema>;
@@ -231,7 +291,7 @@ export type DiagramConfigInput = z.input<typeof diagramConfigSchema>;
 export const EXAMPLE_DIAGRAM_CONFIG: DiagramConfigInput = {
   version: 1,
   title: "api-simple",
-  groups: [
+  boundaries: [
     {
       id: "cf",
       label: "CLOUDFLARE",
@@ -240,7 +300,7 @@ export const EXAMPLE_DIAGRAM_CONFIG: DiagramConfigInput = {
       y: 60,
       w: 420,
       h: 240,
-      tone: GROUP_TONES.ORANGE,
+      tone: BOUNDARY_TONES.ORANGE,
     },
   ],
   nodes: [

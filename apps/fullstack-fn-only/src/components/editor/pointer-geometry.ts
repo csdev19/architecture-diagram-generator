@@ -1,6 +1,6 @@
 import { ANCHOR_SIDES, DIAGRAM_GEOMETRY } from "@diagram-tool/domain/constants";
 import type { AnchorSide } from "@diagram-tool/domain/constants";
-import type { DiagramConfig, DiagramGroup, DiagramNode } from "@diagram-tool/domain/schemas";
+import type { DiagramConfig, DiagramBoundary, DiagramNode } from "@diagram-tool/domain/schemas";
 
 /**
  * Turning a pointer into a node.
@@ -35,27 +35,30 @@ export const hitTestNode = (config: DiagramConfig, point: Point): DiagramNode | 
 };
 
 /**
- * The group whose box covers `point`, or `undefined`.
+ * The boundary whose box covers `point`, or `undefined`.
  *
- * Searched back to front, like nodes: the renderer draws groups in array order,
+ * Searched back to front, like nodes: the renderer draws boundaries in array order,
  * so the last one painted is the one visually on top of any overlap. A nested
- * group is therefore hit before the one containing it, as long as it was
+ * boundary is therefore hit before the one containing it, as long as it was
  * declared after — which is what `filled: false` nesting already requires.
  *
  * The whole box is a target, not just its border. These boxes are tinted, so
  * they read as surfaces; clicking one and getting nothing would be the surprise.
  */
-export const hitTestGroup = (config: DiagramConfig, point: Point): DiagramGroup | undefined => {
-  for (let index = config.groups.length - 1; index >= 0; index -= 1) {
-    const group = config.groups[index];
-    if (!group) continue;
+export const hitTestBoundary = (
+  config: DiagramConfig,
+  point: Point,
+): DiagramBoundary | undefined => {
+  for (let index = config.boundaries.length - 1; index >= 0; index -= 1) {
+    const boundary = config.boundaries[index];
+    if (!boundary) continue;
 
     const inside =
-      point.x >= group.x &&
-      point.x <= group.x + group.w &&
-      point.y >= group.y &&
-      point.y <= group.y + group.h;
-    if (inside) return group;
+      point.x >= boundary.x &&
+      point.x <= boundary.x + boundary.w &&
+      point.y >= boundary.y &&
+      point.y <= boundary.y + boundary.h;
+    if (inside) return boundary;
   }
 
   return undefined;

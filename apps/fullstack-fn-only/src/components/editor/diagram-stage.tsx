@@ -3,9 +3,13 @@ import type { DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent } f
 import { DIAGRAM_GEOMETRY } from "@diagram-tool/domain/constants";
 import { contentFrame, renderSVG } from "@diagram-tool/domain/render";
 import type { DiagramConfig } from "@diagram-tool/domain/schemas";
-import { clientToViewBox, hitTestGroup, hitTestNode } from "@/components/editor/pointer-geometry";
+import {
+  clientToViewBox,
+  hitTestBoundary,
+  hitTestNode,
+} from "@/components/editor/pointer-geometry";
 import type { Point } from "@/components/editor/pointer-geometry";
-import { isGroup, isNode } from "@/components/editor/selection";
+import { isBoundary, isNode } from "@/components/editor/selection";
 import type { Selection } from "@/components/editor/selection";
 import { EDITOR_TOOLS, STAGE_CURSORS, toolHint } from "@/components/editor/editor-tools";
 import type { EditorTool } from "@/components/editor/editor-tools";
@@ -56,9 +60,9 @@ interface DiagramStageProps {
   onNodeMove: (id: string, x: number, y: number) => void;
   /** Writes a position verbatim, so a cancelled drag undoes exactly. */
   onNodeRestore: (id: string, x: number, y: number) => void;
-  onGroupMove: (id: string, x: number, y: number) => void;
-  /** Commits a box drawn with the group tool. */
-  onDrawGroup: (box: { x: number; y: number; w: number; h: number }) => void;
+  onBoundaryMove: (id: string, x: number, y: number) => void;
+  /** Commits a box drawn with the boundary tool. */
+  onDrawBoundary: (box: { x: number; y: number; w: number; h: number }) => void;
   onDeleteSelected: () => void;
   /** Which strips of the stage the floating panels are covering. */
   insets: StageInsets;
@@ -73,8 +77,8 @@ interface NodeDrag {
   pointerId: number;
 }
 
-interface GroupDrag {
-  kind: "group";
+interface BoundaryDrag {
+  kind: "boundary";
   id: string;
   /** The grab offset, so the box does not jump its corner to the pointer. */
   offsetX: number;
@@ -84,8 +88,8 @@ interface GroupDrag {
   pointerId: number;
 }
 
-/** Drawing a new group: the corner it started from, in world units. */
-interface GroupDraw {
+/** Drawing a new boundary: the corner it started from, in world units. */
+interface BoundaryDraw {
   kind: "draw";
   fromX: number;
   fromY: number;
@@ -99,7 +103,7 @@ interface PanDrag {
   clientY: number;
 }
 
-type Gesture = NodeDrag | GroupDrag | GroupDraw | PanDrag;
+type Gesture = NodeDrag | BoundaryDrag | BoundaryDraw | PanDrag;
 
 /** How far outside the tile the halo sits. */
 const HALO_SLACK = 5;
@@ -109,8 +113,8 @@ const HALO_RADIUS = DIAGRAM_GEOMETRY.TILE_RADIUS + HALO_SLACK;
 /** What the camera looks at before there is anything to look at. */
 const EMPTY_CONTENT = { x: 0, y: 0, w: 0, h: 0 };
 
-/** Below this in either direction, a group drag was a click that slipped. */
-const MIN_GROUP_SIDE = DIAGRAM_GEOMETRY.GRID_CELL * 2;
+/** Below this in either direction, a boundary drag was a click that slipped. */
+const MIN_BOUNDARY_SIDE = DIAGRAM_GEOMETRY.GRID_CELL * 2;
 
 interface Box {
   x: number;
@@ -140,8 +144,8 @@ export function DiagramStage({
   onDropTile,
   onNodeMove,
   onNodeRestore,
-  onGroupMove,
-  onDrawGroup,
+  onBoundaryMove,
+  onDrawBoundary,
   onDeleteSelected,
   insets,
 }: DiagramStageProps) {
@@ -211,7 +215,7 @@ export function DiagramStage({
       return;
     }
 
-    if (tool === EDITOR_TOOLS.GROUP) {
+    if (tool === EDITOR_TOOLS.BOUNDARY) {
       gestureRef.current = {
         kind: "draw",
         fromX: point.x,
@@ -250,22 +254,22 @@ export function DiagramStage({
       return;
     }
 
-    // Nodes win over the group they sit in: the tile is the smaller, more
+    // Nodes win over the boundary they sit in: the tile is the smaller, more
     // specific target, and it is drawn on top.
-    const group = hitTestGroup(config, point);
-    if (!group) {
+    const boundary = hitTestBoundary(config, point);
+    if (!boundary) {
       onSelect(null);
       return;
     }
 
-    onSelect({ kind: "group", id: group.id });
+    onSelect({ kind: "boundary", id: boundary.id });
     gestureRef.current = {
-      kind: "group",
-      id: group.id,
-      offsetX: point.x - group.x,
-      offsetY: point.y - group.y,
-      originX: group.x,
-      originY: group.y,
+      kind: "boundary",
+      id: boundary.id,
+      offsetX: point.x - boundary.x,
+      offsetY: point.y - boundary.y,
+      originX: boundary.x,
+      originY: boundary.y,
       pointerId: event.pointerId,
     };
     setGesturing(true);
@@ -293,8 +297,8 @@ export function DiagramStage({
       return;
     }
 
-    if (gesture?.kind === "group") {
-      onGroupMove(gesture.id, point.x - gesture.offsetX, point.y - gesture.offsetY);
+    if (gesture?.kind === "boundary") {
+      onBoundaryMove(gesture.id, point.x - gesture.offsetX, point.y - gesture.offsetY);
       return;
     }
 
@@ -313,14 +317,14 @@ export function DiagramStage({
 
     event.currentTarget.releasePointerCapture?.(gesture.pointerId);
 
-    // A box too small to hold anything was a click that slipped, not a group.
+    // A box too small to hold anything was a click that slipped, not a boundary.
     if (
       gesture.kind === "draw" &&
       draft &&
-      draft.w >= MIN_GROUP_SIDE &&
-      draft.h >= MIN_GROUP_SIDE
+      draft.w >= MIN_BOUNDARY_SIDE &&
+      draft.h >= MIN_BOUNDARY_SIDE
     ) {
-      onDrawGroup(draft);
+      onDrawBoundary(draft);
     }
 
     setDraft(null);
@@ -351,14 +355,15 @@ export function DiagramStage({
       // coordinates need not sit on the grid, and snapping here would move a
       // node the author just decided not to move.
       if (gesture?.kind === "node") onNodeRestore(gesture.id, gesture.originX, gesture.originY);
-      if (gesture?.kind === "group") onGroupMove(gesture.id, gesture.originX, gesture.originY);
+      if (gesture?.kind === "boundary")
+        onBoundaryMove(gesture.id, gesture.originX, gesture.originY);
       setDraft(null);
       endGesture();
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [gesturing, onNodeRestore, onGroupMove, endGesture]);
+  }, [gesturing, onNodeRestore, onBoundaryMove, endGesture]);
 
   // Read through a ref so the listener below is registered once. Re-binding it
   // on every scale change would tear a wheel listener down mid-gesture.
@@ -412,16 +417,16 @@ export function DiagramStage({
     })
     .filter(Boolean);
 
-  const groupHalos = (config?.groups ?? [])
-    .filter((group) => isGroup(selection, group.id))
-    .map((group) => (
+  const boundaryHalos = (config?.boundaries ?? [])
+    .filter((boundary) => isBoundary(selection, boundary.id))
+    .map((boundary) => (
       <rect
-        key={`group-${group.id}`}
-        x={group.x - HALO_SLACK}
-        y={group.y - HALO_SLACK}
-        width={group.w + HALO_SLACK * 2}
-        height={group.h + HALO_SLACK * 2}
-        rx={DIAGRAM_GEOMETRY.GROUP_RADIUS + HALO_SLACK}
+        key={`boundary-${boundary.id}`}
+        x={boundary.x - HALO_SLACK}
+        y={boundary.y - HALO_SLACK}
+        width={boundary.w + HALO_SLACK * 2}
+        height={boundary.h + HALO_SLACK * 2}
+        rx={DIAGRAM_GEOMETRY.BOUNDARY_RADIUS + HALO_SLACK}
         fill="none"
         stroke="var(--ed-accent)"
         strokeWidth={1.75 / view.scale}
@@ -436,7 +441,7 @@ export function DiagramStage({
       y={draft.y}
       width={draft.w}
       height={draft.h}
-      rx={DIAGRAM_GEOMETRY.GROUP_RADIUS}
+      rx={DIAGRAM_GEOMETRY.BOUNDARY_RADIUS}
       fill="var(--ed-accent)"
       fillOpacity={0.06}
       stroke="var(--ed-accent)"
@@ -468,7 +473,7 @@ export function DiagramStage({
             ref={sceneRef}
             data-testid="diagram-canvas"
             data-selected-node={selection?.kind === "node" ? selection.id : undefined}
-            data-selected-group={selection?.kind === "group" ? selection.id : undefined}
+            data-selected-boundary={selection?.kind === "boundary" ? selection.id : undefined}
             className="absolute inset-0 [&>svg]:h-full [&>svg]:w-full"
             dangerouslySetInnerHTML={{ __html: svg }}
           />
@@ -478,7 +483,7 @@ export function DiagramStage({
             viewBox={`${frameX} ${frameY} ${frameW} ${frameH}`}
           >
             {nodeHalos}
-            {groupHalos}
+            {boundaryHalos}
             {draftHalo}
           </svg>
         </>

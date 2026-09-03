@@ -1,0 +1,35 @@
+---
+title: "September 02, 2026 - The box is a boundary, and edges have ids"
+description: The v1 group is renamed to boundary so the word group can mean a relation with no geometry, and every edge gains a stable id.
+date: 2026-09-02
+tags:
+  - changelog
+  - refactor
+---
+
+🔤 **Rename** — the field is `boundaries`, not `groups`. A config that used to
+read `"groups": [{ "id": "cf", "label": "CLOUDFLARE", … }]` now reads
+`"boundaries": [ … ]`, with the same fields and the same rendering, byte for
+byte. `GROUP_TONES` became `BOUNDARY_TONES`, `MAX_GROUPS` became
+`MAX_BOUNDARIES`, and `renderGroup` became `renderBoundary`.
+
+The rename is not cosmetic: it frees the word for what
+[Diagram Document v2](/features/diagram-tool/diagram-document-v2) needs it to
+mean. A **boundary** is a drawable element with a rectangle — Figma's Frame. A
+**group** is a relation over elements that is never drawn and has no geometry at
+all — Figma's Group. v1 fused the two into one object, and the fusion is exactly
+what stops a model from describing structure without also inventing coordinates.
+Recorded in [ADR 0003](/architecture/decisions/adr-0003-a-boundary-is-an-element-a-group-is-a-relation).
+
+✨ **Feature** — every edge carries an `id`. Writing one is optional: leave it
+out and it is derived from `from` and `to`, so the seed and every existing
+config stay exactly as they are. But an id always exists after parsing, and the
+editor now addresses an edge by it rather than by its position in the array —
+removing the second edge no longer renumbers the third.
+
+The derivation lives in the domain as `deriveEdgeIds` and is used by both the
+schema and the editor. The editor mutates raw JSON that legitimately has no ids
+in it, and has to reach the edge the schema would: two implementations of that
+rule would be two answers to "which edge is that", one of them wrong. It writes
+an id into the text only when a second connection between the same pair would
+otherwise make the derived one depend on array order.

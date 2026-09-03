@@ -13,7 +13,7 @@ const layout = (input: DiagramConfigInput) => layoutDiagram(diagramConfigSchema.
 /** A chain of nodes joined by solid edges, which is the shape layout is for. */
 const chain = (ids: string[], extra: Partial<DiagramConfigInput> = {}): DiagramConfigInput => ({
   version: 1,
-  groups: [],
+  boundaries: [],
   nodes: ids.map((id, index) => ({ id, x: 100 + index, y: 100, emoji: "🔥", name: id })),
   edges: ids.slice(1).map((id, index) => ({
     from: ids[index] as string,
@@ -184,7 +184,7 @@ describe("layoutDiagram", () => {
     const after = layoutDiagram(before);
 
     expect(after.edges).toEqual(before.edges);
-    expect(after.groups).toEqual(before.groups);
+    expect(after.boundaries).toEqual(before.boundaries);
     expect(after.title).toBe(before.title);
     expect(after.nodes.map((node) => node.name)).toEqual(before.nodes.map((node) => node.name));
     expect(after.nodes.map((node) => node.iconKey)).toEqual(
@@ -196,7 +196,7 @@ describe("layoutDiagram", () => {
     const result = layout({
       version: 1,
       canvas: { w: 700, h: 360 },
-      groups: [],
+      boundaries: [],
       nodes: [{ id: "solo", x: 300, y: 200, emoji: "🔥", name: "Solo" }],
       edges: [],
     });

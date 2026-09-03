@@ -1,5 +1,5 @@
 import { DIAGRAM_GEOMETRY, DIAGRAM_TYPOGRAPHY } from "../constants/diagram";
-import type { DiagramConfig, DiagramGroup, DiagramNode } from "../schemas/diagram";
+import type { DiagramConfig, DiagramBoundary, DiagramNode } from "../schemas/diagram";
 import { estimateMonoWidth } from "./svg";
 
 /**
@@ -72,14 +72,14 @@ const nodeBounds = (node: DiagramNode): Bounds => {
 };
 
 /**
- * What a group covers. Its label sits *on* the top border rather than inside,
+ * What a boundary covers. Its label sits *on* the top border rather than inside,
  * so the box's own top edge is the extent — the label rides along it.
  */
-const groupBounds = (group: DiagramGroup): Bounds => ({
-  minX: group.x,
-  maxX: group.x + group.w,
-  minY: group.y - DIAGRAM_TYPOGRAPHY.GROUP_LABEL_SIZE,
-  maxY: group.y + group.h,
+const boundaryBounds = (boundary: DiagramBoundary): Bounds => ({
+  minX: boundary.x,
+  maxX: boundary.x + boundary.w,
+  minY: boundary.y - DIAGRAM_TYPOGRAPHY.BOUNDARY_LABEL_SIZE,
+  maxY: boundary.y + boundary.h,
 });
 
 const union = (a: Bounds, b: Bounds): Bounds => ({
@@ -97,7 +97,7 @@ const union = (a: Bounds, b: Bounds): Bounds => ({
  * and for a render cache to be able to key on content.
  */
 export const contentFrame = (config: DiagramConfig): DiagramFrame => {
-  const all = [...config.nodes.map(nodeBounds), ...config.groups.map(groupBounds)];
+  const all = [...config.nodes.map(nodeBounds), ...config.boundaries.map(boundaryBounds)];
   const first = all[0];
   if (!first) return EMPTY_FRAME;
 
