@@ -45,7 +45,4 @@ jobs:
 
       - name: Build app
         working-directory: apps/fullstack-fn-only
-        env:
-          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
-          BETTER_AUTH_SECRET: placeholder-secret-for-build-validation
         run: bun run build

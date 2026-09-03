@@ -60,16 +60,23 @@ would let the exported image disagree with the preview.
 | **React** `19.2.3`             | UI                                                  | Template default                                                              |
 | **Vite** `7.3.1`               | Dev server and build, via `@cloudflare/vite-plugin` | Comes with Start; the Cloudflare plugin is what runs the Worker locally       |
 
-## Data and auth — inherited, unused by the diagram tool
+## Data and auth — removed from the deployed app
 
-The editor is entirely client-side and touches none of this. It is listed
-because it is in the tree and it builds.
+The editor is entirely client-side and touched none of this, so the app no
+longer depends on any of it: the home page, sign-in, sign-up, the Todo CRUD
+example and better-auth were deleted when the editor became the only route.
+That is what unblocked the deploy — a Worker cannot open a TCP connection to
+Postgres, and now it does not need to.
 
-| Technology                                | Role here                                  | Why                                     |
-| ----------------------------------------- | ------------------------------------------ | --------------------------------------- |
-| **Drizzle ORM** `^0.45.1` + `drizzle-kit` | Schema, migrations, repositories           | Template default                        |
-| **Neon serverless** `^1.0.2` (+ `ws`)     | Postgres over HTTP/WebSocket from a Worker | Template default — Postgres, **not D1** |
-| **better-auth** `1.4.18`                  | Sessions and the `/api/auth/*` route       | Template default                        |
+The packages themselves are still in the tree and still build. They are the
+scaffolding a future server-side feature would start from, not something the
+running app carries.
+
+| Technology                                | Status                                        | Note                                  |
+| ----------------------------------------- | --------------------------------------------- | ------------------------------------- |
+| **Drizzle ORM** `^0.45.1` + `drizzle-kit` | In `packages/infra-db`, unimported by the app | Postgres dialect, **not D1**          |
+| **Neon serverless** `^1.0.2` (+ `ws`)     | Same                                          | The driver a Worker would have needed |
+| **better-auth** `1.4.18`                  | In `packages/infra-auth`, unimported          | The app has no session and no cookie  |
 
 ## UI
 
@@ -103,8 +110,10 @@ before the app. See [web-ui Package](/web-ui-package).
   catalog's `4.3.6`. The docs app shares no code with the rest of the workspace,
   so the two versions coexist without conflict, but the pin is undocumented and
   nothing records why it is held back.
-- The template's Todo CRUD example, auth pages and database layer are still
-  present and still build. They are not part of the diagram tool.
+- The template's Todo CRUD example, auth pages and home page are **deleted** —
+  the editor is the app's only route. The `infra-db`, `infra-auth` and
+  `application` packages remain in the tree and still build, but nothing in the
+  app imports them.
 - `@resvg/resvg-wasm` needs a `resolve.alias` in `vite.config.ts` pointing the
   `.wasm` specifier at an absolute path. Without it, Vite's dependency scanner
   fails to resolve it, abandons pre-bundling for the whole app, and reports the

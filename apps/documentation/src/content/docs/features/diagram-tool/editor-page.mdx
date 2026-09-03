@@ -1,6 +1,6 @@
 ---
 title: Editor Page
-description: The /editor route — an unbounded canvas you draw on, with the config as its only state.
+description: The app's only route — an unbounded canvas you draw on, with the document as its only state.
 ---
 
 # Editor Page
@@ -31,7 +31,7 @@ the canvas.
 
 | Path                                                                  | Purpose                                                                     |
 | --------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `apps/fullstack-fn-only/src/routes/editor.tsx`                        | The route — wiring only                                                     |
+| `apps/fullstack-fn-only/src/routes/index.tsx`                         | The route — wiring only                                                     |
 | `apps/fullstack-fn-only/src/components/editor/editor-page.tsx`        | The page: state, the parse → validate pipeline, and every gesture's handler |
 | `apps/fullstack-fn-only/src/components/editor/diagram-stage.tsx`      | The canvas: pointer handling, drag and drop, halos, and the framed render   |
 | `apps/fullstack-fn-only/src/components/editor/use-stage-view.ts`      | The camera — pan, zoom and fit over an unbounded plane                      |
@@ -144,7 +144,7 @@ bun run test --filter=fullstack-fn-only
 
 # Manual testing
 bun run dev:fullstack-fn
-# Open http://localhost:3002/editor
+# Open http://localhost:3002/
 # 1. The example renders on load, filling the window — no sheet, no table.
 # 2. Drag a tile off the palette onto the canvas, far from everything else.
 # 3. Drag it again — the JSON's coordinates follow and snap to the half-grid.
