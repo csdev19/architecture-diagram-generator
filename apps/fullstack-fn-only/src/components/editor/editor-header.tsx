@@ -193,13 +193,33 @@ export function EditorHeader({
         </h1>
 
         {/*
-          The meta line is the first thing to go on a narrow window: below this
-          breakpoint the pill would grow into the centred toolbar.
+          The meta line and the byline are the first things to go on a narrow
+          window: below this breakpoint the pill would grow into the centred
+          toolbar.
         */}
         <p className="hidden min-w-0 truncate pr-1 font-mono text-[11px] text-ed-text-3 lg:block">
           {title} · {nodeCount} {nodeCount === 1 ? "node" : "nodes"} · {edgeCount}{" "}
           {edgeCount === 1 ? "edge" : "edges"}
         </p>
+
+        {/*
+          Attribution, not navigation: it sits after the meta line, at the same
+          weight, so it reads as a signature rather than as a control competing
+          with the two buttons on the left of this pill.
+        */}
+        <a
+          href="https://cs19.dev"
+          target="_blank"
+          rel="noreferrer"
+          className={cn(
+            "hidden shrink-0 border-l border-ed-border py-0.5 pl-2 pr-1 lg:block",
+            "font-mono text-[11px] text-ed-text-3",
+            "rounded-[4px] hover:text-ed-text focus-visible:text-ed-text",
+            "outline-none focus-visible:shadow-[var(--ed-focus-ring)]",
+          )}
+        >
+          built by csdev
+        </a>
       </div>
 
       <div className={cn(pill, "right-3")}>
