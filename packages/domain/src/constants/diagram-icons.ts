@@ -10,7 +10,6 @@ import {
   siExpo,
   siGithub,
   siGithubactions,
-  siHono,
   siNestjs,
   siNodedotjs,
   siPostgresql,
@@ -59,6 +58,31 @@ export interface DiagramIcon {
  */
 const toDiagramIcon = ({ title, path, hex }: DiagramIcon): DiagramIcon => ({ title, path, hex });
 
+/**
+ * Hono, drawn from the official logo rather than from `simple-icons`.
+ *
+ * The one entry in this registry that is not an upstream re-export, and it is
+ * deliberate. Hono's mark is a solid flame with a lighter flame inside it —
+ * two paths, two colours, in a 76x98 box. `simple-icons` has to flatten every
+ * mark to one path in one colour, and it does that by cutting the inner flame
+ * out as a hole. At 32px the result reads as a ring, not as a flame.
+ *
+ * This is the logo's outer path alone, scaled to fit the 24x24 box every other
+ * entry is authored in and centred across it. Dropping the inner flame loses a
+ * highlight; drawing a hole loses the shape. The silhouette is what identifies
+ * a technology at this size, so the silhouette is what is kept.
+ *
+ * `hex` stays the brand orange `simple-icons` records, which is also what the
+ * contrast gate has always measured this mark against.
+ */
+const HONO_ICON: DiagramIcon = {
+  title: "Hono",
+  path:
+    "M5.388 6.122l1.714 2.205s2.204-4.408 5.388-8.327c4.163 4.898 8.816 11.755 8.816 15.673 " +
+    "0 4.898-4.653 8.327-9.061 8.327C6.857 24 2.694 19.837 2.694 14.939c0-1.469 0.735-5.878 2.694-8.817Z",
+  hex: "E36002",
+};
+
 export const DIAGRAM_ICONS = {
   angular: toDiagramIcon(siAngular),
   astro: toDiagramIcon(siAstro),
@@ -71,7 +95,7 @@ export const DIAGRAM_ICONS = {
   expo: toDiagramIcon(siExpo),
   github: toDiagramIcon(siGithub),
   githubactions: toDiagramIcon(siGithubactions),
-  hono: toDiagramIcon(siHono),
+  hono: HONO_ICON,
   nestjs: toDiagramIcon(siNestjs),
   nodedotjs: toDiagramIcon(siNodedotjs),
   postgresql: toDiagramIcon(siPostgresql),
