@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { DIAGRAM_GEOMETRY, DIAGRAM_LIMITS, BOUNDARY_TONES } from "../../constants/diagram";
+import { BOUNDARY_PADDINGS, BOUNDARY_TONES, DIAGRAM_LIMITS } from "../../constants/diagram";
 import { DIAGRAM_ICON_KEYS } from "../../constants/diagram-icons";
-import { FRAME_PADDING } from "../frame";
 import { DIAGRAM_GUIDELINES } from "../guidelines";
 
 /**
- * The guidelines are what a model reads before writing a config, so they must
+ * The guidelines are what a model reads before writing a document, so they must
  * describe the schema that will actually judge it. The limits are interpolated
  * rather than retyped; these tests guard that wiring, so a changed limit can
  * never leave the guidance stating the old one.
@@ -16,14 +15,27 @@ describe("DIAGRAM_GUIDELINES", () => {
     expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_LIMITS.MAX_NODES));
     expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_LIMITS.MAX_BOUNDARIES));
     expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_LIMITS.MAX_EDGES));
-    expect(DIAGRAM_GUIDELINES).toContain(String(FRAME_PADDING));
-    expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_GEOMETRY.TILE_SIZE));
+    expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_LIMITS.MAX_GROUPS));
   });
 
-  it("tells the author not to emit a canvas", () => {
-    // The frame is derived, so a model that keeps declaring one re-imposes the
-    // fixed sheet this was removed to get rid of.
-    expect(DIAGRAM_GUIDELINES).toContain("Do NOT emit a `canvas`");
+  it("tells the author to describe architecture and not geometry", () => {
+    // The whole point of the split: a model that keeps emitting coordinates is
+    // solving the one problem resolution exists to take off its hands.
+    expect(DIAGRAM_GUIDELINES).toContain("Do NOT emit a `layout`");
+    expect(DIAGRAM_GUIDELINES).toContain("There is no canvas to fit inside");
+  });
+
+  it("names every boundary padding the schema accepts", () => {
+    for (const padding of Object.values(BOUNDARY_PADDINGS)) {
+      expect(DIAGRAM_GUIDELINES, `guidelines never mention "${padding}" padding`).toContain(
+        padding,
+      );
+    }
+  });
+
+  it("states the two rules that make a group resolvable", () => {
+    expect(DIAGRAM_GUIDELINES).toContain("at most one boundary");
+    expect(DIAGRAM_GUIDELINES).toContain("at least one node");
   });
 
   it("names every boundary tone the schema accepts", () => {

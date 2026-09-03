@@ -16,7 +16,7 @@ describe("EditorPage", () => {
 
     const textarea = screen.getByLabelText<HTMLTextAreaElement>(/diagram config/i);
 
-    expect(textarea.value).toContain('"version": 1');
+    expect(textarea.value).toContain('"title": "api-simple"');
     expect(textarea.value, "the seed lost its brand icons").toContain('"iconKey": "hono"');
   });
 

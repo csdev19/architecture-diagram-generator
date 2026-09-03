@@ -1,19 +1,18 @@
 import {
-  CANVAS_TONES,
-  DIAGRAM_GEOMETRY,
-  DIAGRAM_LIMITS,
+  BOUNDARY_PADDINGS,
   BOUNDARY_TONES,
+  CANVAS_TONES,
+  DIAGRAM_LIMITS,
 } from "../constants/diagram";
-import { FRAME_PADDING } from "./frame";
 import { DIAGRAM_ICON_KEYS } from "../constants/diagram-icons";
 
 /**
- * The authoring guide for a `DiagramConfig` — the text that turns "draw me the
- * architecture of X" into a well-positioned config.
+ * The authoring guide for a `DiagramDocument` — the text that turns "draw me
+ * the architecture of X" into a diagram.
  *
  * This is the single source. Phase 1's MCP `get_diagram_guidelines` tool
- * returns it verbatim, and it doubles as the system prompt if configs are ever
- * generated through the Anthropic API. When a model makes the same mistake
+ * returns it verbatim, and it doubles as the system prompt if documents are
+ * ever generated through the Anthropic API. When a model makes the same mistake
  * twice, add the rule here rather than correcting it by hand each time.
  *
  * It is a TypeScript string rather than a `.md` asset because a Cloudflare
@@ -23,76 +22,51 @@ import { DIAGRAM_ICON_KEYS } from "../constants/diagram-icons";
  * Every limit is interpolated from the constants the schema enforces, so the
  * guidance cannot drift from what validation actually accepts.
  */
-export const DIAGRAM_GUIDELINES = `# DiagramConfig v1 — authoring guidelines
+export const DIAGRAM_GUIDELINES = `# Diagram Document v2 — authoring guidelines
 
-You are generating a \`DiagramConfig\` for an architecture diagram.
+You are generating a \`DiagramDocument\` for an architecture diagram.
 Return ONLY the JSON object — no markdown fence, no commentary.
+
+## The shape
+
+\`\`\`json
+{ "version": 2, "content": { "title": …, "nodes": [], "boundaries": [], "groups": [], "edges": [] } }
+\`\`\`
+
+\`content\` is what the architecture **is**. A second part, \`layout\`, holds
+where everything sits — and you do not write it.
+
+## You do not place anything
+
+Do NOT emit a \`layout\`, and do NOT put \`x\`, \`y\`, \`w\` or \`h\` on anything.
+Positions, boundary rectangles and edge anchors are computed from what you
+describe. A layout you invent will be worse than the one derived from your own
+edges, and a node carrying coordinates is rejected outright.
+
+Say what belongs together with a **group**. Draw a **boundary** only when that
+group is a real named perimeter — a cloud provider, a runtime, a monorepo. A
+group with no boundary is perfectly normal: it keeps those tiles together
+without drawing a box around them.
 
 ## Process
 
 1. List the components of the system described. Each becomes a node.
-2. Draw a boundary around what genuinely shares a perimeter: a cloud provider, a
-   runtime, a monorepo, third-party services. Do not invent one that adds nothing.
-3. Trace the main request/data path. Those are \`solid\` edges, labelled with the
-   protocol — "HTTPS", "SQL", "query", "WebSocket".
-4. Everything else — auth, deploy, hooks, queues, side channels — is a
-   \`dashed\` edge.
+2. Trace the main request/data path. Those are \`solid\` edges, labelled with the
+   protocol — "HTTPS", "SQL", "query", "WebSocket". They are also what decides
+   the left-to-right reading order, so get them right before anything else.
+3. Everything else — auth, deploy, hooks, queues, side channels — is a
+   \`dashed\` edge, and lands in a band below the flow.
+4. Group what genuinely belongs together, and give the group a boundary if the
+   perimeter has a name worth printing.
 
-## Coordinates
+## Nodes
 
-\`x\` and \`y\` are the **centre** of a node's tile, not its corner. A tile is
-${DIAGRAM_GEOMETRY.TILE_SIZE}x${DIAGRAM_GEOMETRY.TILE_SIZE}px, and its name and
-sublabel occupy roughly ${DIAGRAM_GEOMETRY.NODE_TEXT_BLOCK}px underneath it.
-Forgetting that text block is the most common cause of a cramped diagram.
-
-## The canvas has no edges
-
-Do NOT emit a \`canvas\`. There is no fixed sheet to fit the diagram into: the
-exported document is sized from what you draw, plus ${FRAME_PADDING}px of
-whitespace on every side. Coordinates are unbounded and may be negative, and no
-position is ever "off the canvas".
-
-This means layout is about the *relationships between* nodes — spacing, rows,
-reading order — and never about staying inside a rectangle. Place the first node
-wherever you like and build outward from it.
-
-(\`canvas: { w, h }\` still exists for the rare diagram that must be an exact
-size, such as a slide. Setting it re-imposes a fixed frame, and anything outside
-that frame is then cropped. Leave it out unless the user asked for a size.)
-
-## Layout
-
-- The main flow occupies ONE horizontal row, left to right, at a constant \`y\`.
-  External actors (users, clients) sit on the left; data stores (databases,
-  buckets) on the right.
-- Secondary nodes — auth, cache — go in a second row 140px below, aligned on \`x\`
-  with whatever they attach to.
-- Tooling and infrastructure (build, lint, IaC) belong in their own boundary, in a
-  lower band of their own.
-- Keep at least 140px between node centres, horizontally and vertically.
-- Give a boundary about 60px of padding around the nodes it contains. A nested
-  boundary uses \`filled: false\` and \`dashed: true\`.
-
-## Content
-
+- \`id\`: short, lowercase, stable. Edges and groups refer to it.
 - \`name\`: the technology's proper name, at most ${DIAGRAM_LIMITS.TEXT_MAX}
   characters — "Drizzle ORM", not "Drizzle ORM with Postgres".
 - \`sub\`: its role, lowercase, at most ${DIAGRAM_LIMITS.TEXT_MAX} characters —
   "orm / migrations".
 - \`tile: "dark"\` for only 2-3 key nodes; everything else stays light.
-- \`background\` is the paper tone, and it is optional — leave it out unless the
-  user asked for one. The choices are \`${Object.values(CANVAS_TONES).join("`, `")}\`,
-  all of them near-white. \`${CANVAS_TONES.CREAM}\` reads as a legal pad and
-  \`${CANVAS_TONES.BLUE}\` as blueprint paper; the rest are neutral.
-- Edge labels: short and technical. Protocol names stay as they are; other words
-  follow the language the user is writing in.
-- Boundary \`tone\` is semantic, never a colour: \`${BOUNDARY_TONES.ORANGE}\` for the
-  primary cloud or runtime, \`${BOUNDARY_TONES.BLUE}\` for tooling and the monorepo,
-  \`${BOUNDARY_TONES.GREEN}\` for external services and data, \`${BOUNDARY_TONES.NEUTRAL}\`
-  for anything else. The renderer owns the palette — pick meaning and let it
-  choose the hex.
-
-## The mark inside a tile
 
 Every node shows one mark, and needs either an \`iconKey\` or an \`emoji\`. A node
 with neither is rejected; a node carrying both draws the icon.
@@ -107,32 +81,69 @@ with neither is rejected; a node carrying both draws the icon.
   auth, packages, runtime, cloud and tooling all read better with different
   glyphs.
 
-## Edge anchors
+## Boundaries and groups
 
-\`out\` is the side the line leaves, \`inn\` the side it arrives at, each one of
-\`l\`, \`r\`, \`t\`, \`b\`. A left-to-right flow is \`out: "r"\`, \`inn: "l"\`. Prefer
-horizontal anchors: a \`b\` anchor has to drop past the node's text, so it draws a
-noticeably longer line.
+A **boundary** is a drawn box: \`{ "id", "label", "tone", "padding" }\`, and
+optionally an \`icon\`. A **group** is the relation: \`{ "id", "members" }\`, where
+members are node ids, a boundary id, and other group ids.
+
+- A group holds **at most one boundary**, and that boundary frames the group's
+  other members. A nested group may carry its own.
+- A group holds **at least one node**, directly or through a group inside it.
+- An element belongs to **at most one group**. Nest groups instead of overlapping
+  them.
+- \`tone\` is semantic, never a colour: \`${BOUNDARY_TONES.ORANGE}\` for the primary
+  cloud or runtime, \`${BOUNDARY_TONES.BLUE}\` for tooling and the monorepo,
+  \`${BOUNDARY_TONES.GREEN}\` for external services and data,
+  \`${BOUNDARY_TONES.NEUTRAL}\` for anything else. The renderer owns the palette —
+  pick meaning and let it choose the hex.
+- \`padding\` is how tightly the box hugs what it holds:
+  \`${Object.values(BOUNDARY_PADDINGS).join("`, `")}\`. Leave it out for
+  \`${BOUNDARY_PADDINGS.NORMAL}\`. A nested boundary reads better with
+  \`filled: false\` and \`dashed: true\`.
+
+## Edges
+
+\`{ "from", "to", "label", "style" }\`, where \`from\` and \`to\` are node ids — an
+edge connects tiles, never boundaries or groups.
+
+- \`id\` is optional: it is derived from the two endpoints. Write one only when
+  two edges connect the same pair and you want to tell them apart.
+- Labels are short and technical. Protocol names stay as they are; other words
+  follow the language the user is writing in.
+- Do not write \`out\` or \`inn\`. Which side a line leaves is composition, and it
+  is computed from where the tiles end up.
+
+## The diagram itself
+
+- \`title\`: a short slug for the file it becomes.
+- \`background\` is the paper tone, and it is optional — leave it out unless the
+  user asked for one. The choices are \`${Object.values(CANVAS_TONES).join("`, `")}\`,
+  all of them near-white. \`${CANVAS_TONES.CREAM}\` reads as a legal pad and
+  \`${CANVAS_TONES.BLUE}\` as blueprint paper; the rest are neutral.
+- There is no canvas to fit inside. The exported document is sized from what the
+  diagram contains, so nothing is ever "off the page".
 
 ## What validation enforces
 
-- \`version\` must be 1.
-- Coordinates are unbounded. Nothing is rejected for being too far out.
-- At most ${DIAGRAM_LIMITS.MAX_BOUNDARIES} boundaries, ${DIAGRAM_LIMITS.MIN_NODES}-${DIAGRAM_LIMITS.MAX_NODES} nodes, at most ${DIAGRAM_LIMITS.MAX_EDGES} edges.
-- Node ids and boundary ids must each be unique.
-- Every \`edge.from\` and \`edge.to\` must name a node that exists, and an edge
-  cannot connect a node to itself.
-- An edge's \`id\` is optional. Leave it out and it is derived from \`from\` and
-  \`to\`; write one only when two edges connect the same pair and you want to be
-  able to tell them apart.
+- \`version\` must be 2, and \`content\` must be present.
+- At most ${DIAGRAM_LIMITS.MAX_BOUNDARIES} boundaries, ${DIAGRAM_LIMITS.MAX_GROUPS} groups, ${DIAGRAM_LIMITS.MIN_NODES}-${DIAGRAM_LIMITS.MAX_NODES} nodes, at most ${DIAGRAM_LIMITS.MAX_EDGES} edges.
+- Node, boundary and group ids share one namespace and must all be unique.
+- Every \`edge.from\` and \`edge.to\` names a node that exists, and an edge cannot
+  connect a node to itself.
+- Every group member exists, belongs to no other group, and the nesting has no
+  cycle.
 - Every node carries an \`iconKey\` from the list above or an \`emoji\`.
 
 ## Check before answering
 
+- Is there any \`x\`, \`y\`, \`w\`, \`h\`, \`out\`, \`inn\` or \`layout\` in your answer?
+  Delete it.
 - Does every \`edge.from\` and \`edge.to\` name a node that exists?
 - Does every node have an \`iconKey\` or an \`emoji\`, and is every \`iconKey\` one
   of the keys listed above?
-- Are any two node centres closer than 140px? Move them apart.
+- Does every group hold at least one node and at most one boundary?
 - Is any \`name\` or \`sub\` longer than ${DIAGRAM_LIMITS.TEXT_MAX} characters? Abbreviate it.
-- Does the main flow read left to right without lines crossing? Reorder it.
+- Does the solid path read left to right through the whole system? That path is
+  the diagram's spine, and everything else is placed relative to it.
 `;

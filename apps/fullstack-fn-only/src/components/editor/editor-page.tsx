@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { EXAMPLE_DIAGRAM_CONFIG, validateDiagramConfig } from "@diagram-tool/domain/schemas";
-import type { DiagramConfig } from "@diagram-tool/domain/schemas";
-import { renderSVG } from "@diagram-tool/domain/render";
+import { EXAMPLE_RESOLVED_DIAGRAM, validateResolvedDiagram } from "@diagram-tool/domain/schemas";
+import type { ResolvedDiagram } from "@diagram-tool/domain/schemas";
+import { facingSides, renderSVG } from "@diagram-tool/domain/render";
 import { BOUNDARY_TONES, TILE_VARIANTS } from "@diagram-tool/domain/constants";
 import { downloadConfig, downloadSvg, downloadSvgAsPng } from "@/lib/export-png";
 import { DiagramPanel } from "@/components/editor/diagram-panel";
@@ -15,7 +15,6 @@ import type { EditorTool } from "@/components/editor/editor-tools";
 import { JsonPanel } from "@/components/editor/json-panel";
 import { NodeInspector } from "@/components/editor/node-inspector";
 import type { Selection } from "@/components/editor/selection";
-import { facingSides } from "@/components/editor/pointer-geometry";
 import type { Point } from "@/components/editor/pointer-geometry";
 import { SIDE_PANEL_TABS, SIDE_PANEL_WIDTH, SidePanel } from "@/components/editor/side-panel";
 import type { SidePanelTab } from "@/components/editor/side-panel";
@@ -42,12 +41,12 @@ import { useChromeTheme } from "@/components/editor/use-chrome-theme";
 interface ParsedState {
   errors: string[];
   /** `null` whenever the text does not parse or does not validate. */
-  config: DiagramConfig | null;
+  config: ResolvedDiagram | null;
 }
 
 /** What the stage is drawing: the current config, or the last one that worked. */
 interface ShownState {
-  config: DiagramConfig;
+  config: ResolvedDiagram;
   /** The text that produced it, which is what Revert goes back to. */
   text: string;
 }
@@ -73,7 +72,7 @@ const buildState = (text: string): ParsedState => {
     return { errors: [`Invalid JSON — ${detail}`], config: null };
   }
 
-  const result = validateDiagramConfig(parsed);
+  const result = validateResolvedDiagram(parsed);
   return result.ok
     ? { errors: [], config: result.config }
     : { errors: result.errors, config: null };
@@ -95,7 +94,7 @@ const isTypingTarget = (target: EventTarget | null): boolean =>
   (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 
 export function EditorPage() {
-  const [text, setText] = useState(() => JSON.stringify(EXAMPLE_DIAGRAM_CONFIG, null, 2));
+  const [text, setText] = useState(() => JSON.stringify(EXAMPLE_RESOLVED_DIAGRAM, null, 2));
   const [tool, setTool] = useState<EditorTool>(EDITOR_TOOLS.SELECT);
   const [tileKey, setTileKey] = useState(() => PALETTE_TILES[0]?.key ?? "");
   const [selection, setSelection] = useState<Selection>(null);

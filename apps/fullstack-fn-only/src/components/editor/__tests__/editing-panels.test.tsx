@@ -1,8 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { EXAMPLE_DIAGRAM_CONFIG } from "@diagram-tool/domain/schemas";
+import { EXAMPLE_RESOLVED_DIAGRAM } from "@diagram-tool/domain/schemas";
 import { beforeEach, describe, expect, it } from "vitest";
 import { EditorPage } from "../editor-page";
-import { facingSides } from "../pointer-geometry";
 
 const stubScreenCTM = () => {
   Object.defineProperty(SVGSVGElement.prototype, "getScreenCTM", {
@@ -14,7 +13,7 @@ const stubScreenCTM = () => {
 
 const canvas = () => screen.getByTestId("diagram-canvas");
 const configText = () => screen.getByLabelText<HTMLTextAreaElement>(/diagram config/i).value;
-const parsed = () => JSON.parse(configText()) as typeof EXAMPLE_DIAGRAM_CONFIG;
+const parsed = () => JSON.parse(configText()) as typeof EXAMPLE_RESOLVED_DIAGRAM;
 const nodeById = (id: string) => parsed().nodes.find((node) => node.id === id);
 
 const openTab = (name: RegExp) => fireEvent.click(screen.getByRole("tab", { name }));
@@ -343,21 +342,5 @@ describe("tool shortcuts", () => {
     fireEvent.keyDown(textarea, { key: "2" });
 
     expect(screen.getByRole("status")).toHaveTextContent(/drag a tile from the palette/i);
-  });
-});
-
-describe("facingSides", () => {
-  it("prefers horizontal anchors", () => {
-    expect(facingSides({ x: 0, y: 0 }, { x: 100, y: 0 })).toEqual({ out: "r", inn: "l" });
-    expect(facingSides({ x: 100, y: 0 }, { x: 0, y: 0 })).toEqual({ out: "l", inn: "r" });
-  });
-
-  it("falls back to vertical when the gap is mostly vertical", () => {
-    expect(facingSides({ x: 0, y: 0 }, { x: 10, y: 200 })).toEqual({ out: "b", inn: "t" });
-    expect(facingSides({ x: 0, y: 200 }, { x: 10, y: 0 })).toEqual({ out: "t", inn: "b" });
-  });
-
-  it("breaks a tie horizontally, because a bottom anchor draws a longer line", () => {
-    expect(facingSides({ x: 0, y: 0 }, { x: 100, y: 100 })).toEqual({ out: "r", inn: "l" });
   });
 });

@@ -1,6 +1,5 @@
-import { ANCHOR_SIDES, DIAGRAM_GEOMETRY } from "@diagram-tool/domain/constants";
-import type { AnchorSide } from "@diagram-tool/domain/constants";
-import type { DiagramConfig, DiagramBoundary, DiagramNode } from "@diagram-tool/domain/schemas";
+import { DIAGRAM_GEOMETRY } from "@diagram-tool/domain/constants";
+import type { ResolvedDiagram, DiagramBoundary, DiagramNode } from "@diagram-tool/domain/schemas";
 
 /**
  * Turning a pointer into a node.
@@ -22,7 +21,7 @@ export interface Point {
  * Searched back to front because the renderer draws nodes in array order, so
  * the last one painted is the one visually on top of any overlap.
  */
-export const hitTestNode = (config: DiagramConfig, point: Point): DiagramNode | undefined => {
+export const hitTestNode = (config: ResolvedDiagram, point: Point): DiagramNode | undefined => {
   const half = DIAGRAM_GEOMETRY.TILE_SIZE / 2;
 
   for (let index = config.nodes.length - 1; index >= 0; index -= 1) {
@@ -46,7 +45,7 @@ export const hitTestNode = (config: DiagramConfig, point: Point): DiagramNode | 
  * they read as surfaces; clicking one and getting nothing would be the surprise.
  */
 export const hitTestBoundary = (
-  config: DiagramConfig,
+  config: ResolvedDiagram,
   point: Point,
 ): DiagramBoundary | undefined => {
   for (let index = config.boundaries.length - 1; index >= 0; index -= 1) {
@@ -62,28 +61,6 @@ export const hitTestBoundary = (
   }
 
   return undefined;
-};
-
-/**
- * The anchor pair that faces the other node, used as the default for a new edge.
- *
- * Horizontal anchors win ties and near-ties: a bottom anchor has to drop past
- * the node's text block before it can turn, so it draws a noticeably longer
- * line. The author can change either side afterwards.
- */
-export const facingSides = (source: Point, target: Point): { out: AnchorSide; inn: AnchorSide } => {
-  const dx = target.x - source.x;
-  const dy = target.y - source.y;
-
-  if (Math.abs(dx) >= Math.abs(dy)) {
-    return dx >= 0
-      ? { out: ANCHOR_SIDES.RIGHT, inn: ANCHOR_SIDES.LEFT }
-      : { out: ANCHOR_SIDES.LEFT, inn: ANCHOR_SIDES.RIGHT };
-  }
-
-  return dy >= 0
-    ? { out: ANCHOR_SIDES.BOTTOM, inn: ANCHOR_SIDES.TOP }
-    : { out: ANCHOR_SIDES.TOP, inn: ANCHOR_SIDES.BOTTOM };
 };
 
 /**

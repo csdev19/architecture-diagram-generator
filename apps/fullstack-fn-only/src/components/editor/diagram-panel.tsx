@@ -1,6 +1,6 @@
 import { CANVAS_TONES, CANVAS_TONE_INFO } from "@diagram-tool/domain/constants";
 import type { CanvasTone } from "@diagram-tool/domain/constants";
-import type { DiagramConfig } from "@diagram-tool/domain/schemas";
+import type { ResolvedDiagram } from "@diagram-tool/domain/schemas";
 import { cn } from "@diagram-tool/web-ui";
 import { MicroLabel, MonoText } from "@/components/editor/editor-chrome";
 
@@ -13,7 +13,7 @@ import { MicroLabel, MonoText } from "@/components/editor/editor-chrome";
  */
 
 interface DiagramPanelProps {
-  config: DiagramConfig;
+  config: ResolvedDiagram;
   onBackgroundChange: (tone: CanvasTone) => void;
 }
 

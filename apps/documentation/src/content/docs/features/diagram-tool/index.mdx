@@ -12,8 +12,8 @@ the image a model generates over MCP can never disagree.
 
 ## Architecture Overview
 
-- Domain: `packages/domain/src/schemas/diagram.ts`, `packages/domain/src/constants/diagram.ts`, `packages/domain/src/constants/diagram-icons.ts`
-- Renderer: `packages/domain/src/render/` (including `frame.ts`, which sizes the document, and `layout.ts`, the auto-layout)
+- Domain: `packages/domain/src/schemas/diagram-document.ts` (the authored format), `packages/domain/src/schemas/diagram.ts` (the resolved contract), `packages/domain/src/constants/diagram.ts`, `packages/domain/src/constants/diagram-icons.ts`
+- Renderer: `packages/domain/src/render/` (including `resolve.ts`, which composes a document, `frame.ts`, which sizes the exported page, and `layout.ts`, the auto-layout)
 - Infrastructure: N/A — phase 0 runs entirely in the browser
 - Web UI: `apps/fullstack-fn-only/src/components/editor/` (the route file is wiring only)
 - Mobile: N/A
@@ -41,6 +41,7 @@ the image a model generates over MCP can never disagree.
 | Anything a model must choose from is interpolated from its source | Tone names, every limit and the full icon key list reach the authoring guidelines from the constants that enforce them. Guidance that contradicts validation is worse than no guidance                                                                                                                                                                                                    |
 | The editor's canvas is hand-written, not React Flow               | A node-graph library renders nodes as HTML and exports through the browser, which forfeits the server-rendered PNG and the parity that comes with it. Recorded in [ADR 0001](/architecture/decisions/adr-0001-no-canvas-library-for-the-editor)                                                                                                                                           |
 | The exported frame is derived, never declared                     | An authored `canvas` is a wall: it makes coordinates a walled garden, and every editor affordance becomes an apology for the wall. Sizing the document from its own contents deletes all of it. Recorded in [ADR 0002](/architecture/decisions/adr-0002-the-frame-is-derived-not-declared)                                                                                                |
+| Content and layout are separate parts of one document             | A model solves architecture well and geometry badly, and a drag should not edit the document that carries the architectural meaning. One envelope keeps the paste flow to a single snippet, and `resolveDiagram` composes the two halves into the renderer's input. Recorded in [ADR 0004](/architecture/decisions/adr-0004-content-and-layout-are-separate-parts-of-one-document)        |
 | A boundary is an element; a group is a relation                   | The v1 `group` fused a drawn rectangle with the claim that some nodes belong together. Splitting them is what lets a content-only document express structure without inventing geometry, and it makes the contradiction between the two unrepresentable rather than reconcilable. Recorded in [ADR 0003](/architecture/decisions/adr-0003-a-boundary-is-an-element-a-group-is-a-relation) |
 | The renderer draws the editor's surface, not just the export      | The editor passes the rectangle its camera is looking at as an explicit frame, so paper and grid come from the same function that produces the PNG. Two surfaces would be two things to keep in step                                                                                                                                                                                      |
 

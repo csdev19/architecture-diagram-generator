@@ -17,7 +17,12 @@ description: The DiagramConfig contract, and validation written so a model can c
 
 ## What It Does
 
-Defines what a diagram _is_: a set of boundaries, nodes and edges. Every
+Two contracts, not one. `diagram-document.ts` is the **authored** format — the
+v2 envelope of `content` and `layout` that a person pastes and a model returns.
+`diagram.ts` is the **resolved** contract that `renderSVG` consumes, which
+nobody writes: `resolveDiagram` produces it. This page covers both.
+
+Together they define what a diagram _is_: a set of boundaries, nodes and edges. Every
 surface reads this one contract — the editor validates against it, the renderer
 consumes it, and from phase 1 the MCP tool will accept it. Its failure messages
 are written for whoever authored the config, so a model that gets a config wrong

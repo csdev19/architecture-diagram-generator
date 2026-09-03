@@ -1,23 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { EXAMPLE_DIAGRAM_CONFIG, diagramConfigSchema, validateDiagramConfig } from "../diagram";
+import {
+  EXAMPLE_RESOLVED_DIAGRAM,
+  resolvedDiagramSchema,
+  validateResolvedDiagram,
+} from "../diagram";
 
 /** Every failure message produced by parsing `input`. */
 const messagesFor = (input: unknown): string[] => {
-  const parsed = diagramConfigSchema.safeParse(input);
+  const parsed = resolvedDiagramSchema.safeParse(input);
   return parsed.success ? [] : parsed.error.issues.map((issue) => issue.message);
 };
 
 /** A minimal valid config, cloned so a test can break one field in isolation. */
-const validConfig = () => structuredClone(EXAMPLE_DIAGRAM_CONFIG) as Record<string, unknown>;
+const validConfig = () => structuredClone(EXAMPLE_RESOLVED_DIAGRAM) as Record<string, unknown>;
 
-describe("diagramConfigSchema", () => {
+describe("resolvedDiagramSchema", () => {
   it("accepts the canonical example config", () => {
-    expect(diagramConfigSchema.safeParse(EXAMPLE_DIAGRAM_CONFIG).success).toBe(true);
+    expect(resolvedDiagramSchema.safeParse(EXAMPLE_RESOLVED_DIAGRAM).success).toBe(true);
   });
 
   it("applies the documented defaults", () => {
-    const parsed = diagramConfigSchema.parse({
-      version: 1,
+    const parsed = resolvedDiagramSchema.parse({
       canvas: { w: 700, h: 360 },
       boundaries: [],
       nodes: [{ id: "a", x: 200, y: 180, emoji: "🖥️", name: "User" }],
@@ -31,7 +34,7 @@ describe("diagramConfigSchema", () => {
 
   it("applies boundary and edge defaults", () => {
     const config = validConfig();
-    const parsed = diagramConfigSchema.parse(config);
+    const parsed = resolvedDiagramSchema.parse(config);
 
     expect(parsed.boundaries[0]?.dashed).toBe(false);
     expect(parsed.boundaries[0]?.filled).toBe(true);
@@ -102,42 +105,35 @@ describe("diagramConfigSchema", () => {
     (config.nodes as Array<Record<string, unknown>>)[0]!.x = -1800;
     (config.nodes as Array<Record<string, unknown>>)[0]!.y = 9000;
 
-    expect(diagramConfigSchema.safeParse(config).success).toBe(true);
+    expect(resolvedDiagramSchema.safeParse(config).success).toBe(true);
   });
 
   it("rejects a whitespace-only name", () => {
     const config = validConfig();
     (config.nodes as Array<Record<string, unknown>>)[0]!.name = "   ";
 
-    expect(diagramConfigSchema.safeParse(config).success).toBe(false);
+    expect(resolvedDiagramSchema.safeParse(config).success).toBe(false);
   });
 
   it("rejects an unknown boundary tone", () => {
     const config = validConfig();
     (config.boundaries as Array<Record<string, unknown>>)[0]!.tone = "purple";
 
-    expect(diagramConfigSchema.safeParse(config).success).toBe(false);
-  });
-
-  it("rejects a version other than 1", () => {
-    const config = validConfig();
-    config.version = 2;
-
-    expect(diagramConfigSchema.safeParse(config).success).toBe(false);
+    expect(resolvedDiagramSchema.safeParse(config).success).toBe(false);
   });
 
   it("accepts a config with no canvas at all — that is the normal shape now", () => {
     const config = validConfig();
     delete config.canvas;
 
-    expect(diagramConfigSchema.safeParse(config).success).toBe(true);
+    expect(resolvedDiagramSchema.safeParse(config).success).toBe(true);
   });
 
   it("still rejects a canvas that is not a positive size", () => {
     const config = validConfig();
     config.canvas = { w: 0, h: -10 };
 
-    expect(diagramConfigSchema.safeParse(config).success).toBe(false);
+    expect(resolvedDiagramSchema.safeParse(config).success).toBe(false);
   });
 
   it("requires at least one node", () => {
@@ -145,14 +141,13 @@ describe("diagramConfigSchema", () => {
     config.nodes = [];
     config.edges = [];
 
-    expect(diagramConfigSchema.safeParse(config).success).toBe(false);
+    expect(resolvedDiagramSchema.safeParse(config).success).toBe(false);
   });
 });
 
 describe("edge ids", () => {
   /** A two-node config whose edges the test supplies. */
   const configWithEdges = (edges: Array<Record<string, unknown>>) => ({
-    version: 1,
     boundaries: [],
     nodes: [
       { id: "user", x: 110, y: 180, emoji: "🖥️", name: "User" },
@@ -162,7 +157,7 @@ describe("edge ids", () => {
   });
 
   it("derives an edge id from its endpoints when the author omits one", () => {
-    const result = validateDiagramConfig(
+    const result = validateResolvedDiagram(
       configWithEdges([{ from: "user", to: "hono", out: "r", inn: "l" }]),
     );
 
@@ -171,7 +166,7 @@ describe("edge ids", () => {
   });
 
   it("suffixes a derived id when the same pair is connected twice", () => {
-    const result = validateDiagramConfig(
+    const result = validateResolvedDiagram(
       configWithEdges([
         { from: "user", to: "hono", out: "r", inn: "l" },
         { from: "user", to: "hono", out: "b", inn: "t", style: "dashed" },
@@ -185,7 +180,7 @@ describe("edge ids", () => {
   });
 
   it("keeps an id the author wrote", () => {
-    const result = validateDiagramConfig(
+    const result = validateResolvedDiagram(
       configWithEdges([{ id: "login", from: "user", to: "hono", out: "r", inn: "l" }]),
     );
 
@@ -194,7 +189,7 @@ describe("edge ids", () => {
   });
 
   it("rejects two edges that were given the same id", () => {
-    const result = validateDiagramConfig(
+    const result = validateResolvedDiagram(
       configWithEdges([
         { id: "same", from: "user", to: "hono", out: "r", inn: "l" },
         { id: "same", from: "hono", to: "user", out: "l", inn: "r" },
@@ -206,7 +201,7 @@ describe("edge ids", () => {
   });
 
   it("never collides a derived id with one the author wrote", () => {
-    const result = validateDiagramConfig(
+    const result = validateResolvedDiagram(
       configWithEdges([
         { id: "user-hono", from: "hono", to: "user", out: "l", inn: "r" },
         { from: "user", to: "hono", out: "r", inn: "l" },
@@ -219,12 +214,11 @@ describe("edge ids", () => {
 });
 
 /**
- * The phase-0 example frozen as a literal. `EXAMPLE_DIAGRAM_CONFIG` itself
+ * The phase-0 example frozen as a literal. `EXAMPLE_RESOLVED_DIAGRAM` itself
  * gained `iconKey`s in phase 1.5, so it can no longer stand as the guarantee
  * that a config written before icons existed still parses. This copy can.
  */
 const PHASE_0_CONFIG = {
-  version: 1,
   title: "api-simple",
   canvas: { w: 700, h: 360 },
   boundaries: [
@@ -243,7 +237,6 @@ const PHASE_0_CONFIG = {
 
 /** A one-node config with the node's identity fields under the test's control. */
 const configWithNode = (node: Record<string, unknown>) => ({
-  version: 1,
   canvas: { w: 700, h: 360 },
   boundaries: [],
   nodes: [{ id: "a", x: 200, y: 180, name: "Thing", ...node }],
@@ -252,19 +245,21 @@ const configWithNode = (node: Record<string, unknown>) => ({
 
 describe("node icons", () => {
   it("accepts a node identified by an iconKey alone", () => {
-    expect(diagramConfigSchema.safeParse(configWithNode({ iconKey: "react" })).success).toBe(true);
+    expect(resolvedDiagramSchema.safeParse(configWithNode({ iconKey: "react" })).success).toBe(
+      true,
+    );
   });
 
   it("still accepts a node identified by an emoji alone", () => {
-    expect(diagramConfigSchema.safeParse(configWithNode({ emoji: "🔥" })).success).toBe(true);
+    expect(resolvedDiagramSchema.safeParse(configWithNode({ emoji: "🔥" })).success).toBe(true);
   });
 
   it("accepts every config written before icons existed", () => {
-    expect(diagramConfigSchema.safeParse(PHASE_0_CONFIG).success).toBe(true);
+    expect(resolvedDiagramSchema.safeParse(PHASE_0_CONFIG).success).toBe(true);
   });
 
   it("leaves iconKey absent rather than defaulting it", () => {
-    const parsed = diagramConfigSchema.parse(configWithNode({ emoji: "🔥" }));
+    const parsed = resolvedDiagramSchema.parse(configWithNode({ emoji: "🔥" }));
     expect(parsed.nodes[0]?.iconKey).toBeUndefined();
   });
 
@@ -285,7 +280,7 @@ describe("node icons", () => {
   });
 
   it("rejects an iconKey that is not in the registry", () => {
-    const result = validateDiagramConfig(configWithNode({ iconKey: "not-a-framework" }));
+    const result = validateResolvedDiagram(configWithNode({ iconKey: "not-a-framework" }));
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -297,14 +292,14 @@ describe("node icons", () => {
 
   it("accepts a node carrying both an emoji and an iconKey", () => {
     expect(
-      diagramConfigSchema.safeParse(configWithNode({ emoji: "🔥", iconKey: "hono" })).success,
+      resolvedDiagramSchema.safeParse(configWithNode({ emoji: "🔥", iconKey: "hono" })).success,
     ).toBe(true);
   });
 });
 
-describe("validateDiagramConfig", () => {
+describe("validateResolvedDiagram", () => {
   it("returns the parsed config, defaults filled in, when valid", () => {
-    const result = validateDiagramConfig(EXAMPLE_DIAGRAM_CONFIG);
+    const result = validateResolvedDiagram(EXAMPLE_RESOLVED_DIAGRAM);
 
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -318,7 +313,7 @@ describe("validateDiagramConfig", () => {
     (config.edges as Array<Record<string, unknown>>)[0]!.to = "nope";
     (config.nodes as Array<Record<string, unknown>>)[1]!.name = "x".repeat(27);
 
-    const result = validateDiagramConfig(config);
+    const result = validateResolvedDiagram(config);
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -331,7 +326,7 @@ describe("validateDiagramConfig", () => {
     const config = validConfig();
     (config.nodes as Array<Record<string, unknown>>)[0]!.name = "x".repeat(27);
 
-    const result = validateDiagramConfig(config);
+    const result = validateResolvedDiagram(config);
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.errors.some((e) => e.startsWith("nodes[0].name: "))).toBe(true);
@@ -342,7 +337,7 @@ describe("validateDiagramConfig", () => {
     const config = validConfig();
     (config.edges as Array<Record<string, unknown>>)[0]!.to = "nope";
 
-    const result = validateDiagramConfig(config);
+    const result = validateResolvedDiagram(config);
     expect(result.ok).toBe(false);
     if (!result.ok) {
       const message = result.errors.find((e) => e.includes('"nope"'));
@@ -352,7 +347,7 @@ describe("validateDiagramConfig", () => {
   });
 
   it("reports a non-object input without throwing", () => {
-    const result = validateDiagramConfig("not a config");
+    const result = validateResolvedDiagram("not a config");
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.errors.length).toBeGreaterThan(0);

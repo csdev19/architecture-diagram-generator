@@ -1,6 +1,5 @@
-import { DIAGRAM_GEOMETRY, DIAGRAM_TYPOGRAPHY } from "../constants/diagram";
-import type { DiagramConfig, DiagramBoundary, DiagramNode } from "../schemas/diagram";
-import { estimateMonoWidth } from "./svg";
+import type { ResolvedDiagram } from "../schemas/diagram";
+import { boundaryBounds, nodeBounds, union } from "./bounds";
 
 /**
  * The rectangle a diagram is drawn into.
@@ -35,59 +34,10 @@ export const FRAME_PADDING = 60;
  * The frame a config with nothing in it gets.
  *
  * The schema requires at least one node, so this is unreachable through
- * `validateDiagramConfig` — it exists so the function is total rather than
+ * `validateResolvedDiagram` — it exists so the function is total rather than
  * returning something meaningless like a zero-sized document.
  */
 const EMPTY_FRAME: DiagramFrame = { x: 0, y: 0, w: 400, h: 300 };
-
-interface Bounds {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-}
-
-/**
- * What a node covers.
- *
- * Wider than its tile whenever the name is: the label is centred under the tile
- * and a 26-character name runs well past 62px. Estimated rather than measured —
- * there is no text measurement outside a browser — and deliberately generous,
- * because overshooting costs whitespace while undershooting clips a word.
- */
-const nodeBounds = (node: DiagramNode): Bounds => {
-  const half = DIAGRAM_GEOMETRY.TILE_SIZE / 2;
-
-  const nameWidth = estimateMonoWidth(node.name, DIAGRAM_TYPOGRAPHY.NAME_SIZE);
-  const subWidth = estimateMonoWidth(node.sub, DIAGRAM_TYPOGRAPHY.SUB_SIZE);
-  const reach = Math.max(half, nameWidth / 2, subWidth / 2);
-
-  return {
-    minX: node.x - reach,
-    maxX: node.x + reach,
-    minY: node.y - half,
-    // The name and sublabel hang below the tile.
-    maxY: node.y + half + DIAGRAM_GEOMETRY.NODE_TEXT_BLOCK,
-  };
-};
-
-/**
- * What a boundary covers. Its label sits *on* the top border rather than inside,
- * so the box's own top edge is the extent — the label rides along it.
- */
-const boundaryBounds = (boundary: DiagramBoundary): Bounds => ({
-  minX: boundary.x,
-  maxX: boundary.x + boundary.w,
-  minY: boundary.y - DIAGRAM_TYPOGRAPHY.BOUNDARY_LABEL_SIZE,
-  maxY: boundary.y + boundary.h,
-});
-
-const union = (a: Bounds, b: Bounds): Bounds => ({
-  minX: Math.min(a.minX, b.minX),
-  minY: Math.min(a.minY, b.minY),
-  maxX: Math.max(a.maxX, b.maxX),
-  maxY: Math.max(a.maxY, b.maxY),
-});
 
 /**
  * The frame that holds everything the config draws, plus `FRAME_PADDING`.
@@ -96,7 +46,7 @@ const union = (a: Bounds, b: Bounds): Bounds => ({
  * document: `renderSVG` has to be byte-stable for snapshots to mean anything
  * and for a render cache to be able to key on content.
  */
-export const contentFrame = (config: DiagramConfig): DiagramFrame => {
+export const contentFrame = (config: ResolvedDiagram): DiagramFrame => {
   const all = [...config.nodes.map(nodeBounds), ...config.boundaries.map(boundaryBounds)];
   const first = all[0];
   if (!first) return EMPTY_FRAME;
@@ -118,5 +68,5 @@ export const contentFrame = (config: DiagramConfig): DiagramFrame => {
  * The frame to draw a config in: the author's fixed one if they declared it,
  * otherwise the one its own contents imply.
  */
-export const resolveFrame = (config: DiagramConfig): DiagramFrame =>
+export const resolveFrame = (config: ResolvedDiagram): DiagramFrame =>
   config.canvas ? { x: 0, y: 0, w: config.canvas.w, h: config.canvas.h } : contentFrame(config);
