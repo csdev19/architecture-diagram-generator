@@ -1,0 +1,41 @@
+name: Release Please 🏷️
+
+# Cuts releases and nothing else. Deploys live in their own tag-triggered
+# workflows, so a failed deploy can never leave a release half-shipped.
+#
+# Merging the release PR this opens IS the act of releasing: it bumps
+# `package.json`, writes `CHANGELOG.md` and pushes the tag the deployers listen
+# for. `main` is the current state of the code; production is a tag.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  # Never cancel a half-finished release cut — queue instead.
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    # RELEASE_PLEASE_TOKEN lives in the `production` environment, where this repo
+    # already keeps its secrets. A job only sees an environment's secrets when it
+    # declares that environment; `production` has no protection rules, so this
+    # does not gate the run.
+    #
+    # It must be a PAT, not the default GITHUB_TOKEN: GitHub suppresses the
+    # events raised by that token, so a tag it pushes triggers no workflow and
+    # nothing would ever deploy.
+    environment: production
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

@@ -5,11 +5,11 @@ description: Where the app is served from, why it is a subdomain, and what still
 
 # Deployment
 
-> **Status: the origin is configured, the app is not deployed.** `wrangler.jsonc`
-> names the production hostname and `wrangler deploy` would create it, but the
-> database this app needs is not reachable from a Worker yet. That blocker is
-> the last section, and it is real — nothing on this page claims a working
-> deployment.
+> **Status: the origin and the pipeline are configured, the app is not
+> deployed.** `wrangler.jsonc` names the production hostname, and a tag now
+> triggers a deploy — but neither has run, because the database this app needs
+> is not reachable from a Worker yet. That blocker is the last section, and it
+> is real: nothing on this page claims a working deployment.
 
 ## The origin
 
@@ -24,6 +24,81 @@ domain on a zone that already lives on Cloudflare.
 Wrangler creates the DNS record on the first deploy. The `cs19.dev` zone has to
 be in the same Cloudflare account as the Worker; if it is not, the deploy fails
 naming the zone rather than silently serving nothing.
+
+## How a release ships
+
+`main` is the current state of the code. **Production is a tag.** There is no
+long-lived `production` branch and promotion is not a merge.
+
+```
+merge to main  →  release PR (bot, rolling)  →  merge it  →  tag vX.Y.Z  →  deploy
+```
+
+| Workflow                   | Trigger                | Does                                                                                                                           |
+| -------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `release-please.yml`       | push to `main`         | Maintains one rolling release PR: accumulates the changelog, recomputes the next version. Cuts nothing until that PR is merged |
+| `release-fullstack-fn.yml` | push of a `v*.*.*` tag | Builds and deploys the Worker from the tagged commit                                                                           |
+
+Merging the release PR **is** the act of releasing: it bumps `package.json`,
+writes `CHANGELOG.md` and pushes the tag the deployer listens for. The version
+that ships is a committed fact in the repo, so the tag and the built artifact
+cannot disagree.
+
+The deploy checks out the **tag**, not a branch. Rolling back is therefore
+re-running that workflow's run for the older tag from the Actions UI — no revert
+commit, no rebuild of a moving target. `workflow_dispatch` on the same workflow
+is an escape hatch and behaves differently: it checks out whatever ref you pick,
+so it can ship unreleased commits.
+
+### One version line
+
+The repo has exactly one deployable — `apps/fullstack-fn-only` — so the
+[closure rule](https://github.com/csdev19/general-knowledge/blob/main/monorepos/release-please-playbook.md)
+resolves to a single version line with nothing to intersect. Tags are plain
+`vX.Y.Z` with no component prefix.
+
+The workspace packages are not versioned individually and should not be: every
+one is consumed through the workspace and none is published, so its version
+number would be decoration nobody resolves. Their commits count toward the one
+line.
+
+`apps/documentation` is in `exclude-paths` — it has no deploy pipeline, so a
+docs-only change should not cut a release.
+
+### The token is the part that breaks
+
+`release-please.yml` uses `RELEASE_PLEASE_TOKEN`, a PAT, and not the default
+`GITHUB_TOKEN`. GitHub suppresses the events raised by that default token, so a
+tag it pushes triggers no workflow: the release PR would open, merge, and tag,
+and **nothing would deploy**. That is the single most common way this setup
+fails, and it fails silently.
+
+The PAT needs `Contents: read/write` and `Pull requests: read/write` on this
+repo, stored in the `production` environment.
+
+## Secrets
+
+Both workflows read from the `production` environment.
+
+| Secret                  | Used by                    | For                                        |
+| ----------------------- | -------------------------- | ------------------------------------------ |
+| `RELEASE_PLEASE_TOKEN`  | `release-please.yml`       | Opening the release PR and pushing the tag |
+| `CLOUDFLARE_API_TOKEN`  | `release-fullstack-fn.yml` | Authenticating the deploy                  |
+| `CLOUDFLARE_ACCOUNT_ID` | `release-fullstack-fn.yml` | Naming the account to deploy into          |
+| `DATABASE_URL`          | build + Worker runtime     |                                            |
+| `BETTER_AUTH_SECRET`    | build + Worker runtime     |                                            |
+| `BETTER_AUTH_URL`       | Worker runtime             | Must be `https://diagrams.cs19.dev`        |
+| `JWT_PRIVATE_JWK`       | Worker runtime             |                                            |
+| `JWT_KID`               | Worker runtime             |                                            |
+
+The last five are uploaded to the Worker by `wrangler-action`, and the set has
+to match `fullstackServerEnvSchema` exactly — it is parsed at module scope in
+`src/env/server.ts`, so a missing one is not a degraded feature but a Worker
+that throws on its first request.
+
+The two Cloudflare credentials are deliberately **not** uploaded to the Worker:
+it never reads them, and shipping them into its runtime would hand it the key
+to redeploy itself.
 
 ## Why a subdomain and not `cs19.dev/editor`
 
@@ -87,3 +162,28 @@ Until one is picked and implemented, `wrangler deploy` produces a Worker that
 serves the editor and fails on anything that reads the database — which is
 login, signup and todos. The editor itself runs entirely in the browser, so it
 would work; that is a coincidence of the architecture, not a deployment plan.
+
+## Before the first release
+
+Nothing here has run. In order:
+
+1. **Create the PAT** and store it as `RELEASE_PLEASE_TOKEN` in the `production`
+   environment, along with the Cloudflare credentials and the five runtime
+   secrets above.
+2. **Resolve the database blocker.** Until then a deploy produces a Worker that
+   throws on its first request.
+3. **Land a `feat` or `fix` on `main`.** A batch of only `chore`/`docs`/`ci`
+   commits is not releasable and no release PR appears — that is correct
+   behaviour, not a broken bot.
+4. **Check the release PR** opens with a sane version and a changelog containing
+   only commits since `bootstrap-sha`. Opening a PR ships nothing, so this step
+   is free.
+5. **Merge it, and confirm the tag exists** and that
+   `release-fullstack-fn.yml` actually started. A tag with no workflow run means
+   the token is wrong — that is the failure to expect.
+6. **Re-run that deploy run once** from the Actions UI, to prove rollback works
+   before you need it.
+
+The old `deploy-production.yml`, which triggered on a `production` branch, is
+deleted. It never ran — the branch was never created — so removing it closed no
+path to production that existed.
