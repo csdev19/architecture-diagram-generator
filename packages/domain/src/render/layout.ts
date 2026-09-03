@@ -253,8 +253,11 @@ const placeItems = (items: Item[], edges: LevelEdge[]): Block => {
   /** How many items already occupy each column, so collisions stack downward. */
   const depth = new Map<string, number>();
 
-  const cells = items.map((item) => {
-    const col = column.get(item.id) ?? 0;
+  const cells = items.map((item, index) => {
+    // With no spine to layer against, every item is its own column: the row is
+    // the documented shape for a level of unconnected tiles, and the layering
+    // above leaves them all in column 0, which would stack them into a tower.
+    const col = treatAllAsFlow ? index : (column.get(item.id) ?? 0);
     const secondary = !treatAllAsFlow && !inFlow.has(item.id);
 
     // Secondary items start one row below the flow, then stack from there.
@@ -296,10 +299,16 @@ const placeItems = (items: Item[], edges: LevelEdge[]): Block => {
     below = Math.max(below, cy + cell.item.block.below);
   }
 
-  // Re-based on the centre of what was placed, so a parent can space this block
-  // with the same arithmetic it uses for a single tile.
+  // Re-based on what was placed, so a parent can space this block with the same
+  // arithmetic it uses for a single tile.
+  //
+  // Horizontally that is the centre. Vertically it is the flow row — never the
+  // geometric centre, which sits lower than the tiles because a label hangs
+  // under each one and a boundary reserves room above. Referencing the centre
+  // is what makes a bare tile beside a group land half a label-block low, and
+  // the main path visibly kink as it crosses into the box.
   const centreX = (left + right) / 2;
-  const centreY = (above + below) / 2;
+  const centreY = 0;
 
   for (const [id, offset] of offsets) {
     offsets.set(id, { x: offset.x - centreX, y: offset.y - centreY });

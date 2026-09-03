@@ -370,4 +370,48 @@ describe("layoutNodes", () => {
       left.maxX + room,
     );
   });
+
+  it("lays a level with no solid edges out in a row, not a column", () => {
+    // Tooling boxes are the ordinary shape here: a monorepo's runtime, build
+    // system and linter share a perimeter without any flow between them. With
+    // no spine to layer against, every item stayed in column 0 and the group
+    // stacked into a tower taller than the diagram it belonged to.
+    const placed = layoutNodes(
+      content(["a", "bun", "turbo", "lint", "hooks"], {
+        edges: [{ from: "hooks", to: "lint", style: "dashed" }],
+        groups: [{ id: "tooling", members: ["repo", "bun", "turbo", "lint", "hooks"] }],
+        boundaries: [{ id: "repo", padding: "normal" }],
+      }),
+    );
+
+    const row = ["bun", "turbo", "lint", "hooks"].map((id) => placed.get(id) as Point);
+
+    for (const point of row) {
+      expect(point.y, "the group stacked vertically instead of laying out in a row").toBe(
+        row[0]?.y,
+      );
+    }
+    expect(new Set(row.map((point) => point.x)).size).toBe(row.length);
+  });
+
+  it("aligns a group's flow row with a node placed beside it", () => {
+    // A node's reference is the centre of its tile, but a block's used to be
+    // its geometric centre — which sits lower, because a label hangs under
+    // every tile and a boundary reserves room for its own above. Aligning the
+    // two put the bare node half a label-block low and visibly kinked the
+    // main path where it crossed into the box.
+    const placed = layoutNodes(
+      content(["web", "api", "db"], {
+        groups: [{ id: "cloud", members: ["aws", "api", "db"] }],
+        boundaries: [{ id: "aws", padding: "normal" }],
+      }),
+    );
+
+    const web = placed.get("web") as Point;
+    const api = placed.get("api") as Point;
+    const db = placed.get("db") as Point;
+
+    expect(web.y, "the spine bends where it enters the boundary").toBe(api.y);
+    expect(db.y).toBe(api.y);
+  });
 });

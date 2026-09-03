@@ -1,4 +1,5 @@
 import {
+  siAngular,
   siAstro,
   siBetterauth,
   siBun,
@@ -10,6 +11,7 @@ import {
   siGithub,
   siGithubactions,
   siHono,
+  siNestjs,
   siNodedotjs,
   siPostgresql,
   siReact,
@@ -58,6 +60,7 @@ export interface DiagramIcon {
 const toDiagramIcon = ({ title, path, hex }: DiagramIcon): DiagramIcon => ({ title, path, hex });
 
 export const DIAGRAM_ICONS = {
+  angular: toDiagramIcon(siAngular),
   astro: toDiagramIcon(siAstro),
   betterauth: toDiagramIcon(siBetterauth),
   bun: toDiagramIcon(siBun),
@@ -69,6 +72,7 @@ export const DIAGRAM_ICONS = {
   github: toDiagramIcon(siGithub),
   githubactions: toDiagramIcon(siGithubactions),
   hono: toDiagramIcon(siHono),
+  nestjs: toDiagramIcon(siNestjs),
   nodedotjs: toDiagramIcon(siNodedotjs),
   postgresql: toDiagramIcon(siPostgresql),
   react: toDiagramIcon(siReact),
