@@ -31,7 +31,7 @@ import type { StageInsets } from "@/components/editor/use-stage-view";
  * The SVG is injected as markup rather than rebuilt as a React tree on purpose:
  * one renderer, shared with the server, is what guarantees the exported PNG is
  * the same drawing as the one on screen. The markup is not attacker-controlled
- * — it comes from our own renderer, from a schema-validated config, with every
+ * — it comes from our own renderer, from a validated document, with every
  * interpolated string XML-escaped.
  *
  * Selection and hover halos are drawn in a *separate* overlay SVG on top, never
@@ -42,8 +42,8 @@ import type { StageInsets } from "@/components/editor/use-stage-view";
  */
 
 interface DiagramStageProps {
-  /** The last config that validated. `null` before there is one. */
-  config: ResolvedDiagram | null;
+  /** The last document that resolved. `null` before there is one. */
+  diagram: ResolvedDiagram | null;
   tool: EditorTool;
   onToolChange: (tool: EditorTool) => void;
   selection: Selection;
@@ -59,7 +59,10 @@ interface DiagramStageProps {
   onDropTile: (key: string, point: Point) => void;
   onNodeMove: (id: string, x: number, y: number) => void;
   /** Writes a position verbatim, so a cancelled drag undoes exactly. */
-  onNodeRestore: (id: string, x: number, y: number) => void;
+  /** Called once a drag or a draw has actually begun, before anything is written. */
+  onGestureStart: () => void;
+  /** Called when Escape abandons a gesture, to put back what it changed. */
+  onGestureCancel: () => void;
   onBoundaryMove: (id: string, x: number, y: number) => void;
   /** Commits a box drawn with the boundary tool. */
   onDrawBoundary: (box: { x: number; y: number; w: number; h: number }) => void;
@@ -132,7 +135,7 @@ const boxBetween = (from: Point, to: Point): Box => ({
 });
 
 export function DiagramStage({
-  config,
+  diagram,
   tool,
   onToolChange,
   selection,
@@ -143,7 +146,8 @@ export function DiagramStage({
   onPlaceTile,
   onDropTile,
   onNodeMove,
-  onNodeRestore,
+  onGestureStart,
+  onGestureCancel,
   onBoundaryMove,
   onDrawBoundary,
   onDeleteSelected,
@@ -159,7 +163,7 @@ export function DiagramStage({
   const [draft, setDraft] = useState<Box | null>(null);
 
   // What Fit aims at: the bounds of the drawing, not of any declared frame.
-  const content = useMemo(() => (config ? contentFrame(config) : EMPTY_CONTENT), [config]);
+  const content = useMemo(() => (diagram ? contentFrame(diagram) : EMPTY_CONTENT), [diagram]);
   const view = useStageView(stageRef, content, insets);
   const { setScaleAt } = view;
   const { x: frameX, y: frameY, w: frameW, h: frameH } = view.frame;
@@ -173,9 +177,9 @@ export function DiagramStage({
    * the drag path already re-rendered on every pointer move.
    */
   const svg = useMemo(() => {
-    if (!config || frameW <= 0 || frameH <= 0) return null;
-    return renderSVG(config, { frame: { x: frameX, y: frameY, w: frameW, h: frameH } });
-  }, [config, frameX, frameY, frameW, frameH]);
+    if (!diagram || frameW <= 0 || frameH <= 0) return null;
+    return renderSVG(diagram, { frame: { x: frameX, y: frameY, w: frameW, h: frameH } });
+  }, [diagram, frameX, frameY, frameW, frameH]);
 
   const pointAt = (clientX: number, clientY: number): Point | undefined => {
     const svgElement = sceneRef.current?.querySelector("svg");
@@ -189,7 +193,7 @@ export function DiagramStage({
   }, []);
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!config) return;
+    if (!diagram) return;
 
     // Middle-button pan works under every tool: it is the gesture people
     // already have in their hands from every other canvas.
@@ -216,6 +220,7 @@ export function DiagramStage({
     }
 
     if (tool === EDITOR_TOOLS.BOUNDARY) {
+      onGestureStart();
       gestureRef.current = {
         kind: "draw",
         fromX: point.x,
@@ -229,7 +234,7 @@ export function DiagramStage({
       return;
     }
 
-    const node = hitTestNode(config, point);
+    const node = hitTestNode(diagram, point);
 
     if (tool === EDITOR_TOOLS.EDGE) {
       if (node) onPickEdgeEnd(node.id);
@@ -240,6 +245,7 @@ export function DiagramStage({
 
     if (node) {
       onSelect({ kind: "node", id: node.id });
+      onGestureStart();
       gestureRef.current = {
         kind: "node",
         id: node.id,
@@ -256,13 +262,14 @@ export function DiagramStage({
 
     // Nodes win over the boundary they sit in: the tile is the smaller, more
     // specific target, and it is drawn on top.
-    const boundary = hitTestBoundary(config, point);
+    const boundary = hitTestBoundary(diagram, point);
     if (!boundary) {
       onSelect(null);
       return;
     }
 
     onSelect({ kind: "boundary", id: boundary.id });
+    onGestureStart();
     gestureRef.current = {
       kind: "boundary",
       id: boundary.id,
@@ -278,7 +285,7 @@ export function DiagramStage({
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!config) return;
+    if (!diagram) return;
 
     const gesture = gestureRef.current;
 
@@ -308,7 +315,7 @@ export function DiagramStage({
     }
 
     const overTile = tool === EDITOR_TOOLS.SELECT || tool === EDITOR_TOOLS.EDGE;
-    setHoverId(overTile ? (hitTestNode(config, point)?.id ?? null) : null);
+    setHoverId(overTile ? (hitTestNode(diagram, point)?.id ?? null) : null);
   };
 
   const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -350,20 +357,17 @@ export function DiagramStage({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
 
-      const gesture = gestureRef.current;
-      // Restored verbatim rather than through `onNodeMove`: a config's
-      // coordinates need not sit on the grid, and snapping here would move a
-      // node the author just decided not to move.
-      if (gesture?.kind === "node") onNodeRestore(gesture.id, gesture.originX, gesture.originY);
-      if (gesture?.kind === "boundary")
-        onBoundaryMove(gesture.id, gesture.originX, gesture.originY);
+      // The whole gesture is undone, not just the last position it wrote: a
+      // drag also settles the layout of everything else on screen before it
+      // moves anything, and abandoning it has to take that back too.
+      onGestureCancel();
       setDraft(null);
       endGesture();
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [gesturing, onNodeRestore, onBoundaryMove, endGesture]);
+  }, [gesturing, onGestureCancel, endGesture]);
 
   // Read through a ref so the listener below is registered once. Re-binding it
   // on every scale change would tear a wheel listener down mid-gesture.
@@ -388,7 +392,7 @@ export function DiagramStage({
     return () => stage.removeEventListener("wheel", handleWheel);
   }, [setScaleAt]);
 
-  const nodeHalos = (config?.nodes ?? [])
+  const nodeHalos = (diagram?.nodes ?? [])
     .map((node) => {
       const state =
         node.id === edgeFrom
@@ -417,7 +421,7 @@ export function DiagramStage({
     })
     .filter(Boolean);
 
-  const boundaryHalos = (config?.boundaries ?? [])
+  const boundaryHalos = (diagram?.boundaries ?? [])
     .filter((boundary) => isBoundary(selection, boundary.id))
     .map((boundary) => (
       <rect
@@ -433,7 +437,7 @@ export function DiagramStage({
       />
     ));
 
-  /** The box being dragged out, drawn as chrome so it never enters the config. */
+  /** The box being dragged out, drawn as chrome so it never enters the drawing. */
   const draftHalo = draft ? (
     <rect
       key="draft"

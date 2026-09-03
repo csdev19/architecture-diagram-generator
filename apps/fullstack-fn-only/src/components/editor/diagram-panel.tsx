@@ -9,11 +9,11 @@ import { MicroLabel, MonoText } from "@/components/editor/editor-chrome";
  *
  * One control so far, and the one that needed a home — the paper tone. It is
  * part of the drawing, not of the chrome: it exports with the diagram, which is
- * why it lives in the config and not in a theme.
+ * why it lives in the diagram and not in a theme.
  */
 
 interface DiagramPanelProps {
-  config: ResolvedDiagram;
+  diagram: ResolvedDiagram;
   onBackgroundChange: (tone: CanvasTone) => void;
 }
 
@@ -34,20 +34,20 @@ const TONE_LABELS: Record<CanvasTone, string> = {
   [CANVAS_TONES.BLUSH]: "Blush",
 };
 
-export function DiagramPanel({ config, onBackgroundChange }: DiagramPanelProps) {
-  const current = config.background ?? CANVAS_TONES.GREY;
+export function DiagramPanel({ diagram, onBackgroundChange }: DiagramPanelProps) {
+  const current = diagram.background ?? CANVAS_TONES.GREY;
 
   return (
     <section aria-label="Diagram" className="space-y-4 pb-2">
       <header className="flex items-center justify-between gap-2">
-        <MonoText className="text-[15px] font-medium text-ed-text">{config.title}</MonoText>
+        <MonoText className="text-[15px] font-medium text-ed-text">{diagram.title}</MonoText>
         <MicroLabel>Diagram</MicroLabel>
       </header>
 
       <div className="space-y-1.5">
         <span className="block text-[12.5px] font-medium text-ed-text">Paper</span>
 
-        <div role="boundary" aria-label="Paper" className="flex gap-2">
+        <div role="group" aria-label="Paper" className="flex gap-2">
           {TONE_ORDER.map((tone) => (
             <button
               key={tone}

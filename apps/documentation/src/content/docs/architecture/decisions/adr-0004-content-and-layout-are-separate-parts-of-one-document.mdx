@@ -18,10 +18,10 @@ what the architecture is; `layout` is how it is composed, and it is optional.
 | Supersedes    | N/A        |
 | Superseded by | N/A        |
 
-**Implementation status.** The format, the validator and the resolver live in
-`packages/domain`. The editor adopts them in the plan that follows this one —
-until then it still edits a resolved diagram, so this ADR describes the contract
-rather than the whole application.
+**Implementation status.** Implemented. The format, the validator and the
+resolver live in `packages/domain`, and the editor's text is a v2 document: it
+parses, validates and resolves on every keystroke, and every gesture writes to
+one half of it.
 
 ## Context
 

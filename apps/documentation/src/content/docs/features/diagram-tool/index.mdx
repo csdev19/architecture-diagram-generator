@@ -52,4 +52,5 @@ the image a model generates over MCP can never disagree.
 - ⚠️ The renderer must stay free of DOM and Node APIs. Anything needing `canvas`, `Image` or `document` belongs in the app, which is why PNG export lives there.
 - ⚠️ Never restate a colour, size or limit that already exists in `constants/diagram.ts`. The guidelines interpolate their numbers from it precisely so guidance cannot drift from validation.
 - ⚠️ Coordinates are unbounded and may be negative. Nothing is "off the canvas", so no layout code may assume a positive origin or a maximum.
-- ⚠️ The editor's text is the single source of truth. Anything that edits a diagram — a drag, a field, auto-layout — parses that text, mutates it and prints it back. Holding a parsed config as editing state is the one change that would break the whole design.
+- ⚠️ The editor's text is the single source of truth, and what it holds is a **document**. Anything that edits a diagram — a drag, a field, Arrange — parses that text, mutates it and prints it back; the canvas is what `resolveDiagram` makes of the result. Holding a parsed document as editing state is the one change that would break the whole design.
+- ⚠️ A gesture writes to exactly one half of the document. A position that ends up in `content`, or a name that ends up in `layout`, is a bug even when it renders correctly.

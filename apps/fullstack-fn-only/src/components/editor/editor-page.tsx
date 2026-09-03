@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { EXAMPLE_RESOLVED_DIAGRAM, validateResolvedDiagram } from "@diagram-tool/domain/schemas";
-import type { ResolvedDiagram } from "@diagram-tool/domain/schemas";
-import { facingSides, renderSVG } from "@diagram-tool/domain/render";
-import { BOUNDARY_TONES, TILE_VARIANTS } from "@diagram-tool/domain/constants";
+import { EXAMPLE_DIAGRAM_DOCUMENT, validateDiagramDocument } from "@diagram-tool/domain/schemas";
+import type { DiagramDocument, ResolvedDiagram } from "@diagram-tool/domain/schemas";
+import { facingSides, renderSVG, resolveDiagram } from "@diagram-tool/domain/render";
+import { BOUNDARY_PADDINGS, BOUNDARY_TONES, TILE_VARIANTS } from "@diagram-tool/domain/constants";
+import type { BoundaryPadding } from "@diagram-tool/domain/constants";
 import { downloadConfig, downloadSvg, downloadSvgAsPng } from "@/lib/export-png";
 import { DiagramPanel } from "@/components/editor/diagram-panel";
 import { DiagramStage } from "@/components/editor/diagram-stage";
@@ -40,14 +41,22 @@ import { useChromeTheme } from "@/components/editor/use-chrome-theme";
 
 interface ParsedState {
   errors: string[];
-  /** `null` whenever the text does not parse or does not validate. */
-  config: ResolvedDiagram | null;
+  /** `null` whenever the text does not parse, or does not validate. */
+  shown: ShownState | null;
 }
 
-/** What the stage is drawing: the current config, or the last one that worked. */
+/**
+ * What the editor is looking at: one text, and the two views of it.
+ *
+ * The document is what the author wrote — where padding and membership live.
+ * The diagram is what resolution made of it — where coordinates live. Both are
+ * derived from the same string on every keystroke, so neither is a second
+ * source of truth; they are the same truth answering different questions.
+ */
 interface ShownState {
-  config: ResolvedDiagram;
-  /** The text that produced it, which is what Revert goes back to. */
+  document: DiagramDocument;
+  diagram: ResolvedDiagram;
+  /** The text that produced them, which is what Revert goes back to. */
   text: string;
 }
 
@@ -55,7 +64,7 @@ interface ShownState {
  * Parses and validates in one pass.
  *
  * Everything on the page is derived from the textarea's text, so the canvas can
- * never disagree with what is written. Invalid JSON and an invalid config are
+ * never disagree with what is written. Invalid JSON and an invalid document are
  * reported the same way — both are just "problems to fix".
  *
  * Rendering is not done here: the stage draws the part of the world it is
@@ -69,17 +78,42 @@ const buildState = (text: string): ParsedState => {
     parsed = JSON.parse(text);
   } catch (error) {
     const detail = error instanceof Error ? error.message : "unparseable";
-    return { errors: [`Invalid JSON — ${detail}`], config: null };
+    return { errors: [`Invalid JSON — ${detail}`], shown: null };
   }
 
-  const result = validateResolvedDiagram(parsed);
+  const result = validateDiagramDocument(parsed);
   return result.ok
-    ? { errors: [], config: result.config }
-    : { errors: result.errors, config: null };
+    ? {
+        errors: [],
+        shown: { document: result.document, diagram: resolveDiagram(result.document), text },
+      }
+    : { errors: result.errors, shown: null };
 };
+
+/** How tightly a boundary hugs what it frames, as its author wrote it. */
+const paddingOf = (shown: ShownState | null, id: string): BoundaryPadding =>
+  shown?.document.content.boundaries.find((boundary) => boundary.id === id)?.padding ??
+  BOUNDARY_PADDINGS.NORMAL;
+
+/** Whether a boundary belongs to a group, which decides how it is sized. */
+const isGrouped = (shown: ShownState | null, id: string): boolean =>
+  (shown?.document.content.groups ?? []).some((group) => group.members.includes(id));
 
 /** A freshly placed tile's sublabel. A prompt to fill in, not a value. */
 const PLACEHOLDER_SUB = "role";
+
+/**
+ * An id for an edge the user has just drawn.
+ *
+ * Derived from the endpoints, like the schema does, and suffixed when this pair
+ * is already connected — the editor writes it down rather than leaving it
+ * implicit, because it also has anchors to hang off that id.
+ */
+const uniqueEdgeId = (from: string, to: string, edges: ReadonlyArray<{ id: string }>): string =>
+  uniqueNodeId(
+    `${from}-${to}`,
+    edges.map((edge) => edge.id),
+  );
 
 /** Gap between a floating panel and the edge of the window. */
 const CHROME_GUTTER = 12;
@@ -94,7 +128,7 @@ const isTypingTarget = (target: EventTarget | null): boolean =>
   (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 
 export function EditorPage() {
-  const [text, setText] = useState(() => JSON.stringify(EXAMPLE_RESOLVED_DIAGRAM, null, 2));
+  const [text, setText] = useState(() => JSON.stringify(EXAMPLE_DIAGRAM_DOCUMENT, null, 2));
   const [tool, setTool] = useState<EditorTool>(EDITOR_TOOLS.SELECT);
   const [tileKey, setTileKey] = useState(() => PALETTE_TILES[0]?.key ?? "");
   const [selection, setSelection] = useState<Selection>(null);
@@ -105,7 +139,6 @@ export function EditorPage() {
 
   const fileRef = useRef<HTMLInputElement>(null);
   const { theme, toggle: toggleTheme } = useChromeTheme();
-  const edit = useDiagramEditing(setText);
 
   const parsed = useMemo(() => buildState(text), [text]);
 
@@ -120,16 +153,20 @@ export function EditorPage() {
    * effect would leave the very first render with nothing to draw.
    */
   const lastGoodRef = useRef<ShownState | null>(null);
-  if (parsed.config) lastGoodRef.current = { config: parsed.config, text };
+  if (parsed.shown) lastGoodRef.current = parsed.shown;
   const shown: ShownState | null = lastGoodRef.current;
+
+  // Every gesture is bound to what is on screen: it pins the drawing before it
+  // can re-flow, and knows the geometry a boundary had if its group dissolves.
+  const edit = useDiagramEditing(setText, shown?.diagram ?? null);
 
   const selectedNode =
     selection?.kind === "node"
-      ? (shown?.config.nodes.find((node) => node.id === selection.id) ?? null)
+      ? (shown?.diagram.nodes.find((node) => node.id === selection.id) ?? null)
       : null;
   const selectedBoundary =
     selection?.kind === "boundary"
-      ? (shown?.config.boundaries.find((boundary) => boundary.id === selection.id) ?? null)
+      ? (shown?.diagram.boundaries.find((boundary) => boundary.id === selection.id) ?? null)
       : null;
   const tile = findPaletteTile(tileKey);
   const tileLabel = tile?.label ?? "tile";
@@ -158,6 +195,27 @@ export function EditorPage() {
     setSelection(next);
   };
 
+  /**
+   * The text as it was when the current gesture began.
+   *
+   * Escape puts the whole of it back rather than just the position that moved:
+   * a drag settles the layout of everything on screen before it touches
+   * anything, and abandoning the gesture has to take that back too. Restoring
+   * the text is also the only undo that cannot miss a detail — it is the same
+   * single source of truth every edit went through on the way in.
+   */
+  const gestureTextRef = useRef<string | null>(null);
+
+  const handleGestureStart = () => {
+    gestureTextRef.current = text;
+  };
+
+  const handleGestureCancel = () => {
+    const before = gestureTextRef.current;
+    gestureTextRef.current = null;
+    if (before !== null) setText(before);
+  };
+
   /** Two presses complete an edge: source, then target. */
   const handlePickEdgeEnd = (id: string) => {
     if (!shown) return;
@@ -171,10 +229,18 @@ export function EditorPage() {
     // the same tile is treated as a correction rather than a commit.
     if (id === edgeFrom) return;
 
-    const source = shown.config.nodes.find((node) => node.id === edgeFrom);
-    const target = shown.config.nodes.find((node) => node.id === id);
+    const source = shown.diagram.nodes.find((node) => node.id === edgeFrom);
+    const target = shown.diagram.nodes.find((node) => node.id === id);
     if (source && target) {
-      edit.addEdge({ from: source.id, to: target.id, ...facingSides(source, target) });
+      // The relation goes into content; the sides it leaves and arrives at are
+      // a fact about where the two tiles happen to sit, so they go to layout.
+      // Both are written even though resolution would derive the same pair —
+      // the user drew this line between these tiles, and moving one of them
+      // later should not silently re-route it.
+      const edgeId = uniqueEdgeId(source.id, target.id, shown.diagram.edges);
+
+      edit.addEdge({ id: edgeId, from: source.id, to: target.id });
+      edit.setEdgeAnchors(edgeId, facingSides(source, target));
     }
 
     setEdgeFrom(null);
@@ -189,17 +255,18 @@ export function EditorPage() {
 
     const id = uniqueNodeId(
       placed.key,
-      shown.config.nodes.map((node) => node.id),
+      shown.diagram.nodes.map((node) => node.id),
     );
 
-    edit.addNode({
-      id,
-      x: point.x,
-      y: point.y,
-      name: placed.label,
-      sub: PLACEHOLDER_SUB,
-      ...(placed.kind === "icon" ? { iconKey: placed.iconKey } : { emoji: placed.emoji }),
-    });
+    edit.addNode(
+      {
+        id,
+        name: placed.label,
+        sub: PLACEHOLDER_SUB,
+        ...(placed.kind === "icon" ? { iconKey: placed.iconKey } : { emoji: placed.emoji }),
+      },
+      point,
+    );
 
     setSelection({ kind: "node", id });
   };
@@ -237,10 +304,15 @@ export function EditorPage() {
 
     const id = uniqueNodeId(
       "boundary",
-      shown.config.boundaries.map((boundary) => boundary.id),
+      shown.diagram.boundaries.map((boundary) => boundary.id),
     );
 
-    edit.addBoundary({ id, label: "BOUNDARY", tone: BOUNDARY_TONES.NEUTRAL, ...box });
+    // Drawn boxes belong to no group yet, so this one carries its own
+    // rectangle. Grouping what it encloses is a gesture of its own.
+    edit.addBoundary(
+      { id, label: "BOUNDARY", tone: BOUNDARY_TONES.NEUTRAL, padding: BOUNDARY_PADDINGS.NORMAL },
+      box,
+    );
     changeTool(EDITOR_TOOLS.SELECT);
     handleSelect({ kind: "boundary", id });
   };
@@ -293,14 +365,14 @@ export function EditorPage() {
   const handleExportPng = async () => {
     if (!shown) return;
     try {
-      await downloadSvgAsPng(renderSVG(shown.config), `${shown.config.title}@2x.png`);
+      await downloadSvgAsPng(renderSVG(shown.diagram), `${shown.diagram.title}@2x.png`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "The export failed");
     }
   };
 
   const darkTileCount =
-    shown?.config.nodes.filter((node) => node.tile === TILE_VARIANTS.DARK).length ?? 0;
+    shown?.diagram.nodes.filter((node) => node.tile === TILE_VARIANTS.DARK).length ?? 0;
 
   // What the floating chrome is covering, so Fit frames the diagram in the part
   // of the canvas that is actually visible rather than in the whole window.
@@ -326,19 +398,19 @@ export function EditorPage() {
       />
 
       <EditorHeader
-        title={shown?.config.title ?? "diagram"}
-        nodeCount={shown?.config.nodes.length ?? 0}
-        edgeCount={shown?.config.edges.length ?? 0}
+        title={shown?.diagram.title ?? "diagram"}
+        nodeCount={shown?.diagram.nodes.length ?? 0}
+        edgeCount={shown?.diagram.edges.length ?? 0}
         paletteOpen={paletteOpen}
         onTogglePalette={() => setPaletteOpen((open) => !open)}
         theme={theme}
         onToggleTheme={toggleTheme}
-        canArrange={Boolean(parsed.config)}
+        canArrange={Boolean(parsed.shown)}
         onArrange={edit.arrangeNodes}
         onOpenFile={() => fileRef.current?.click()}
-        onSaveJson={() => downloadConfig(text, `${shown?.config.title ?? "diagram"}.json`)}
+        onSaveJson={() => downloadConfig(text, `${shown?.diagram.title ?? "diagram"}.json`)}
         onDownloadSvg={() =>
-          shown && downloadSvg(renderSVG(shown.config), `${shown.config.title}.svg`)
+          shown && downloadSvg(renderSVG(shown.diagram), `${shown.diagram.title}.svg`)
         }
         onExportPng={() => void handleExportPng()}
         canExport={Boolean(shown)}
@@ -359,7 +431,7 @@ export function EditorPage() {
       ) : null}
 
       <DiagramStage
-        config={shown?.config ?? null}
+        diagram={shown?.diagram ?? null}
         tool={tool}
         onToolChange={changeTool}
         selection={selection}
@@ -370,7 +442,8 @@ export function EditorPage() {
         onPlaceTile={handlePlaceTile}
         onDropTile={handleDropTile}
         onNodeMove={edit.moveNode}
-        onNodeRestore={edit.setNodePosition}
+        onGestureStart={handleGestureStart}
+        onGestureCancel={handleGestureCancel}
         onBoundaryMove={edit.moveBoundary}
         onDrawBoundary={handleDrawBoundary}
         onDeleteSelected={handleDeleteSelected}
@@ -381,7 +454,7 @@ export function EditorPage() {
         open={panelOpen}
         tab={tab}
         onTabChange={setTab}
-        edgeCount={shown?.config.edges.length ?? 0}
+        edgeCount={shown?.diagram.edges.length ?? 0}
         json={
           <JsonPanel
             value={text}
@@ -400,16 +473,20 @@ export function EditorPage() {
           ) : selectedBoundary ? (
             <BoundaryInspector
               boundary={selectedBoundary}
+              padding={paddingOf(shown, selectedBoundary.id)}
+              grouped={isGrouped(shown, selectedBoundary.id)}
               onChange={(patch) => edit.updateBoundaryFields(selectedBoundary.id, patch)}
+              onGeometryChange={(rect) => edit.resizeBoundary(selectedBoundary.id, rect)}
             />
           ) : shown ? (
-            <DiagramPanel config={shown.config} onBackgroundChange={edit.setBackground} />
+            <DiagramPanel diagram={shown.diagram} onBackgroundChange={edit.setBackground} />
           ) : null
         }
         edges={
           <EdgeTools
-            edges={shown?.config.edges ?? []}
+            edges={shown?.diagram.edges ?? []}
             onUpdate={edit.updateEdgeFields}
+            onAnchors={edit.setEdgeAnchors}
             onRemove={edit.removeEdge}
           />
         }

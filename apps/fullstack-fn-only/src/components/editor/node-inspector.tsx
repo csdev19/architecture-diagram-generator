@@ -3,7 +3,7 @@ import { DIAGRAM_ICON_KEYS, DIAGRAM_LIMITS, TILE_VARIANTS } from "@diagram-tool/
 import type { DiagramNode } from "@diagram-tool/domain/schemas";
 import { cn } from "@diagram-tool/web-ui";
 import { EditorInput, EditorSelect, MicroLabel, MonoText } from "@/components/editor/editor-chrome";
-import type { NodePatch } from "@/components/editor/use-diagram-editing";
+import type { NodePatch } from "@/components/editor/edits/content-edits";
 
 /**
  * The panel for the selected tile.
@@ -114,7 +114,7 @@ export function NodeInspector({ node, darkTileCount, onChange }: NodeInspectorPr
         hint={`${darkTileCount} dark ${darkTileCount === 1 ? "tile" : "tiles"} in this diagram — keep it to two or three.`}
       >
         <div
-          role="boundary"
+          role="group"
           aria-label="Tile"
           className="flex gap-1 rounded-[8px] border border-ed-border bg-ed-field p-1"
         >
