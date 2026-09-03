@@ -19,8 +19,21 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Diagram Editor" },
+      {
+        name: "description",
+        content:
+          "Architecture diagrams as data: describe the system, get a diagram you can drag, and export the SVG or PNG.",
+      },
+      // The tab strip and the browser chrome should not flash white at a tool
+      // whose own chrome is dark.
+      { name: "theme-color", content: "#0f172a" },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
+    links: [
+      { rel: "stylesheet", href: appCss },
+      // SVG for everything modern, PNG for the platforms that still refuse it.
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+    ],
   }),
   component: RootDocument,
 });
