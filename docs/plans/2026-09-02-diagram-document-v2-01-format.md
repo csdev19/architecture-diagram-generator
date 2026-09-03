@@ -310,7 +310,7 @@ it("is a no-op when no edge carries that id", () => {
 - [ ] **Step 4 — generate the id when the editor adds an edge.** In
       `editor-page.tsx`'s `handlePickEdgeEnd`, build it with the existing
       `uniqueNodeId` helper from `tile-catalog.ts`, passing `source.id + "-" +
-    target.id` as the base and the ids of the current edges as taken, so a
+target.id` as the base and the ids of the current edges as taken, so a
       second connection between the same pair does not clash.
 - [ ] **Step 5 — rename the boundary helpers and the inspector**, including
       `Selection`'s `kind` and the toolbar's group tool, which keeps its
