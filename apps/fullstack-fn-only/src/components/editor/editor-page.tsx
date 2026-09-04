@@ -34,7 +34,12 @@ import { REFUSAL_MESSAGES, groupRefusal } from "@/components/editor/edits/group-
 import type { Point } from "@/components/editor/pointer-geometry";
 import { SIDE_PANEL_TABS, SIDE_PANEL_WIDTH, SidePanel } from "@/components/editor/side-panel";
 import type { SidePanelTab } from "@/components/editor/side-panel";
-import { PALETTE_TILES, findPaletteTile, uniqueNodeId } from "@/components/editor/tile-catalog";
+import {
+  PALETTE_TILES,
+  findPaletteTile,
+  markOf,
+  uniqueNodeId,
+} from "@/components/editor/tile-catalog";
 import type { PaletteTile } from "@/components/editor/tile-catalog";
 import { TILE_PALETTE_WIDTH, TilePalette } from "@/components/editor/tile-palette";
 import { snapToGrid } from "@/components/editor/edits/edit-document";
@@ -419,7 +424,7 @@ export function EditorPage() {
         id,
         name: placed.label,
         sub: PLACEHOLDER_SUB,
-        ...(placed.kind === "icon" ? { iconKey: placed.iconKey } : { emoji: placed.emoji }),
+        ...markOf(placed),
       },
       point,
     );

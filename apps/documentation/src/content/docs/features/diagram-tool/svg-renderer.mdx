@@ -38,7 +38,7 @@ rectangle the camera is looking at instead — the same scene, framed differentl
 | `packages/domain/src/render/frame.ts`      | `contentFrame` — the document's bounds, from its contents   |
 | `packages/domain/src/render/background.ts` | Paper fill and the dashed grid pattern                      |
 | `packages/domain/src/render/boundary.ts`   | Boundary box, with its label punched through the top border |
-| `packages/domain/src/render/node.ts`       | Tile, brand mark or emoji, name and sublabel                |
+| `packages/domain/src/render/node.ts`       | Tile, brand mark, monogram or emoji, name and sublabel      |
 | `packages/domain/src/render/edge.ts`       | Anchor geometry, line, arrowheads and labels                |
 | `packages/domain/src/render/layout.ts`     | `layoutDiagram` — coordinates derived from the topology     |
 | `packages/domain/tsdown.config.ts`         | Adds the `render` entry so the subpath export exists        |
@@ -57,12 +57,20 @@ config, offset clear of the tile, with the bottom side dropping further to clear
 the node's text. Coordinates round to two decimals so equal inputs always
 produce identical bytes.
 
-A node's mark is a brand logo when it names an `iconKey`, and its emoji
-otherwise. `simple-icons` authors every mark as one path in a 24x24 box, so the
-renderer wraps it in a `<g>` translated to where the mark's top-left corner
-belongs and scaled up to `ICON_SIZE`. The fill is not simply the brand hex:
-`resolveDiagramIconFill` measures the brand colour's WCAG contrast against the
-tile and substitutes a legible one when the mark would otherwise disappear.
+A node's mark is a brand logo when it names an `iconKey`, a monogram when it
+names `initials`, and its emoji otherwise. `simple-icons` authors every logo as
+one path in a 24x24 box, so the renderer wraps it in a `<g>` translated to where
+the mark's top-left corner belongs and scaled up to `ICON_SIZE`. The fill is not
+simply the brand hex: `resolveDiagramIconFill` measures the brand colour's WCAG
+contrast against the tile and substitutes a legible one when the mark would
+otherwise disappear.
+
+A monogram is drawn as text in the name face at `INITIALS_SIZE`, bold and
+centred, in whichever of the two tile colours it is not sitting on —
+`resolveMonogramFill`, the same pair a logo falls back to when it loses its
+brand hue. Capitals sit entirely above the baseline, so the glyph is dropped
+`INITIALS_CAP_CENTRE` of its size below the tile's centre; centring it on the
+baseline would make it ride high.
 
 ## Decisions
 
@@ -86,7 +94,8 @@ tile and substitutes a legible one when the mark would otherwise disappear.
 - ⚠️ Fonts are system stacks today, so a server-side render in phase 1 will not match the browser until real font files are bundled. Colour emoji also do not rasterise reliably outside a browser, which is why `iconKey` is preferred wherever a technology has a mark.
 - ⚠️ The snapshot test passes trivially the first time it is written. When changing the renderer, look at the rendered output, do not just accept the new snapshot.
 - ⚠️ Not every `simple-icons` path starts with an absolute `M` — `cloudflareworkers` opens with a relative `m`, which is identical for a first command but breaks any check that assumes uppercase.
-- ⚠️ `iconKey` beats `emoji` silently. A node with both renders only the icon, so a config that "ignores" its emoji is behaving correctly.
+- ⚠️ Marks beat each other silently, in the order `iconKey`, `initials`, `emoji`. A node with several renders only the first, so a config that "ignores" its emoji is behaving correctly.
+- ⚠️ `initials` is drawn exactly as authored — the renderer never upper-cases it. "Db" and "DB" are two different tiles, and at two characters there is nothing to normalise safely.
 
 ## Dependencies
 

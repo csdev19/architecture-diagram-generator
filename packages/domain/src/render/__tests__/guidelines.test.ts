@@ -50,9 +50,17 @@ describe("DIAGRAM_GUIDELINES", () => {
     }
   });
 
-  it("explains that a node needs one of the two marks", () => {
+  it("explains that a node needs one of the three marks", () => {
     expect(DIAGRAM_GUIDELINES).toContain("iconKey");
+    expect(DIAGRAM_GUIDELINES).toContain("initials");
     expect(DIAGRAM_GUIDELINES).toContain("emoji");
+  });
+
+  it("says when to reach for initials rather than an emoji", () => {
+    // A model that is only told the field exists will never choose it: the
+    // guidance has to name the case it beats an emoji at.
+    expect(DIAGRAM_GUIDELINES).toContain("no logo");
+    expect(DIAGRAM_GUIDELINES).toContain(`at most ${DIAGRAM_LIMITS.INITIALS_MAX} characters`);
   });
 
   it("tells the model to return JSON and nothing else", () => {

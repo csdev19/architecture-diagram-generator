@@ -47,8 +47,9 @@ can usually fix it without a human stepping in.
 an edge is a reference between two node ids plus the sides it leaves and enters,
 carrying an `id` of its own so nothing has to address it by array position.
 All four are plain inferred types — data, no behaviour. A node identifies itself
-with either an `iconKey` from the brand registry or an `emoji`; both fields are
-optional on their own, and a node-level rule requires at least one of them.
+with an `iconKey` from the brand registry, `initials` (a monogram of at most
+`INITIALS_MAX` characters), or an `emoji`; all three are optional on their own,
+and a node-level rule requires at least one of them.
 
 ### Key Logic
 
@@ -70,6 +71,8 @@ list of strings.
 | An edge's `id` is optional to write and derived from `from`/`to` when absent    | An author should not have to name something its own endpoints already identify, and everything downstream needs an identity that survives reordering. `deriveEdgeIds` is exported so the editor, which mutates raw JSON, reaches the same edge the schema would | Requiring an id on every edge; or keeping edges positional                     |
 | Text fields chain `.trim()` before `.min(1)`                                    | `.min(1)` alone accepts a string of spaces                                                                                                                                                                                                                      | Trimming at the call site                                                      |
 | No overlap detection between nodes                                              | A deliberately tight diagram would trip it, and a false rejection is worse than a cramped render. Spacing guidance lives in the authoring guidelines instead                                                                                                    | A hard minimum-distance rule                                                   |
+| `initials` measured in code points, not with Zod's `.max()`                     | `.max()` counts UTF-16 units, so "🖥️" is three and a rule built on it would reject a single mark the author sees as one character. The limit has to count what the tile draws                                                                                   | `z.string().max(2)`, and a note in the guidelines about surrogate pairs        |
+| `initials` added as a third optional field rather than a discriminated `mark`   | A `{ kind, value }` union is the cleaner model and would break every v2 document, force a format version and a migration. An optional field beside the other two is additive: existing documents keep parsing and the precedence rule already existed           | `mark: { kind, value }` at `version: 3`                                        |
 | `emoji` relaxed to optional rather than kept required                           | Requiring both would force a meaningless glyph onto every node that already has a logo. Requiring neither would let a node render blank. One-of-the-two is the only rule that is both honest and safe                                                           | Keeping `emoji` required and treating `iconKey` as decoration                  |
 | The emoji-or-iconKey rule sits on the node schema, not the config `superRefine` | It travels with `diagramNodeSchema` wherever a single node is parsed — the editor's field-level mutations in phase 2 included                                                                                                                                   | Adding it to the config-level `superRefine` beside the other cross-field rules |
 | Icon keys derive from the registry via `z.enum(DIAGRAM_ICON_KEYS)`              | A hand-written union would drift the moment an icon is added. Zod's own message lists every valid key, which is exactly the correction a model needs                                                                                                            | A `z.string().refine(isValidDiagramIconKey)` with a custom message             |
@@ -82,7 +85,8 @@ list of strings.
 - ⚠️ `background` names a paper tone, never a hex — the renderer owns the value, like every other colour in the format.
 - ⚠️ `version` is a literal `1`. A future shape change means a new version and an explicit migration, not a widened schema.
 - ⚠️ Whitespace-only text passes `.min(1)` without the `.trim()` in front of it. Every user-facing string field needs both.
-- ⚠️ A node carrying **both** `emoji` and `iconKey` is valid, and the renderer draws the icon. The emoji is not a fallback the renderer will ever reach — it only matters if the `iconKey` is later removed by hand.
+- ⚠️ A node may carry more than one mark, and the renderer draws the most specific: `iconKey`, then `initials`, then `emoji`. The ones behind it are not fallbacks the renderer will ever reach — they only matter if the winning field is later removed by hand.
+- ⚠️ `contentNodeSchema` is a `strictObject`, so a build that predates `initials` **rejects** a document containing it. The incompatibility runs forward only: every existing v2 document still parses against the new schema, which is why this did not need a version bump.
 - ⚠️ `EXAMPLE_DIAGRAM_CONFIG` now uses `iconKey` on two of its three nodes, so it can no longer stand as the regression that pre-icon configs still parse. The schema test keeps a frozen phase-0 literal for that.
 
 ## Dependencies

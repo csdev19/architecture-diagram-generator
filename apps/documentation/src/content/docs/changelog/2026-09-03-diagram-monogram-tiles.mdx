@@ -1,0 +1,26 @@
+---
+title: "September 03, 2026 - Diagram tool, monogram tiles"
+description: A node can now show a one- or two-character monogram, for a named product the icon registry has no logo for.
+date: 2026-09-03
+tags:
+  - changelog
+  - feature
+---
+
+✨ **Feature** — A node can now carry `initials`: at most two characters, drawn
+bold and centred in the tile, for a named product with no logo in the registry —
+`"ST"` for Stripe, `"K8"` for Kubernetes. It sits between the two marks that
+already existed: an `iconKey` is still preferred wherever a technology has a real
+logo, and an emoji is still the right answer for a role rather than a product.
+The palette gained one "Custom" card that places such a tile, and the inspector's
+Mark control gained the matching option, seeded from the node's own name so the
+document stays valid through the swap.
+
+The field is additive rather than a new mark union, so every existing document
+keeps parsing and the format stays at version 2. Its length is measured in code
+points rather than UTF-16 units, because the limit has to count what the tile
+draws. Letters are rendered exactly as authored — the renderer never
+upper-cases them — and take whichever of the two tile colours they are not
+sitting on, the same pair a logo falls back to when its brand hue would vanish.
+
+**Docs:** [SVG Renderer](/features/diagram-tool/svg-renderer)

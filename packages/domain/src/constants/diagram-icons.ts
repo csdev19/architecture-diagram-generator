@@ -162,6 +162,17 @@ export const contrastRatio = (a: string, b: string): number => {
  * worth more than a marginal gain in brand fidelity on the two or three tiles a
  * diagram is allowed to make dark.
  */
+/**
+ * The fill for a mark that has no brand colour to keep — a monogram.
+ *
+ * The same two values `resolveDiagramIconFill` falls back to, reached without
+ * inventing a hex for a mark that never had one: the tile's opposite colour,
+ * which is the highest contrast available and the one every logo that loses its
+ * brand hue is already drawn in.
+ */
+export const resolveMonogramFill = (tile: TileVariant): string =>
+  tile === TILE_VARIANTS.DARK ? DIAGRAM_COLORS.TILE_LIGHT_FILL : DIAGRAM_COLORS.TILE_DARK_FILL;
+
 export const resolveDiagramIconFill = (icon: DiagramIcon, tile: TileVariant): string => {
   if (tile === TILE_VARIANTS.DARK) return DIAGRAM_COLORS.TILE_LIGHT_FILL;
 

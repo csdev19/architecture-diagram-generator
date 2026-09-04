@@ -182,6 +182,14 @@ export const DIAGRAM_TYPOGRAPHY = {
   NAME_FAMILY: "system-ui, -apple-system, 'Segoe UI', sans-serif",
   MONO_FAMILY: "ui-monospace, SFMono-Regular, 'JetBrains Mono', monospace",
   EMOJI_SIZE: 28,
+  /**
+   * A monogram, sized to carry the weight a 32px logo carries beside it.
+   *
+   * Smaller than the emoji: two bold capitals at 24px already occupy about the
+   * width of an icon, and matching the emoji's 28px would make the one tile
+   * without a real mark the loudest thing on the sheet.
+   */
+  INITIALS_SIZE: 24,
   NAME_SIZE: 13.5,
   SUB_SIZE: 10.5,
   BOUNDARY_LABEL_SIZE: 11,
@@ -223,4 +231,12 @@ export const DIAGRAM_LIMITS = {
   MAX_EDGES: 80,
   /** Longer labels overflow the tile, so the schema rejects them. */
   TEXT_MAX: 26,
+  /**
+   * Characters a monogram may hold.
+   *
+   * Two is what fits inside a 62px tile at the weight a logo carries there. It
+   * is also the honest ceiling on the idea: a monogram stands in for a mark, and
+   * three letters have stopped standing in for anything and become a word.
+   */
+  INITIALS_MAX: 2,
 } as const;

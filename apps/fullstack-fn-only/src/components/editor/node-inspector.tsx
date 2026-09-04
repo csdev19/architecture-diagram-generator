@@ -1,5 +1,10 @@
 import type { ReactNode } from "react";
-import { DIAGRAM_ICON_KEYS, DIAGRAM_LIMITS, TILE_VARIANTS } from "@diagram-tool/domain/constants";
+import {
+  DIAGRAM_ICON_KEYS,
+  DIAGRAM_LIMITS,
+  isValidDiagramIconKey,
+  TILE_VARIANTS,
+} from "@diagram-tool/domain/constants";
 import type { DiagramNode } from "@diagram-tool/domain/schemas";
 import { cn } from "@diagram-tool/web-ui";
 import { EditorInput, EditorSelect, MicroLabel, MonoText } from "@/components/editor/editor-chrome";
@@ -28,7 +33,34 @@ interface NodeInspectorProps {
 /** Shown when a node swaps from an icon to an emoji and has none of its own. */
 const FALLBACK_EMOJI = "📦";
 
-const { TEXT_MAX } = DIAGRAM_LIMITS;
+/** Shown when a node becomes a monogram and its name yields no characters. */
+const FALLBACK_INITIALS = "AB";
+
+/**
+ * The option that means "a monogram", where the others mean an icon key.
+ *
+ * A sentinel rather than a fourth field on the node: the select already speaks
+ * in icon keys, and `""` already means the emoji. It is read last, after the
+ * registry has been asked, so a brand that ever ships under this slug still
+ * resolves to its own logo rather than to this option.
+ */
+const MARK_INITIALS = "initials";
+
+const { TEXT_MAX, INITIALS_MAX } = DIAGRAM_LIMITS;
+
+/** At most `INITIALS_MAX` characters, counted the way the schema counts them. */
+const clampInitials = (value: string): string => [...value].slice(0, INITIALS_MAX).join("");
+
+/**
+ * The monogram a node falls back to when it becomes one.
+ *
+ * Taken from the name, because that is the word the author has already chosen
+ * and "AB" on every custom tile is a placeholder nobody reads. Seeding at all is
+ * what keeps the document valid through the swap: a node with no mark is a
+ * parse error the author did not ask for.
+ */
+const seedInitials = (name: string): string =>
+  clampInitials(name.trim()).toUpperCase() || FALLBACK_INITIALS;
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
@@ -44,13 +76,23 @@ export function NodeInspector({ node, darkTileCount, onChange }: NodeInspectorPr
   const isDark = node.tile === TILE_VARIANTS.DARK;
 
   const handleMarkChange = (value: string) => {
-    if (value === "") {
-      // Back to an emoji. Seeding one keeps the config valid rather than
-      // dropping the author into an error they did not ask for.
-      onChange({ iconKey: undefined, emoji: node.emoji ?? FALLBACK_EMOJI });
+    if (isValidDiagramIconKey(value)) {
+      onChange({ iconKey: value, initials: undefined, emoji: undefined });
       return;
     }
-    onChange({ iconKey: value as DiagramNode["iconKey"], emoji: undefined });
+
+    if (value === MARK_INITIALS) {
+      onChange({
+        iconKey: undefined,
+        emoji: undefined,
+        initials: node.initials ?? seedInitials(node.name),
+      });
+      return;
+    }
+
+    // Back to an emoji. Seeding one keeps the config valid rather than
+    // dropping the author into an error they did not ask for.
+    onChange({ iconKey: undefined, initials: undefined, emoji: node.emoji ?? FALLBACK_EMOJI });
   };
 
   /** A coordinate the config can hold. A half-typed `-` is not a number yet. */
@@ -144,7 +186,11 @@ export function NodeInspector({ node, darkTileCount, onChange }: NodeInspectorPr
 
       <div className="space-y-2 rounded-[12px] border border-ed-border p-3">
         <MonoText className="block text-[12px] text-ed-text">
-          {node.iconKey ? `iconKey: "${node.iconKey}"` : `emoji: ${node.emoji ?? ""}`}
+          {node.iconKey
+            ? `iconKey: "${node.iconKey}"`
+            : node.initials
+              ? `initials: "${node.initials}"`
+              : `emoji: ${node.emoji ?? ""}`}
         </MonoText>
 
         <label htmlFor="node-mark" className="sr-only">
@@ -153,10 +199,11 @@ export function NodeInspector({ node, darkTileCount, onChange }: NodeInspectorPr
         <EditorSelect
           id="node-mark"
           className="h-8"
-          value={node.iconKey ?? ""}
+          value={node.iconKey ?? (node.initials ? MARK_INITIALS : "")}
           onChange={(event) => handleMarkChange(event.target.value)}
         >
           <option value="">Emoji</option>
+          <option value={MARK_INITIALS}>Initials</option>
           {DIAGRAM_ICON_KEYS.map((key) => (
             <option key={key} value={key}>
               {key}
@@ -164,7 +211,20 @@ export function NodeInspector({ node, darkTileCount, onChange }: NodeInspectorPr
           ))}
         </EditorSelect>
 
-        {node.iconKey ? null : (
+        {node.iconKey ? null : node.initials ? (
+          <>
+            <label htmlFor="node-initials" className="sr-only">
+              Initials
+            </label>
+            <EditorInput
+              id="node-initials"
+              className="h-8"
+              placeholder="Initials"
+              value={node.initials}
+              onChange={(event) => onChange({ initials: clampInitials(event.target.value) })}
+            />
+          </>
+        ) : (
           <>
             <label htmlFor="node-emoji" className="sr-only">
               Emoji
@@ -182,7 +242,9 @@ export function NodeInspector({ node, darkTileCount, onChange }: NodeInspectorPr
         <p className="text-[11.5px] text-ed-text-3">
           {isDark
             ? "Dark tiles draw every mark in white — the shape still names the technology."
-            : "A brand mark keeps its own colour unless it would vanish on white."}
+            : node.initials
+              ? `A monogram is drawn in the tile's own ink, at most ${INITIALS_MAX} characters, exactly as you type them.`
+              : "A brand mark keeps its own colour unless it would vanish on white."}
         </p>
       </div>
     </section>

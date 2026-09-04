@@ -46,7 +46,7 @@ the canvas.
 | `apps/fullstack-fn-only/src/components/editor/group-inspector.tsx`    | The panel for the selected group — its members, and ungroup                 |
 | `apps/fullstack-fn-only/src/components/editor/edits/group-edits.ts`   | Making and dissolving groups, and the refusals that keep membership a tree  |
 | `apps/fullstack-fn-only/src/components/editor/edits/group-repair.ts`  | Putting a document back into a shape its own validator accepts              |
-| `apps/fullstack-fn-only/src/components/editor/tile-palette.tsx`       | The draggable palette, built from the icon registry                         |
+| `apps/fullstack-fn-only/src/components/editor/tile-palette.tsx`       | The draggable palette: brand logos, emoji, and one monogram tile            |
 | `apps/fullstack-fn-only/src/components/editor/stage-toolbar.tsx`      | The five tools, each labelled                                               |
 | `apps/fullstack-fn-only/src/components/editor/node-inspector.tsx`     | The panel for the selected tile                                             |
 | `apps/fullstack-fn-only/src/components/editor/boundary-inspector.tsx` | The panel for the selected boundary — label, tone, and padding or rectangle |
@@ -116,6 +116,7 @@ the same single source of truth every edit went through on the way in.
 
 ## Gotchas & Warnings
 
+- ⚠️ The palette's "Custom" card places a monogram, and the inspector reaches the same mark through the `initials` sentinel in its Mark select. That sentinel is read **after** `isValidDiagramIconKey`, so a brand that ever ships under the `initials` slug still resolves to its own logo.
 - ⚠️ A group is never drawn. The dashed rectangle around a selected one is an overlay, and anything that puts it in the exported SVG is a bug.
 - ⚠️ Any mutation that can re-flow the drawing must go through `settled` in `useDiagramEditing`, which materialises the layout first. Skipping it means a gesture that touches one tile visibly rearranges the others.
 - ⚠️ A gesture that writes has to call `onGestureStart` before it does, or Escape has nothing to restore.
