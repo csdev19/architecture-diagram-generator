@@ -1,7 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { EXAMPLE_DIAGRAM_DOCUMENT, diagramDocumentSchema } from "@diagram-tool/domain/schemas";
 import { resolveDiagram } from "@diagram-tool/domain/render";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorPage } from "../editor-page";
 import { hitTestNode } from "../pointer-geometry";
 import { snapToGrid } from "../edits/edit-document";
@@ -40,6 +40,63 @@ const stubScreenCTM = (matrix: Partial<DOMMatrix> = {}) => {
     writable: true,
     value: () => ctm,
   });
+};
+
+/** The stage element, which is where the wheel listener lives. */
+const stage = () => screen.getByTestId("diagram-stage");
+
+/**
+ * The camera rectangle, read back off the `viewBox` the renderer wrote.
+ *
+ * The renderer rounds to two decimals, so assertions against these numbers use
+ * `toBeCloseTo` rather than exact equality.
+ */
+const camera = () => {
+  const svg = canvas().querySelector("svg");
+  if (!svg) throw new Error("the stage drew no scene to read a camera from");
+  const [x, y, w, h] = (svg.getAttribute("viewBox") ?? "").split(" ").map(Number);
+  return { x: x ?? NaN, y: y ?? NaN, w: w ?? NaN, h: h ?? NaN };
+};
+
+/** The stage measures 1000 x 800 in tests; `src/vitest.setup.ts` stubs it there. */
+const STAGE_WIDTH = 1000;
+
+/**
+ * World units one screen pixel is worth right now, derived from the camera
+ * itself so the assertions never have to know what scale Fit chose.
+ */
+const worldPerPixel = () => camera().w / STAGE_WIDTH;
+
+/**
+ * The stage spends wheel input once per animation frame, and jsdom never
+ * paints. Callbacks are collected rather than run inline so a test can also
+ * assert that a burst of events produced a single frame.
+ */
+let frames: FrameRequestCallback[] = [];
+
+const captureFrames = () => {
+  frames = [];
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    frames.push(callback);
+    return frames.length;
+  });
+};
+
+/** Runs everything the stage asked to do on the next frame. */
+const runFrame = () => {
+  const pending = frames;
+  frames = [];
+  // Wrapped because the callback is what actually moves the camera, and React
+  // would otherwise warn that the update escaped `act`.
+  act(() => {
+    for (const callback of pending) callback(0);
+  });
+};
+
+/** A wheel event on the stage, plus the frame it schedules. */
+const wheel = (init: WheelEventInit) => {
+  fireEvent.wheel(stage(), init);
+  runFrame();
 };
 
 const canvas = () => screen.getByTestId("diagram-canvas");
@@ -419,5 +476,81 @@ describe("the injected scene", () => {
     fireEvent.pointerUp(canvas(), { clientX: x, clientY: y, pointerId: 1 });
 
     expect(canvas().querySelector("svg")).toBe(before);
+  });
+});
+
+describe("navigating with the wheel", () => {
+  beforeEach(captureFrames);
+  afterEach(() => vi.restoreAllMocks());
+
+  it("pans down without changing the zoom", () => {
+    render(<EditorPage />);
+    const before = camera();
+    const perPixel = worldPerPixel();
+
+    wheel({ deltaY: 100 });
+
+    const after = camera();
+    // Scrolling down moves the camera down the plane by what those pixels are
+    // worth, and the rectangle it looks at keeps its size: this is not a zoom.
+    expect(after.y).toBeCloseTo(before.y + 100 * perPixel, 1);
+    expect(after.x).toBeCloseTo(before.x, 1);
+    expect(after.w).toBeCloseTo(before.w, 1);
+  });
+
+  it("pans sideways on a horizontal delta", () => {
+    render(<EditorPage />);
+    const before = camera();
+    const perPixel = worldPerPixel();
+
+    wheel({ deltaX: 80 });
+
+    const after = camera();
+    expect(after.x).toBeCloseTo(before.x + 80 * perPixel, 1);
+    expect(after.y).toBeCloseTo(before.y, 1);
+  });
+
+  it("turns a shifted vertical wheel sideways", () => {
+    render(<EditorPage />);
+    const before = camera();
+    const perPixel = worldPerPixel();
+
+    wheel({ deltaY: 80, shiftKey: true });
+
+    const after = camera();
+    expect(after.x).toBeCloseTo(before.x + 80 * perPixel, 1);
+    expect(after.y).toBeCloseTo(before.y, 1);
+  });
+
+  it("scales a delta reported in lines rather than pixels", () => {
+    render(<EditorPage />);
+    const before = camera();
+    const perPixel = worldPerPixel();
+
+    // A notch on a mouse that reports lines is 3, not 3 pixels — unscaled the
+    // pan would be three units and go unnoticed.
+    wheel({ deltaY: 3, deltaMode: 1 });
+
+    expect(camera().y).toBeCloseTo(before.y + 48 * perPixel, 1);
+  });
+
+  it("spends a burst of events in a single frame", () => {
+    render(<EditorPage />);
+    const before = camera();
+    const perPixel = worldPerPixel();
+    // Whatever React or the floating panels asked for on mount is not what is
+    // under test here, and this assertion counts frames.
+    frames.length = 0;
+
+    fireEvent.wheel(stage(), { deltaY: 20 });
+    fireEvent.wheel(stage(), { deltaY: 20 });
+    fireEvent.wheel(stage(), { deltaY: 20 });
+
+    // A trackpad outruns the compositor. Three events, one render.
+    expect(frames).toHaveLength(1);
+    runFrame();
+
+    // And nothing is dropped on the way: the frame spends all three.
+    expect(camera().y).toBeCloseTo(before.y + 60 * perPixel, 1);
   });
 });
