@@ -17,6 +17,21 @@ Phase 3 of the roadmap (an in-app "generate with AI" button, a gallery,
 productisation) is deliberately **not** designed here. It only makes sense after
 the MCP flow has been used for real, and designing it now would be guessing.
 
+## Deferred, not phase-ordered: icon catalog scaling
+
+[`2026-09-03-diagram-icon-catalog-design.md`](./2026-09-03-diagram-icon-catalog-design.md)
+designs growing the icon registry from the curated set above to a searchable
+library over the full `simple-icons` catalog (3,457 marks), for both the
+editor's tile palette and AI-authored diagrams. It is fully designed but
+explicitly **not scheduled**: the curated set already covers this project's
+stack and the common neighbours most diagrams reuse, `emoji` already
+degrades gracefully for anything outside it, and the one phase that adds
+real infrastructure (seeding the full catalog into R2 for on-demand
+resolution) has no user-visible payoff on its own. Revisit once
+`2026-09-03-ai-diagram-consumption-design.md`'s generation flow has shipped
+and real usage shows the curated set's coverage actually costs users
+diagrams they care about.
+
 ## Why icons run before the API
 
 The roadmap ordered API (1) before icons (1.5) and accepted monochrome emoji in
