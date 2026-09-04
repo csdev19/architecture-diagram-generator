@@ -128,6 +128,22 @@ describe("DIAGRAM_SKETCH_PROMPT", () => {
     expect(DIAGRAM_SKETCH_PROMPT).toContain("arrow");
   });
 
+  it("does not replace a visible arrowhead with an architectural assumption", () => {
+    expect(DIAGRAM_SKETCH_PROMPT).toMatch(/Never reverse a visible arrowhead/i);
+  });
+
+  it("puts its image-specific overrides after the generic guide", () => {
+    expect(DIAGRAM_SKETCH_PROMPT.lastIndexOf("Sketch rules override")).toBeGreaterThan(
+      DIAGRAM_SKETCH_PROMPT.lastIndexOf("solid path read left to right"),
+    );
+    expect(DIAGRAM_SKETCH_PROMPT).toMatch(/edge without visible text has no `label`/i);
+  });
+
+  it("has one JSON-only output contract", () => {
+    expect(DIAGRAM_SKETCH_PROMPT).toMatch(/one valid JSON object and nothing else/i);
+    expect(DIAGRAM_SKETCH_PROMPT).not.toMatch(/Then, in a few short lines/i);
+  });
+
   /**
    * One test per way the first real sketch went wrong: a photographed
    * notebook page of Angular → NestJS → Postgres, every one of the three in
@@ -169,10 +185,10 @@ describe("DIAGRAM_SKETCH_PROMPT", () => {
       expect(preamble).toContain("`sub`");
     });
 
-    it("tells the model to re-read the arrowheads when the spine runs backwards", () => {
+    it("tells the model to preserve visible arrowheads rather than inferring a usual flow", () => {
       // The result was NestJS → Angular: the client at the far right, outside
       // its own boundary, because one arrowhead was read the wrong way.
-      expect(preamble).toMatch(/backwards|runs the wrong way/i);
+      expect(preamble).toMatch(/Never reverse a visible arrowhead/i);
     });
 
     it("carries a check the model runs before answering", () => {
