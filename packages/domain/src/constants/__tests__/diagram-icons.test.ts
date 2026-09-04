@@ -149,6 +149,17 @@ describe("resolveDiagramIconFill", () => {
       );
     }
   });
+
+  it("draws the monochrome emblems near-black on a light tile", () => {
+    // TanStack's emblem is off-white and Effect's is white: both official marks
+    // are designed to sit on a dark plate, and both vanish on paper. The
+    // silhouette is what identifies them, which is exactly what the fallback keeps.
+    for (const key of ["tanstack", "effect"] as const) {
+      expect(resolveDiagramIconFill(DIAGRAM_ICONS[key], TILE_VARIANTS.LIGHT)).toBe(
+        DIAGRAM_COLORS.TILE_DARK_FILL,
+      );
+    }
+  });
 });
 
 describe("contrastRatio", () => {
