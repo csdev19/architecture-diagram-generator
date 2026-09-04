@@ -95,6 +95,9 @@ interface DiagramStageProps {
 interface NodeDrag {
   kind: "node";
   id: string;
+  /** The grab offset, so the tile does not jump its centre to the pointer. */
+  offsetX: number;
+  offsetY: number;
   /** Where the press landed, which is what a group drag measures its delta from. */
   fromX: number;
   fromY: number;
@@ -143,6 +146,42 @@ const EMPTY_CONTENT = { x: 0, y: 0, w: 0, h: 0 };
 
 /** Below this in either direction, a boundary drag was a click that slipped. */
 const MIN_BOUNDARY_SIDE = DIAGRAM_GEOMETRY.GRID_CELL * 2;
+
+/** Screen pixels of pan per pixel of wheel delta. 1:1 — the content tracks the fingers. */
+const PAN_SPEED = 1;
+
+/**
+ * What one `DOM_DELTA_LINE` is worth in pixels.
+ *
+ * Some mice report scroll in lines rather than pixels, where a notch is about
+ * three. Unscaled, a notch would pan the canvas three units and read as broken.
+ */
+const LINE_HEIGHT = 16;
+
+/**
+ * Divides the wheel delta before it is exponentiated. Larger is calmer.
+ *
+ * Exponential rather than linear so a notch changes the zoom by the same
+ * proportion at 30% as at 300%.
+ */
+const ZOOM_DAMPING = 140;
+
+/**
+ * The most one event may contribute to a zoom.
+ *
+ * A trackpad pinch reports deltas of about one to ten; a mouse notch under Cmd
+ * reports a hundred or more. Without a ceiling, the sensitivity that feels
+ * right under two fingers throws away half a zoom level per notch.
+ */
+const MAX_ZOOM_DELTA = 24;
+
+/**
+ * `WheelEvent.DOM_DELTA_LINE`, spelled out.
+ *
+ * The class itself does not exist on the server, and this module is imported
+ * during SSR.
+ */
+const DOM_DELTA_LINE = 1;
 
 interface Box {
   x: number;
@@ -195,7 +234,7 @@ export function DiagramStage({
   // What Fit aims at: the bounds of the drawing, not of any declared frame.
   const content = useMemo(() => (diagram ? contentFrame(diagram) : EMPTY_CONTENT), [diagram]);
   const view = useStageView(stageRef, content, insets);
-  const { setScaleAt } = view;
+  const { setScaleAt, panBy } = view;
   const { x: frameX, y: frameY, w: frameW, h: frameH } = view.frame;
 
   /**
@@ -285,6 +324,8 @@ export function DiagramStage({
       gestureRef.current = {
         kind: "node",
         id: node.id,
+        offsetX: point.x - node.x,
+        offsetY: point.y - node.y,
         fromX: point.x,
         fromY: point.y,
         moveGroup: target?.kind === "group",
@@ -368,7 +409,10 @@ export function DiagramStage({
 
     if (gesture?.kind === "node") {
       if (gesture.moveGroup) onSelectionMove(point.x - gesture.fromX, point.y - gesture.fromY);
-      else onNodeMove(gesture.id, point.x, point.y);
+      // A node's coordinates are its centre, so the raw pointer would drag the
+      // tile's middle under the cursor and throw it half a tile on the first
+      // move. The offset is what the press was holding.
+      else onNodeMove(gesture.id, point.x - gesture.offsetX, point.y - gesture.offsetY);
       return;
     }
 
@@ -447,21 +491,84 @@ export function DiagramStage({
 
   // Wired natively rather than through `onWheel`: React registers its wheel
   // listener as passive, so `preventDefault` there cannot stop the page from
-  // scrolling behind the zoom.
+  // scrolling — or the browser from zooming — behind the gesture.
+  //
+  // Which gesture it is comes out of the event itself, so there is no
+  // recogniser here: a two-finger drag arrives as a plain wheel event, and a
+  // pinch arrives as one carrying a synthetic `ctrlKey` with no key held.
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return;
 
+    // A trackpad emits wheel events faster than the browser paints, and each
+    // one would otherwise rebuild the whole scene. Deltas are summed here and
+    // spent once a frame instead, which is exact rather than approximate: pan
+    // is linear in the delta, and `exp(-(a + b) / d)` is the product of the
+    // two zooms it stands in for.
+    let frame = 0;
+    let panX = 0;
+    let panY = 0;
+    let zoom = 0;
+    let zoomX = 0;
+    let zoomY = 0;
+
+    const flush = () => {
+      frame = 0;
+
+      if (zoom !== 0) {
+        const delta = zoom;
+        zoom = 0;
+        setScaleAt(scaleRef.current * Math.exp(-delta / ZOOM_DAMPING), zoomX, zoomY);
+      }
+
+      if (panX !== 0 || panY !== 0) {
+        const dx = panX;
+        const dy = panY;
+        panX = 0;
+        panY = 0;
+        panBy(dx, dy);
+      }
+    };
+
     const handleWheel = (event: WheelEvent) => {
       event.preventDefault();
-      // Exponential so a notch of the wheel changes the zoom by the same
-      // proportion at 30% as at 300%.
-      setScaleAt(scaleRef.current * Math.exp(-event.deltaY / 400), event.clientX, event.clientY);
+
+      const step = event.deltaMode === DOM_DELTA_LINE ? LINE_HEIGHT : 1;
+
+      if (event.ctrlKey || event.metaKey) {
+        // Clamped per event rather than per frame, so a pinch's many small
+        // deltas still accumulate freely while each mouse notch contributes at
+        // most one clamp's worth — several notches inside one frame still add
+        // up to several times that, which is the point: three notches, three
+        // notches of zoom.
+        const delta = event.deltaY * step;
+        zoom += Math.max(-MAX_ZOOM_DELTA, Math.min(MAX_ZOOM_DELTA, delta));
+        // The last point wins: a pinch barely moves, and the alternative is
+        // averaging two positions that were never far apart.
+        zoomX = event.clientX;
+        zoomY = event.clientY;
+      } else {
+        // Shift turns a vertical wheel sideways. macOS swaps the axes itself
+        // before the event is dispatched, which is why the swap only applies
+        // where there is no horizontal delta already asking to be respected.
+        const sideways = event.shiftKey && event.deltaX === 0;
+        const deltaX = sideways ? event.deltaY : event.deltaX;
+        const deltaY = sideways ? 0 : event.deltaY;
+
+        // Scrolling down moves the content up, which is the camera going down.
+        panX -= deltaX * step * PAN_SPEED;
+        panY -= deltaY * step * PAN_SPEED;
+      }
+
+      if (frame === 0) frame = requestAnimationFrame(flush);
     };
 
     stage.addEventListener("wheel", handleWheel, { passive: false });
-    return () => stage.removeEventListener("wheel", handleWheel);
-  }, [setScaleAt]);
+    return () => {
+      stage.removeEventListener("wheel", handleWheel);
+      if (frame !== 0) cancelAnimationFrame(frame);
+    };
+  }, [setScaleAt, panBy]);
 
   const nodeHalos = (diagram?.nodes ?? [])
     .map((node) => {
