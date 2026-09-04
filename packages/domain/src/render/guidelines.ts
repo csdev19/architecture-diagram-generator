@@ -58,7 +58,10 @@ without drawing a box around them.
 
 ## Process
 
-1. List the components of the system described. Each becomes a node.
+1. List the components of the system described. Each becomes a node, written
+   down in the order the finished diagram reads — left to right along the main
+   path. You are not placing anything by doing this; where the edges leave two
+   tiles able to sit either way round, that order is what settles it.
 2. Trace the main request/data path. Those are \`solid\` edges, labelled with the
    protocol — "HTTPS", "SQL", "query", "WebSocket". They are also what decides
    the left-to-right reading order, so get them right before anything else.
@@ -221,6 +224,20 @@ A label becomes \`initials\` only when it matches nothing on that list, and an
 \`emoji\` only when it names a role rather than a product — a user, a phone, a
 queue, a browser.
 
+## List things in the order they are drawn
+
+Write the nodes into the array in the order they read on the page: left to
+right, then top to bottom where the page has more than one row. List a group's
+members the same way, and the groups themselves in the order their boxes appear.
+
+You are still not placing anything — there are no coordinates anywhere in your
+answer. But a photograph carries an order that arrows alone cannot express. A
+sketch is usually drawn client-first and wired with the arrows pointing back the
+way the data returns, so the arrows say one thing about direction and the page
+says another about reading order. The arrows are yours to read; the order they
+are listed in is what tells the drawing program which of the two it is looking
+at.
+
 ## Names and roles
 
 Write each name the way its own product writes it — Postgres, NestJS, Angular —
@@ -237,8 +254,13 @@ list this is not a guess, it is what the thing is.
 
 No cloud provider, protocol, runtime, load balancer, cache, queue,
 authentication step or database that is not drawn or written down. A smaller
-diagram that matches the picture beats a fuller one that does not. Give a label
-you genuinely cannot read a name of \`?\` rather than a guess.
+diagram that matches the picture beats a fuller one that does not.
+
+A label you cannot read is not a guess, but it is not nothing either. Use what
+you can see: the mark drawn inside the box becomes \`initials\`, and your best
+transcription of the word underneath becomes the \`name\`. A tile showing the
+letter someone actually drew is one a reader can recognise and correct. Only a
+box where neither is legible is named \`?\`.
 
 ## Arrows
 
@@ -250,6 +272,10 @@ you genuinely cannot read a name of \`?\` rather than a guess.
   But **never reverse a visible arrowhead because a usual architecture would
   flow the other way.** A sketch showing a store pushing to a client is telling
   you that is what it does. Only a line with no visible head may be inferred.
+- A double-headed arrow is one edge, not two. Two edges between the same pair,
+  one each way, draw two lines on top of each other. Write a single edge, in the
+  direction the request travels — a client calls a server however the reply
+  comes back.
 - Text written on or beside a line is that edge's \`label\`. An unlabelled line
   gets no label; do not put "HTTPS" on it because it looked likely.
 - A line drawn to the side of the main flow, or dashed in the picture, is a
@@ -262,6 +288,8 @@ title written on it — "AWS", "Kubernetes", "monorepo" — the group also gets 
 \`boundary\` carrying that title as its \`label\` and a \`tone\`, which is required
 and is chosen by meaning from the list further down. An untitled enclosure is a
 group with no boundary. Anything drawn outside the rectangle stays outside it.
+A rectangle drawn with a broken or dotted line is \`dashed: true\` on its
+boundary; a solid one needs nothing said.
 
 ---
 
@@ -284,6 +312,8 @@ picture is silent. It never overrules a mark you can actually see.
 - Does any node carry \`initials\` while its label resembles something on the key
   list? Look again. This is the single most common way this goes wrong.
 - Is any \`name\` in block capitals? Write it the way the product does.
+- Do the nodes appear in the array in the order they read across the page?
+- Is any pair of nodes joined by two edges, one each way? Make it one.
 - Does every node have a \`sub\`, and every boundary a \`tone\`?
 - Is anything in your answer not in the picture? Remove it.
 `;

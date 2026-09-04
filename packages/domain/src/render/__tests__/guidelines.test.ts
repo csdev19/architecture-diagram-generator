@@ -67,6 +67,13 @@ describe("DIAGRAM_GUIDELINES", () => {
     expect(DIAGRAM_GUIDELINES).toContain("ONLY the JSON");
   });
 
+  it("asks for the nodes in the order the finished diagram reads", () => {
+    // Array order is not decoration: where the edges leave two tiles able to
+    // sit either way round, auto-layout settles it by the order they were
+    // written down. A model that does not know that orders them arbitrarily.
+    expect(DIAGRAM_GUIDELINES).toMatch(/order the .*diagram reads/i);
+  });
+
   it("carries the self-check that keeps configs valid on the first try", () => {
     expect(DIAGRAM_GUIDELINES).toContain("Check before answering");
   });
@@ -238,6 +245,45 @@ describe("DIAGRAM_SKETCH_PROMPT", () => {
       // NOTES and titled the document aws-notes-postgres, from a sketch whose
       // middle box read NESTJS. A worked example inside a prompt is not inert.
       expect(DIAGRAM_SKETCH_PROMPT).not.toMatch(/Notes/);
+    });
+  });
+
+  /**
+   * One test per way the second and third evaluated sketches went wrong. Both
+   * were read almost perfectly — the right nodes, the right icons, the right
+   * boundaries — and both came back mirrored, because a sketch draws its boxes
+   * left to right and its arrows pointing back up the flow.
+   */
+  describe("what the mirrored sketches got wrong", () => {
+    const preamble = DIAGRAM_SKETCH_PROMPT.replace(DIAGRAM_GUIDELINES, "");
+
+    it("asks for the nodes in the order they read across the page", () => {
+      // A whiteboard of Cloudflare | Cloudflare | Neon, wired right to left,
+      // came back as Neon | Cloudflare | Cloudflare. Every arrowhead was read
+      // correctly; nothing in the document carried the order they were drawn
+      // in, which is the only evidence that could have settled it.
+      expect(preamble).toMatch(/order they read/i);
+      // The prompt is a wrapped string, so the phrase can straddle a newline.
+      expect(preamble).toMatch(/left to\s+right/i);
+    });
+
+    it("makes a double-headed arrow one edge rather than two", () => {
+      // Two edges between the same pair, one each way, draw two lines on top of
+      // each other — and make a two-node cycle that auto-layout cannot layer.
+      expect(preamble).toMatch(/double-headed arrow is one edge/i);
+    });
+
+    it("keeps the mark it can see instead of erasing the box to a question mark", () => {
+      // A box holding "O" over an unreadable word became a tile named `?` with
+      // `?` for its monogram, throwing away the one letter that was legible.
+      expect(preamble).toMatch(/mark drawn inside the box/i);
+      expect(preamble).toMatch(/neither is legible/i);
+    });
+
+    it("reads the line style of an enclosing rectangle", () => {
+      // The AWS perimeter was drawn dashed and came back solid. `dashed` is on
+      // the schema; nothing told the model the picture decides it.
+      expect(preamble).toMatch(/dashed: true/);
     });
   });
 

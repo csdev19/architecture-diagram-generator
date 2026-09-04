@@ -18,12 +18,15 @@ import { nodeReach } from "./bounds";
  * sits in a band below. So this is not a second opinion about layout; it is the
  * same opinion, executed.
  *
- * Two things make it more than the row-and-band rule. **Supplied positions are
- * obstacles**: a node someone has already placed keeps its coordinate exactly,
- * and everything computed steps around it. And **a group is laid out as one
- * block**: its members are placed among themselves and the whole block takes a
- * single slot, so nothing foreign can land between two members and a boundary
- * drawn around them cannot cover something that does not belong to them.
+ * Three things make it more than the row-and-band rule. **Supplied positions
+ * are obstacles**: a node someone has already placed keeps its coordinate
+ * exactly, and everything computed steps around it. **A group is laid out as
+ * one block**: its members are placed among themselves and the whole block
+ * takes a single slot, so nothing foreign can land between two members and a
+ * boundary drawn around them cannot cover something that does not belong to
+ * them. And **the array order breaks the tie**: a flow whose arrows run against
+ * the order its nodes were written down is laid out on the order instead, which
+ * is what keeps a photographed sketch from coming back mirrored.
  *
  * Pure and deterministic: the same input gives the same output, with no clock,
  * no randomness and no dependence on object iteration order beyond the array
@@ -82,6 +85,15 @@ interface Item {
   id: string;
   /** Every node this item contains, for condensing the edges between items. */
   nodeIds: Set<string>;
+  /**
+   * Where the earliest node it holds appears in `content.nodes`.
+   *
+   * A group's own position in `content.groups` says nothing about reading
+   * order — an author writes the perimeters in whatever order they think of
+   * them — but the node array is written in the order the diagram reads, so
+   * the earliest node a group holds is where that group belongs in the line.
+   */
+  rank: number;
   block: Block;
 }
 
@@ -104,6 +116,50 @@ const nodeBlock = (node: { id: string; name: string; sub: string }): Block => {
 };
 
 /**
+ * The flow, turned to face the way the author wrote the level down.
+ *
+ * An arrow's direction and a diagram's reading order are two different things,
+ * and a sketch is where they come apart. People draw the boxes left to right —
+ * client, service, database — and then draw the arrows as the data travelling
+ * *back*: the database feeds the ORM, the ORM feeds the API, the API feeds the
+ * page. Both readings are correct, and the guidelines forbid reversing an
+ * arrowhead that was actually drawn, so the document that comes back from a
+ * photograph says `db → api → web` and means a picture that reads `web api db`.
+ * Layering on those arrows alone renders the sketch mirrored.
+ *
+ * The order the nodes were written down in is the tie-breaker, because it is
+ * evidence: an author lists what they see in the order they see it, and the
+ * sketch guidance asks for exactly that. So when most of the flow at a level
+ * runs against that order, the level is laid out on the reversed edges —
+ * columns only. Nothing about the document changes, and every arrowhead is
+ * still drawn where it was read; a line simply runs right to left, which is
+ * what the picture showed.
+ *
+ * A majority is required rather than a single instance, so one cache writing
+ * back up an otherwise forward flow cannot turn a diagram around. A tie leaves
+ * the edges alone: with no majority either way there is nothing to correct.
+ */
+const readingOrder = (items: Item[], edges: LevelEdge[]): LevelEdge[] => {
+  const declared = new Map(items.map((item) => [item.id, item.rank]));
+
+  let forward = 0;
+  let backward = 0;
+
+  for (const edge of edges) {
+    const from = declared.get(edge.from);
+    const to = declared.get(edge.to);
+    if (from === undefined || to === undefined || from === to) continue;
+
+    if (to > from) forward += 1;
+    else backward += 1;
+  }
+
+  if (backward <= forward) return edges;
+
+  return edges.map((edge) => ({ ...edge, from: edge.to, to: edge.from }));
+};
+
+/**
  * Assigns each item a column, following the solid edges only.
  *
  * Solid edges are the primary flow by definition, so they are what a
@@ -112,7 +168,8 @@ const nodeBlock = (node: { id: string; name: string; sub: string }): Block => {
  * column right of the furthest-right thing that feeds it — computed with a
  * queue so a cycle cannot recurse forever.
  */
-const assignColumns = (items: Item[], edges: LevelEdge[]): Map<string, number> => {
+const assignColumns = (items: Item[], flow: LevelEdge[]): Map<string, number> => {
+  const edges = readingOrder(items, flow);
   const successors = new Map<string, string[]>();
   const indegree = new Map<string, number>(items.map((item) => [item.id, 0]));
 
@@ -391,6 +448,7 @@ export const layoutNodes = (
   if (free.length === 0) return placed;
 
   const freeById = new Map(free.map((node) => [node.id, node]));
+  const declaredAt = new Map(content.nodes.map((node, index) => [node.id, index]));
   const groups = content.groups ?? [];
   const groupsById = new Map(groups.map((group) => [group.id, group]));
 
@@ -449,7 +507,14 @@ export const layoutNodes = (
     if (guard.has(id)) return null;
 
     const node = freeById.get(id);
-    if (node) return { id, nodeIds: new Set([id]), block: nodeBlock(node) };
+    if (node) {
+      return {
+        id,
+        nodeIds: new Set([id]),
+        rank: declaredAt.get(id) ?? content.nodes.length,
+        block: nodeBlock(node),
+      };
+    }
 
     const group = groupsById.get(id);
     if (!group) return null;
@@ -468,7 +533,12 @@ export const layoutNodes = (
     const nodeIds = new Set<string>();
     for (const item of items) for (const nodeId of item.nodeIds) nodeIds.add(nodeId);
 
-    return { id, nodeIds, block: padding ? withBoundaryRoom(inner, padding) : inner };
+    return {
+      id,
+      nodeIds,
+      rank: Math.min(...items.map((item) => item.rank)),
+      block: padding ? withBoundaryRoom(inner, padding) : inner,
+    };
   };
 
   // The top level is everything with no group above it, in declaration order:
@@ -485,7 +555,12 @@ export const layoutNodes = (
   // so it is placed on its own rather than dropped.
   for (const node of free) {
     if (items.some((item) => item.nodeIds.has(node.id))) continue;
-    items.push({ id: node.id, nodeIds: new Set([node.id]), block: nodeBlock(node) });
+    items.push({
+      id: node.id,
+      nodeIds: new Set([node.id]),
+      rank: declaredAt.get(node.id) ?? content.nodes.length,
+      block: nodeBlock(node),
+    });
   }
 
   const root = placeItems(items, condense(items));

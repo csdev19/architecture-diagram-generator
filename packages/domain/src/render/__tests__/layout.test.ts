@@ -414,4 +414,88 @@ describe("layoutNodes", () => {
     expect(web.y, "the spine bends where it enters the boundary").toBe(api.y);
     expect(db.y).toBe(api.y);
   });
+
+  it("reads a flow drawn against the declared order right to left", () => {
+    // A photographed sketch: the boxes are drawn web-api-db across the page,
+    // and every arrow is the response travelling back. Layering on the arrows
+    // alone puts the database first and mirrors the whole picture.
+    const placed = layoutNodes(
+      content(["web", "api", "db"], {
+        edges: [
+          { from: "db", to: "api", style: "solid" },
+          { from: "api", to: "web", style: "solid" },
+        ],
+      }),
+    );
+
+    const x = (id: string) => (placed.get(id) as Point).x;
+
+    expect(x("web"), "the diagram came out mirrored").toBeLessThan(x("api"));
+    expect(x("api")).toBeLessThan(x("db"));
+  });
+
+  it("reads a group's members against the declared order too", () => {
+    // The same mirror, one level down: `postgres` feeds `nestjs`, so the box
+    // drawn around the two used to put the database on the left of its own
+    // boundary while the sketch has it on the right.
+    const placed = layoutNodes(
+      content(["angular", "nestjs", "postgres"], {
+        edges: [
+          { from: "angular", to: "nestjs", style: "solid" },
+          { from: "postgres", to: "nestjs", style: "solid" },
+        ],
+        groups: [{ id: "cloud", members: ["aws", "nestjs", "postgres"] }],
+        boundaries: [{ id: "aws", padding: "normal" }],
+      }),
+    );
+
+    const x = (id: string) => (placed.get(id) as Point).x;
+
+    expect(x("nestjs"), "the group came out mirrored").toBeLessThan(x("postgres"));
+  });
+
+  it("ranks a group by the earliest node it holds, not by where it was declared", () => {
+    // The canonical example declares its groups perimeter-first — `runtime`
+    // before `pipeline` — while its nodes are in reading order. Taking the
+    // group array as the reading order made the one flow edge between them
+    // look backwards, and turned a correct diagram around.
+    const placed = layoutNodes(
+      content(["web", "api", "db", "ci"], {
+        edges: [
+          { from: "web", to: "api", style: "solid" },
+          { from: "api", to: "db", style: "solid" },
+          { from: "ci", to: "api", style: "dashed" },
+        ],
+        groups: [
+          { id: "runtime", members: ["cf", "api", "db"] },
+          { id: "pipeline", members: ["ci", "web"] },
+        ],
+        boundaries: [{ id: "cf", padding: "normal" }],
+      }),
+    );
+
+    const x = (id: string) => (placed.get(id) as Point).x;
+
+    expect(x("web"), "a correct diagram was turned around").toBeLessThan(x("api"));
+    expect(x("api")).toBeLessThan(x("db"));
+  });
+
+  it("keeps the arrows as the reading order when they agree with it", () => {
+    // The majority rules, and a single edge pointing back up the flow is not a
+    // majority: `cache` writing to `api` must not turn the diagram around.
+    const placed = layoutNodes(
+      content(["web", "api", "db", "cache"], {
+        edges: [
+          { from: "web", to: "api", style: "solid" },
+          { from: "api", to: "db", style: "solid" },
+          { from: "cache", to: "api", style: "solid" },
+        ],
+      }),
+    );
+
+    const x = (id: string) => (placed.get(id) as Point).x;
+
+    expect(x("web")).toBeLessThan(x("api"));
+    expect(x("api")).toBeLessThan(x("db"));
+  });
 });
