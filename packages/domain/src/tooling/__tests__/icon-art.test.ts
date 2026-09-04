@@ -78,4 +78,37 @@ describe("normaliseIconArt", () => {
     // still pass, or the check would start rejecting everything.
     expect(() => normaliseIconArt("acme", SOURCE)).not.toThrow();
   });
+
+  it("renumbers a single-quoted id declaration and its unquoted url() reference", () => {
+    // `id='a'` never entered the double-quote-only rename map, so it shipped
+    // as a literal, unprefixed "a" — the exact cross-brand collision this
+    // function exists to prevent — while the declared/referenced sets still
+    // agreed with each other and nothing threw.
+    const source = `<svg viewBox="0 0 2 2"><defs><linearGradient id='a'/></defs><rect fill="url(#a)" width="2" height="2"/></svg>`;
+
+    const { body } = normaliseIconArt("acme", source);
+
+    expect(body).toContain('id="acme-0"');
+    expect(body).toContain("url(#acme-0)");
+    expect(body).not.toMatch(/\bid=['"]a['"]/);
+  });
+
+  it("still refuses the spaced url() reference from the earlier guard", () => {
+    // Regression check: widening quote handling for id/href must not loosen
+    // the round-1 guard that catches an unrewritten `url( #a )`.
+    const source = `<svg viewBox="0 0 2 2"><defs><linearGradient id="a"/></defs><rect fill="url( #a )" width="2" height="2"/></svg>`;
+
+    expect(() => normaliseIconArt("acme", source)).toThrow(/#a/);
+  });
+
+  it("renumbers ids independently when different ids use different quote styles", () => {
+    const source = `<svg viewBox="0 0 2 2"><defs><linearGradient id='a'/><clipPath id="b"/></defs><rect fill="url(#a)" clip-path="url(#b)" width="2" height="2"/></svg>`;
+
+    const { body } = normaliseIconArt("acme", source);
+
+    expect(body).toContain('id="acme-0"');
+    expect(body).toContain('id="acme-1"');
+    expect(body).toContain("url(#acme-0)");
+    expect(body).toContain("url(#acme-1)");
+  });
 });

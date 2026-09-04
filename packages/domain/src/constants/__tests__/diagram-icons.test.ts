@@ -62,7 +62,7 @@ describe("DIAGRAM_ICONS", () => {
     for (const key of DIAGRAM_ICON_KEYS) {
       const art = DIAGRAM_ICONS[key].art;
       if (!art) continue;
-      for (const [, id] of art.body.matchAll(/\bid="([^"]+)"/g)) {
+      for (const [, id] of art.body.matchAll(/\bid=["']([^"']+)["']/g)) {
         expect(id, `"${key}" carries an unprefixed id`).toMatch(new RegExp(`^${key}-`));
       }
       expect(art.viewBox, `"${key}" has a malformed viewBox`).toMatch(

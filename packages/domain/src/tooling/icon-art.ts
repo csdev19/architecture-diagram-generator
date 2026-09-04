@@ -24,33 +24,40 @@ export const normaliseIconArt = (key: string, svg: string): { viewBox: string; b
   const close = svg.lastIndexOf("</svg>");
   let body = svg.slice(open.index + open[0].length, close === -1 ? undefined : close);
 
+  // Either quote style declares an id — a hand-copied brand file is as likely
+  // to write `id='a'` as `id="a"` — so both have to enter the rename map, or
+  // a single-quoted id ships un-renumbered and unprefixed straight into the
+  // registry, which is the exact cross-brand collision this function exists
+  // to prevent.
   const ids = [
-    ...new Set([...body.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1] ?? "")),
+    ...new Set([...body.matchAll(/\bid=["']([^"']+)["']/g)].map((match) => match[1] ?? "")),
   ].filter((id) => id.length > 0);
   const renamed = new Map(ids.map((id, index) => [id, `${key}-${index}`]));
 
   // Order does not matter here: every replacement is delimiter-bounded — the
-  // pattern for `id="a"`, `url(#a)`, or `href="#a"` always includes its own
-  // closing quote or bracket, so a shorter id can never match inside a longer
-  // id's occurrence (`id="a"` cannot be found inside `id="ab"`). Any future
-  // form added to this loop has to keep that same bounded shape, or this
-  // guarantee breaks.
+  // pattern for `id="a"`, `id='a'`, `url(#a)`, or `href="#a"`/`href='#a'`
+  // always includes its own closing quote or bracket, so a shorter id can
+  // never match inside a longer id's occurrence (`id="a"` cannot be found
+  // inside `id="ab"`). Any future form added to this loop has to keep that
+  // same bounded shape, or this guarantee breaks.
   for (const id of ids) {
     const next = renamed.get(id) ?? id;
     body = body
       .replaceAll(`id="${id}"`, `id="${next}"`)
+      .replaceAll(`id='${id}'`, `id="${next}"`)
       .replaceAll(`url(#${id})`, `url(#${next})`)
-      .replaceAll(`href="#${id}"`, `href="#${next}"`);
+      .replaceAll(`href="#${id}"`, `href="#${next}"`)
+      .replaceAll(`href='#${id}'`, `href="#${next}"`);
   }
 
   // A reference spelled in a form this loop does not rewrite — `url( #a )`
-  // with whitespace, `url("#a")` quoted, a single-quoted `href='#a'`, or a
-  // reference sitting inside a <style> rule — would otherwise leave the
-  // declaration renumbered and the reference pointing at an id that no
-  // longer exists: a broken gradient that ships silently until a human looks
-  // at the mark. Comparing every reference against what actually got
-  // declared turns that into a loud failure here, while it is still cheap to
-  // fix, instead of chasing each new spelling one at a time.
+  // with whitespace, `url("#a")` quoted, or a reference sitting inside a
+  // <style> rule — would otherwise leave the declaration renumbered and the
+  // reference pointing at an id that no longer exists: a broken gradient
+  // that ships silently until a human looks at the mark. Comparing every
+  // reference against what actually got declared turns that into a loud
+  // failure here, while it is still cheap to fix, instead of chasing each
+  // new spelling one at a time.
   const declared = new Set(
     [...body.matchAll(/\bid=["']([^"']+)["']/g)].map((match) => match[1] ?? ""),
   );
@@ -63,6 +70,22 @@ export const normaliseIconArt = (key: string, svg: string): { viewBox: string; b
       throw new Error(
         `reference to "#${id}" has no matching id — this source spells that reference in a ` +
           `form icon-add does not rewrite, so renumbering left a broken pointer`,
+      );
+    }
+  }
+
+  // The check above only catches a *mismatch* between what is declared and
+  // what is referenced — a declaration and its references that agree with
+  // each other, but were both missed by the rename loop above (as a
+  // single-quoted id once was), sail straight through it. This asserts the
+  // function's actual contract directly: every id left in the body must
+  // carry the key's prefix, full stop.
+  for (const id of declared) {
+    if (!id.startsWith(`${key}-`)) {
+      throw new Error(
+        `id "${id}" was not renumbered under "${key}-" — this source declares it in a form ` +
+          `icon-add does not recognise, so it would ship unprefixed and could collide with ` +
+          `another brand's id of the same name`,
       );
     }
   }
