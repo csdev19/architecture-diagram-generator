@@ -95,6 +95,9 @@ interface DiagramStageProps {
 interface NodeDrag {
   kind: "node";
   id: string;
+  /** The grab offset, so the tile does not jump its centre to the pointer. */
+  offsetX: number;
+  offsetY: number;
   /** Where the press landed, which is what a group drag measures its delta from. */
   fromX: number;
   fromY: number;
@@ -285,6 +288,8 @@ export function DiagramStage({
       gestureRef.current = {
         kind: "node",
         id: node.id,
+        offsetX: point.x - node.x,
+        offsetY: point.y - node.y,
         fromX: point.x,
         fromY: point.y,
         moveGroup: target?.kind === "group",
@@ -368,7 +373,10 @@ export function DiagramStage({
 
     if (gesture?.kind === "node") {
       if (gesture.moveGroup) onSelectionMove(point.x - gesture.fromX, point.y - gesture.fromY);
-      else onNodeMove(gesture.id, point.x, point.y);
+      // A node's coordinates are its centre, so the raw pointer would drag the
+      // tile's middle under the cursor and throw it half a tile on the first
+      // move. The offset is what the press was holding.
+      else onNodeMove(gesture.id, point.x - gesture.offsetX, point.y - gesture.offsetY);
       return;
     }
 

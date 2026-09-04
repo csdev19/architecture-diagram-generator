@@ -4,6 +4,7 @@ import { resolveDiagram } from "@diagram-tool/domain/render";
 import { beforeEach, describe, expect, it } from "vitest";
 import { EditorPage } from "../editor-page";
 import { hitTestNode } from "../pointer-geometry";
+import { snapToGrid } from "../edits/edit-document";
 
 /**
  * The seed as the editor draws it.
@@ -103,6 +104,28 @@ describe("dragging a node", () => {
     dragSelected("api", { x: 301, y: 197 });
 
     expect(positionIn(documentText(), "api")).toEqual({ x: 299, y: 195 });
+  });
+
+  it("keeps the grab offset instead of jumping the tile's centre to the pointer", () => {
+    render(<EditorPage />);
+    selectTile("api");
+
+    const start = at("api");
+    // Half a tile is 31, so 26 to the right is a press well off centre but
+    // still inside the tile — and it is two whole grid cells, so the snap
+    // cannot quietly absorb the difference the bug used to introduce.
+    const grab = { x: start.x + 26, y: start.y };
+    const to = { x: grab.x + 130, y: grab.y + 130 };
+
+    fireEvent.pointerDown(canvas(), { clientX: grab.x, clientY: grab.y, pointerId: 1 });
+    fireEvent.pointerMove(canvas(), { clientX: to.x, clientY: to.y, pointerId: 1 });
+    fireEvent.pointerUp(canvas(), { clientX: to.x, clientY: to.y, pointerId: 1 });
+
+    // The tile travels exactly as far as the pointer did, and no further.
+    expect(positionIn(documentText(), "api")).toEqual({
+      x: snapToGrid(start.x + 130),
+      y: snapToGrid(start.y + 130),
+    });
   });
 
   it("leaves the architecture completely alone", () => {
