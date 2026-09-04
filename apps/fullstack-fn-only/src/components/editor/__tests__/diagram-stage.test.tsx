@@ -553,4 +553,37 @@ describe("navigating with the wheel", () => {
     // And nothing is dropped on the way: the frame spends all three.
     expect(camera().y).toBeCloseTo(before.y + 60 * perPixel, 1);
   });
+
+  it("zooms in on a pinch, which the browser reports as a ctrl-wheel", () => {
+    render(<EditorPage />);
+    const before = camera();
+
+    // Fired at the origin because jsdom reports a zero-sized bounding box, so
+    // the stage's centre is (0, 0) there: the camera point then stays put and
+    // the scale is the only thing under test.
+    wheel({ deltaY: -10, ctrlKey: true, clientX: 0, clientY: 0 });
+
+    // Zooming in narrows the rectangle the camera looks at.
+    expect(camera().w).toBeCloseTo(before.w * Math.exp(-10 / 140), 1);
+  });
+
+  it("zooms out on the opposite pinch", () => {
+    render(<EditorPage />);
+    const before = camera();
+
+    wheel({ deltaY: 10, ctrlKey: true, clientX: 0, clientY: 0 });
+
+    expect(camera().w).toBeCloseTo(before.w * Math.exp(10 / 140), 1);
+  });
+
+  it("caps how far one mouse notch under Cmd can zoom", () => {
+    render(<EditorPage />);
+    const before = camera();
+
+    // A notch reports 100 or more where a pinch reports single digits. Without
+    // the cap the same code that feels right under two fingers lurches.
+    wheel({ deltaY: -400, metaKey: true, clientX: 0, clientY: 0 });
+
+    expect(camera().w).toBeCloseTo(before.w * Math.exp(-24 / 140), 1);
+  });
 });

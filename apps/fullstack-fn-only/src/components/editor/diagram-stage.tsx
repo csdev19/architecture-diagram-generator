@@ -159,6 +159,23 @@ const PAN_SPEED = 1;
 const LINE_HEIGHT = 16;
 
 /**
+ * Divides the wheel delta before it is exponentiated. Larger is calmer.
+ *
+ * Exponential rather than linear so a notch changes the zoom by the same
+ * proportion at 30% as at 300%.
+ */
+const ZOOM_DAMPING = 140;
+
+/**
+ * The most one event may contribute to a zoom.
+ *
+ * A trackpad pinch reports deltas of about one to ten; a mouse notch under Cmd
+ * reports a hundred or more. Without a ceiling, the sensitivity that feels
+ * right under two fingers throws away half a zoom level per notch.
+ */
+const MAX_ZOOM_DELTA = 24;
+
+/**
  * `WheelEvent.DOM_DELTA_LINE`, spelled out.
  *
  * The class itself does not exist on the server, and this module is imported
@@ -486,13 +503,23 @@ export function DiagramStage({
     // A trackpad emits wheel events faster than the browser paints, and each
     // one would otherwise rebuild the whole scene. Deltas are summed here and
     // spent once a frame instead, which is exact rather than approximate: pan
-    // is linear in the delta.
+    // is linear in the delta, and `exp(-(a + b) / d)` is the product of the
+    // two zooms it stands in for.
     let frame = 0;
     let panX = 0;
     let panY = 0;
+    let zoom = 0;
+    let zoomX = 0;
+    let zoomY = 0;
 
     const flush = () => {
       frame = 0;
+
+      if (zoom !== 0) {
+        const delta = zoom;
+        zoom = 0;
+        setScaleAt(scaleRef.current * Math.exp(-delta / ZOOM_DAMPING), zoomX, zoomY);
+      }
 
       if (panX !== 0 || panY !== 0) {
         const dx = panX;
@@ -508,16 +535,27 @@ export function DiagramStage({
 
       const step = event.deltaMode === DOM_DELTA_LINE ? LINE_HEIGHT : 1;
 
-      // Shift turns a vertical wheel sideways. macOS swaps the axes itself
-      // before the event is dispatched, which is why the swap only applies
-      // where there is no horizontal delta already asking to be respected.
-      const sideways = event.shiftKey && event.deltaX === 0;
-      const deltaX = sideways ? event.deltaY : event.deltaX;
-      const deltaY = sideways ? 0 : event.deltaY;
+      if (event.ctrlKey || event.metaKey) {
+        // Clamped per event rather than per frame, so a pinch's many small
+        // deltas still accumulate freely while one mouse notch cannot lurch.
+        const delta = event.deltaY * step;
+        zoom += Math.max(-MAX_ZOOM_DELTA, Math.min(MAX_ZOOM_DELTA, delta));
+        // The last point wins: a pinch barely moves, and the alternative is
+        // averaging two positions that were never far apart.
+        zoomX = event.clientX;
+        zoomY = event.clientY;
+      } else {
+        // Shift turns a vertical wheel sideways. macOS swaps the axes itself
+        // before the event is dispatched, which is why the swap only applies
+        // where there is no horizontal delta already asking to be respected.
+        const sideways = event.shiftKey && event.deltaX === 0;
+        const deltaX = sideways ? event.deltaY : event.deltaX;
+        const deltaY = sideways ? 0 : event.deltaY;
 
-      // Scrolling down moves the content up, which is the camera going down.
-      panX -= deltaX * step * PAN_SPEED;
-      panY -= deltaY * step * PAN_SPEED;
+        // Scrolling down moves the content up, which is the camera going down.
+        panX -= deltaX * step * PAN_SPEED;
+        panY -= deltaY * step * PAN_SPEED;
+      }
 
       if (frame === 0) frame = requestAnimationFrame(flush);
     };
