@@ -168,7 +168,7 @@ edge connects tiles, never boundaries or groups.
 
 /**
  * The prompt a person copies out of the editor and pastes into a chat together
- * with a photograph of a whiteboard, an Excalidraw export or a napkin.
+ * with a picture of a whiteboard, a drawing on paper or a screenshot.
  *
  * It is `DIAGRAM_GUIDELINES` with a preamble, not a second document. The
  * contract has exactly one text; what changes when the input is a picture is
@@ -183,9 +183,10 @@ edge connects tiles, never boundaries or groups.
  */
 export const DIAGRAM_SKETCH_PROMPT = `# Turn this sketch into a diagram
 
-You are reading an attached image — a hand drawing, a whiteboard photograph, an
-Excalidraw or Figma export, or a screenshot of another diagram. Turn it into the
-JSON document described below, and return ONLY that JSON.
+You are reading an attached image — a hand drawing, a photograph of a whiteboard,
+a drawing on paper, or a screenshot of a diagram. An image is the only input:
+whatever you cannot see in it, you do not have. Turn it into the JSON document
+described below, and return ONLY that JSON.
 
 ## Read the picture, do not improve it
 

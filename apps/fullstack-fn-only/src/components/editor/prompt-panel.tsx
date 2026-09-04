@@ -22,7 +22,7 @@ import { EditorButton, MicroLabel } from "@/components/editor/editor-chrome";
 
 const STEPS = [
   "Copy the prompt below.",
-  "Paste it into Claude, ChatGPT or any model that reads images, and attach your sketch — a photo of a whiteboard, an Excalidraw export, a drawing on paper.",
+  "Paste it into Claude, ChatGPT or any model that reads images, and attach a picture of your sketch — a photo of a whiteboard, a drawing on paper, a screenshot of a diagram.",
   "Paste the JSON it returns into the JSON tab. The diagram draws itself.",
 ];
 
