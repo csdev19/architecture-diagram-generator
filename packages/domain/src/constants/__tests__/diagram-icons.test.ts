@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { DIAGRAM_COLORS, TILE_VARIANTS } from "../diagram";
 import {
+  DIAGRAM_ICON_ALIASES,
   DIAGRAM_ICON_CONTRAST_MIN,
   DIAGRAM_ICON_KEYS,
   DIAGRAM_ICONS,
+  type DiagramIconKey,
   contrastRatio,
   isValidDiagramIconKey,
   resolveDiagramIconFill,
@@ -51,6 +53,51 @@ describe("DIAGRAM_ICONS", () => {
     expect(isValidDiagramIconKey(undefined)).toBe(false);
     // Inherited object members must not read as icons.
     expect(isValidDiagramIconKey("toString")).toBe(false);
+  });
+});
+
+describe("DIAGRAM_ICON_ALIASES", () => {
+  /**
+   * The map keeps its literal type in production, so looking a key up by a
+   * variable is a type error there. Widening it here rather than loosening the
+   * export is the difference between a test that adapts and a contract that
+   * gives way to one.
+   */
+  const aliases: Partial<Record<DiagramIconKey, readonly string[]>> = DIAGRAM_ICON_ALIASES;
+
+  /** Letters and digits only, so "Better Auth" and "betterauth" compare equal. */
+  const bare = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  it("never lists an alias that is only its own key respelled", () => {
+    // The map exists for labels a key cannot be guessed from. "PostgreSQL" is
+    // `postgresql` with a shift key held down; carrying it is a line to keep
+    // true for no gain, which is what this module's own comment forbids.
+    for (const [key, written] of Object.entries(DIAGRAM_ICON_ALIASES)) {
+      for (const alias of written ?? []) {
+        expect(bare(alias), `"${alias}" is "${key}" respelled`).not.toBe(key);
+      }
+    }
+  });
+
+  it("covers the keys a person would never write on a whiteboard", () => {
+    // These are the slugs a sketch label cannot be guessed into: nobody draws a
+    // box and writes "nodedotjs". Without an alias the model has to invent the
+    // key, and an invented key is rejected.
+    for (const key of ["nodedotjs", "postgresql", "githubactions", "cloudflareworkers"]) {
+      expect(aliases[key as DiagramIconKey], `"${key}" has no alias`).toBeTruthy();
+    }
+  });
+
+  it("never gives one written word to two different marks", () => {
+    // An ambiguous alias is worse than none: it makes the mapping a coin flip.
+    const seen = new Set<string>();
+    for (const aliases of Object.values(DIAGRAM_ICON_ALIASES)) {
+      for (const alias of aliases ?? []) {
+        const needle = alias.toLowerCase();
+        expect(seen.has(needle), `"${alias}" is claimed by two keys`).toBe(false);
+        seen.add(needle);
+      }
+    }
   });
 });
 

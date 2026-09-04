@@ -1,0 +1,31 @@
+---
+title: "September 03, 2026 - Generate a diagram from a sketch"
+description: The editor now hands you the prompt to paste into a model along with a photo of your whiteboard.
+date: 2026-09-03
+tags:
+  - changelog
+  - feature
+---
+
+✨ **Feature** — A Prompt tab in the side panel. Copy the prompt, paste it into
+Claude or ChatGPT with a picture of a whiteboard, a drawing on paper or a
+screenshot of a diagram, and paste the JSON that comes back into the JSON tab.
+That is
+the whole loop, and it needs no server, no API key and no upload — the model you
+already have open does the reading.
+
+The prompt is `DIAGRAM_GUIDELINES` with a preamble on how to read a picture, not
+a second document: the format contract has exactly one text, and what changes
+when the input is an image is only how to look at it. The preamble is a list of
+the specific ways a sketch goes wrong — a model that renames "Notes API" to
+something more generic, one that reads a headless line as bidirectional, one
+that adds a load balancer nobody drew, and one that stalls on a box whose
+product it does not recognise, which is now answered by the monogram.
+
+Icon keys gained aliases for the same reason. A whiteboard says "Postgres",
+"Node" and "GH Actions" where the registry says `postgresql`, `nodedotjs` and
+`githubactions` — slugs nobody writes in a box. The mapping is interpolated into
+the guidelines from the registry, so an alias advertises itself and an invented
+key stops costing a correction round.
+
+**Docs:** [Authoring Guidelines](/features/diagram-tool/authoring-guidelines)

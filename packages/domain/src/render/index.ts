@@ -67,7 +67,7 @@ export const renderSVG = (config: ResolvedDiagram, options: RenderOptions = {}):
 };
 
 export { escapeXml } from "./svg";
-export { DIAGRAM_GUIDELINES } from "./guidelines";
+export { DIAGRAM_GUIDELINES, DIAGRAM_SKETCH_PROMPT } from "./guidelines";
 export { layoutDiagram } from "./layout";
 export { contentFrame, resolveFrame, FRAME_PADDING } from "./frame";
 export type { DiagramFrame } from "./frame";

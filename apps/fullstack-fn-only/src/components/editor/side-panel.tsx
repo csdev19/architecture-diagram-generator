@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { cn } from "@diagram-tool/web-ui";
 import type { ObjectProperties } from "@diagram-tool/domain/types";
 
@@ -16,6 +16,7 @@ import type { ObjectProperties } from "@diagram-tool/domain/types";
 
 export const SIDE_PANEL_TABS = {
   JSON: "json",
+  PROMPT: "prompt",
   INSPECTOR: "inspector",
   EDGES: "edges",
 } as const;
@@ -31,18 +32,21 @@ interface SidePanelProps {
   onTabChange: (tab: SidePanelTab) => void;
   edgeCount: number;
   json: ReactNode;
+  prompt: ReactNode;
   inspector: ReactNode;
   edges: ReactNode;
 }
 
 const TAB_LABELS: Record<SidePanelTab, string> = {
   [SIDE_PANEL_TABS.JSON]: "JSON",
+  [SIDE_PANEL_TABS.PROMPT]: "Prompt",
   [SIDE_PANEL_TABS.INSPECTOR]: "Inspector",
   [SIDE_PANEL_TABS.EDGES]: "Edges",
 };
 
 const TAB_ORDER: SidePanelTab[] = [
   SIDE_PANEL_TABS.JSON,
+  SIDE_PANEL_TABS.PROMPT,
   SIDE_PANEL_TABS.INSPECTOR,
   SIDE_PANEL_TABS.EDGES,
 ];
@@ -71,15 +75,49 @@ function TabBody({
   );
 }
 
+/**
+ * Arrow-key movement across the tabs.
+ *
+ * The tablist uses roving tabindex — one tab is reachable with Tab and the rest
+ * carry `tabIndex={-1}` — which is the correct pattern and is only half of it.
+ * Without arrow handling the inactive tabs are reachable by no key at all, so
+ * every panel but the open one was mouse-only.
+ */
+const TAB_STEP: Record<string, number> = {
+  ArrowRight: 1,
+  ArrowDown: 1,
+  ArrowLeft: -1,
+  ArrowUp: -1,
+};
+
 export function SidePanel({
   open,
   tab,
   onTabChange,
   edgeCount,
   json,
+  prompt,
   inspector,
   edges,
 }: SidePanelProps) {
+  const handleTabKey = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key === "Home" || event.key === "End") {
+      event.preventDefault();
+      const target = event.key === "Home" ? TAB_ORDER[0] : TAB_ORDER[TAB_ORDER.length - 1];
+      if (target) onTabChange(target);
+      return;
+    }
+
+    const step = TAB_STEP[event.key];
+    if (step === undefined) return;
+
+    event.preventDefault();
+    const from = TAB_ORDER.indexOf(tab);
+    // Wraps, so the last tab's right arrow reaches the first rather than dying.
+    const next = TAB_ORDER[(from + step + TAB_ORDER.length) % TAB_ORDER.length];
+    if (next) onTabChange(next);
+  };
+
   return (
     <div
       className={cn(
@@ -113,6 +151,7 @@ export function SidePanel({
                 aria-controls="side-panel-body"
                 tabIndex={active ? 0 : -1}
                 onClick={() => onTabChange(candidate)}
+                onKeyDown={handleTabKey}
                 className={cn(
                   "relative -mb-px px-2 py-3 text-[13px] font-medium",
                   "transition-colors duration-[140ms] outline-none",
@@ -136,7 +175,7 @@ export function SidePanel({
         </div>
 
         {/*
-          All three bodies stay mounted, hidden rather than unmounted. The JSON
+          Every body stays mounted, hidden rather than unmounted. The JSON
           textarea is the one control on the screen with a position in it — a
           scroll offset and a caret, usually parked on the node being edited —
           and remounting it on every tab press throws both away.
@@ -149,6 +188,9 @@ export function SidePanel({
         >
           <TabBody active={tab === SIDE_PANEL_TABS.JSON} className="min-h-0 flex-1 flex-col">
             {json}
+          </TabBody>
+          <TabBody active={tab === SIDE_PANEL_TABS.PROMPT} className="flex-col">
+            {prompt}
           </TabBody>
           <TabBody active={tab === SIDE_PANEL_TABS.INSPECTOR} className="flex-col">
             {inspector}

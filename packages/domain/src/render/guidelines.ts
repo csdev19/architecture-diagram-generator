@@ -4,7 +4,15 @@ import {
   CANVAS_TONES,
   DIAGRAM_LIMITS,
 } from "../constants/diagram";
-import { DIAGRAM_ICON_KEYS } from "../constants/diagram-icons";
+import { DIAGRAM_ICON_ALIASES, DIAGRAM_ICON_KEYS } from "../constants/diagram-icons";
+
+/**
+ * The alias map as one line per key, for a model that has a label and needs a
+ * key. Derived, so an alias added to the registry advertises itself.
+ */
+const ALIAS_LINES = Object.entries(DIAGRAM_ICON_ALIASES)
+  .map(([key, written]) => `  - ${written.join(", ")} → \`${key}\``)
+  .join("\n");
 
 /**
  * The authoring guide for a `DiagramDocument` — the text that turns "draw me
@@ -66,7 +74,9 @@ without drawing a box around them.
   characters — "Drizzle ORM", not "Drizzle ORM with Postgres".
 - \`sub\`: its role, lowercase, at most ${DIAGRAM_LIMITS.TEXT_MAX} characters —
   "orm / migrations".
-- \`tile: "dark"\` for only 2-3 key nodes; everything else stays light.
+- \`tile: "dark"\` is emphasis, and emphasis only works while it is rare:
+  **usually none at all**, never more than two or three in a large diagram, and
+  never a fixed count. Two dark tiles out of three have emphasised nothing.
 
 Every node shows one mark, and needs an \`iconKey\`, \`initials\` or an \`emoji\`. A
 node with none of the three is rejected; when a node carries more than one, the
@@ -77,6 +87,11 @@ icon is drawn, then the initials.
   glyph, and it is what makes a diagram look deliberate. Do not invent a key:
   anything outside this list is rejected. The available keys are exactly:
   ${DIAGRAM_ICON_KEYS.join(", ")}.
+
+  Several keys are not what a person writes on a box. When a label reads like
+  the left side, the key is the one on the right:
+
+${ALIAS_LINES}
 - \`initials\`: at most ${DIAGRAM_LIMITS.INITIALS_MAX} characters, for a named
   product with no logo in the list above — "ST" for Stripe, "K8" for Kubernetes.
   Drawn exactly as written, so type the capitals you want to see. Prefer it over
@@ -151,4 +166,124 @@ edge connects tiles, never boundaries or groups.
 - Is any \`name\` or \`sub\` longer than ${DIAGRAM_LIMITS.TEXT_MAX} characters? Abbreviate it.
 - Does the solid path read left to right through the whole system? That path is
   the diagram's spine, and everything else is placed relative to it.
+`;
+
+/**
+ * The prompt a person copies out of the editor and pastes into a chat together
+ * with a picture of a whiteboard, a drawing on paper or a screenshot.
+ *
+ * It is `DIAGRAM_GUIDELINES` with a preamble, not a second document. The
+ * contract has exactly one text; what changes when the input is a picture is
+ * how to *read* it, and that is all the preamble says. Composing rather than
+ * copying is what makes it impossible for the pasted prompt to describe a
+ * format the validator no longer accepts.
+ *
+ * Every rule below exists because of a specific way a sketch goes wrong:
+ * a model that read "ANGULAR" as "AN BUILDR" and reached for a monogram while
+ * \`angular\` sat in the key list further down the same prompt; one that read an
+ * arrowhead backwards and put the client at the far right of its own diagram;
+ * one that copied a sketch's block capitals into a shouting label; and one that
+ * was pulled towards a worked example the prompt itself had planted.
+ */
+export const DIAGRAM_SKETCH_PROMPT = `# Read this sketch and return JSON
+
+Your entire reply is one JSON document, described below. Nothing else.
+
+**Do not draw, render or generate an image.** You are not making a picture:
+another program draws it from the JSON you return. A reply containing an image,
+a rendered diagram or any prose is a failed reply, however good the picture is.
+
+You are reading an attached image — a hand drawing, a photograph of a
+whiteboard, a drawing on paper, or a screenshot of a diagram. That image is the
+only input: whatever you cannot see in it, you do not have.
+
+## What a sketch box is
+
+A box usually carries two readings of the same thing: a mark drawn inside it —
+one letter, a rough logo — and a name written beneath or beside it. They
+corroborate each other. A box with "P" in it and "POSTGRES" underneath is
+Postgres twice over, and if the two disagree you have misread one of them.
+
+## Handwriting is unreliable. The key list is not.
+
+Ballpoint on paper, photographed at an angle, is genuinely hard to read, and the
+most expensive mistake available to you is deciding that a familiar technology
+is an unknown product with a strange name.
+
+So for every single box, before its label becomes \`initials\`, hold that label
+against the key list further down and ask whether it is a near match. "AN
+GULAR", "ANGULR" and "ANSULAR" are all \`angular\`. "NOSTJS" and "NEST JS" are
+\`nestjs\`. "P0STGRES" is \`postgresql\`. That list is short and everything on it
+is common; a near match to it is far likelier than a product nobody has heard
+of.
+
+A label becomes \`initials\` only when it matches nothing on that list, and an
+\`emoji\` only when it names a role rather than a product — a user, a phone, a
+queue, a browser.
+
+## Names and roles
+
+Write each name the way its own product writes it — Postgres, NestJS, Angular —
+not in the block capitals the sketch is drawn in. Handwriting is capitals
+because capitals are easier to draw, not because the product shouts. For
+anything that is not a known product, the author's words are the name: their
+service is called what they called it, and only the letter-casing is yours.
+
+Give every node a \`sub\` as well: its role, in one or two lowercase words —
+"client", "api service", "database". For a technology you matched to the key
+list this is not a guess, it is what the thing is.
+
+## Do not invent
+
+No cloud provider, protocol, runtime, load balancer, cache, queue,
+authentication step or database that is not drawn or written down. A smaller
+diagram that matches the picture beats a fuller one that does not. Give a label
+you genuinely cannot read a name of \`?\` rather than a guess.
+
+## Arrows
+
+- An arrowhead is the direction: it points from \`from\` to \`to\`.
+- A line with no arrowhead is a relationship whose direction you choose. Pick
+  the one the request travels in — a client calls a server, a service reads a
+  database.
+- Arrowheads on a photograph are small and easily lost, so read each one twice.
+  But **never reverse a visible arrowhead because a usual architecture would
+  flow the other way.** A sketch showing a store pushing to a client is telling
+  you that is what it does. Only a line with no visible head may be inferred.
+- Text written on or beside a line is that edge's \`label\`. An unlabelled line
+  gets no label; do not put "HTTPS" on it because it looked likely.
+- A line drawn to the side of the main flow, or dashed in the picture, is a
+  \`dashed\` edge.
+
+## Boxes drawn around things
+
+A rectangle enclosing several components is a \`group\`. If that rectangle has a
+title written on it — "AWS", "Kubernetes", "monorepo" — the group also gets a
+\`boundary\` carrying that title as its \`label\` and a \`tone\`, which is required
+and is chosen by meaning from the list further down. An untitled enclosure is a
+group with no boundary. Anything drawn outside the rectangle stays outside it.
+
+---
+
+${DIAGRAM_GUIDELINES}
+
+---
+
+## Reading a picture overrides the general advice above
+
+What you can see in the image is the strongest evidence there is. The guide
+above describes how architectures usually read — a request path running left to
+right, a protocol on a labelled line — and that advice applies only where the
+picture is silent. It never overrules a mark you can actually see.
+
+## Last checks, for a diagram read from a picture
+
+- Is your reply anything other than one JSON document? Delete the rest.
+- Does every visible arrowhead agree with its edge's \`from\` and \`to\`? Never
+  change an observed direction to make the architecture look conventional.
+- Does any node carry \`initials\` while its label resembles something on the key
+  list? Look again. This is the single most common way this goes wrong.
+- Is any \`name\` in block capitals? Write it the way the product does.
+- Does every node have a \`sub\`, and every boundary a \`tone\`?
+- Is anything in your answer not in the picture? Remove it.
 `;
