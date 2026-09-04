@@ -101,10 +101,11 @@ describe("DIAGRAM_SKETCH_PROMPT", () => {
     expect(DIAGRAM_SKETCH_PROMPT).toContain("attached image");
   });
 
-  it("tells the model to copy the labels rather than rename them", () => {
-    // The single largest source of a wrong diagram from a good sketch: the
-    // model "improves" the author's own words.
-    expect(DIAGRAM_SKETCH_PROMPT).toMatch(/labels?[^.]*are the node names/i);
+  it("keeps the author's own words for anything the registry does not know", () => {
+    // The rule this replaced said "copy the labels as written", which was too
+    // strong: it also copied a sketch's block capitals into a shouting label.
+    // What must not change is someone's name for their own service.
+    expect(DIAGRAM_SKETCH_PROMPT).toMatch(/author's words are the name/i);
   });
 
   it("offers the monogram as the way out when a box has no logo", () => {
@@ -117,6 +118,65 @@ describe("DIAGRAM_SKETCH_PROMPT", () => {
 
   it("says what to do with an arrow that has no head", () => {
     expect(DIAGRAM_SKETCH_PROMPT).toContain("arrow");
+  });
+
+  /**
+   * One test per way the first real sketch went wrong: a photographed
+   * notebook page of Angular → NestJS → Postgres, every one of the three in
+   * the icon registry, of which the model recognised one.
+   */
+  describe("what the first evaluated sketch got wrong", () => {
+    /**
+     * The preamble alone. Asserting against the whole prompt would pass on
+     * wording that lives in the guidelines — which already say "capitals" and
+     * already mention `sub` — and prove nothing about the part that reads a
+     * picture.
+     */
+    const preamble = DIAGRAM_SKETCH_PROMPT.replace(DIAGRAM_GUIDELINES, "");
+
+    it("tells the model to try the key list before giving up on a garbled label", () => {
+      // "ANGULAR" was read as "AN BUILDR" and became a monogram, though
+      // `angular` was sitting in the list of keys further down the same prompt.
+      expect(preamble).toMatch(/near[- ]match|misread|hard to read/i);
+      expect(preamble).toMatch(/before you .*initials|only when .*matches nothing/i);
+    });
+
+    it("explains that a box carries a mark inside and its name beneath", () => {
+      // Every box in the sketch held one letter — A, N, P — and the name was
+      // written under it. Two readings of the same component, and the model
+      // used neither to check the other.
+      expect(preamble).toMatch(/inside|beneath|below the box/i);
+    });
+
+    it("asks for the product's own casing, not the sketch's block capitals", () => {
+      // "POSTGRES", "NOTES", "AN BUILDR" — handwriting is capitals, a diagram
+      // should not be.
+      expect(preamble).toMatch(/capitals/i);
+      expect(preamble).toContain("Postgres");
+    });
+
+    it("asks for a role in sub", () => {
+      // Every node came back without one, so the diagram lost the line that
+      // says what each tile is for.
+      expect(preamble).toContain("`sub`");
+    });
+
+    it("tells the model to re-read the arrowheads when the spine runs backwards", () => {
+      // The result was NestJS → Angular: the client at the far right, outside
+      // its own boundary, because one arrowhead was read the wrong way.
+      expect(preamble).toMatch(/backwards|runs the wrong way/i);
+    });
+
+    it("carries a check the model runs before answering", () => {
+      expect(preamble).toContain("Before you answer");
+    });
+
+    it("names no example that a misread label could be pulled towards", () => {
+      // The prompt said "Notes API" twice. The model returned a node called
+      // NOTES and titled the document aws-notes-postgres, from a sketch whose
+      // middle box read NESTJS. A worked example inside a prompt is not inert.
+      expect(DIAGRAM_SKETCH_PROMPT).not.toMatch(/Notes/);
+    });
   });
 
   it("leaves no unresolved interpolation", () => {
