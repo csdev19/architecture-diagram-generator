@@ -95,6 +95,29 @@ describe("node inspector", () => {
     );
   });
 
+  it("offers colour or mono for the marks while nothing is selected", () => {
+    render(<EditorPage />);
+    openTab(/inspector/i);
+
+    // Hono has colour art, so in the default style its card carries the art's
+    // own viewBox rather than the mono one.
+    const hono = () =>
+      within(screen.getByRole("complementary", { name: /tiles/i })).getByRole("button", {
+        name: /^hono /i,
+      });
+    expect(hono().querySelector('svg[viewBox="0 0 24 24"]')).toBeNull();
+
+    // Like the paper tone, the choice is part of the drawing and lands in
+    // `content` so that arranging cannot lose it.
+    fireEvent.click(screen.getByRole("button", { name: "Mono" }));
+
+    expect(parsed().content.iconStyle).toBe("mono");
+    expect(screen.getByRole("button", { name: "Mono" })).toHaveAttribute("aria-pressed", "true");
+
+    // And the palette follows, so what is previewed is what will be placed.
+    expect(hono().querySelector('svg[viewBox="0 0 24 24"] > path')).not.toBeNull();
+  });
+
   it("opens on the node that was clicked", () => {
     render(<EditorPage />);
     selectInside(at("api"));

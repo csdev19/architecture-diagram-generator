@@ -1,4 +1,4 @@
-import type { CanvasTone } from "@diagram-tool/domain/constants";
+import type { CanvasTone, IconStyle } from "@diagram-tool/domain/constants";
 import type { ResolvedDiagram } from "@diagram-tool/domain/schemas";
 import { deriveEdgeIds } from "@diagram-tool/domain/schemas";
 import {
@@ -261,6 +261,16 @@ export const setBackground = (text: string, tone: CanvasTone): string =>
     if (!content) return false;
 
     content.background = tone;
+    return true;
+  });
+
+/** Sets how marks are coloured. Content, like the paper: it survives Arrange. */
+export const setIconStyle = (text: string, style: IconStyle): string =>
+  editDocument(text, (document) => {
+    const content = contentOf(document);
+    if (!content) return false;
+
+    content.iconStyle = style;
     return true;
   });
 

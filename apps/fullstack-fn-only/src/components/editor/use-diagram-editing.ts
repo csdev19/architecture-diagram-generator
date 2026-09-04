@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import type { AnchorSide, CanvasTone } from "@diagram-tool/domain/constants";
+import type { AnchorSide, CanvasTone, IconStyle } from "@diagram-tool/domain/constants";
 import type { Point } from "@diagram-tool/domain/render";
 import type { ResolvedDiagram } from "@diagram-tool/domain/schemas";
 import {
@@ -11,6 +11,7 @@ import {
   removeEdge,
   removeNode,
   setBackground,
+  setIconStyle,
   updateBoundaryFields,
   updateEdgeFields,
   updateNodeFields,
@@ -106,6 +107,7 @@ export const useDiagramEditing = (
         setText(settled((text) => removeMember(text, groupId, memberId, diagram))),
 
       setBackground: (tone: CanvasTone) => setText((text) => setBackground(text, tone)),
+      setIconStyle: (style: IconStyle) => setText((text) => setIconStyle(text, style)),
       arrangeNodes: () => setText(clearNodeLayout),
     };
   }, [setText, diagram]);

@@ -704,7 +704,11 @@ export function EditorPage() {
               </p>
             </section>
           ) : shown ? (
-            <DiagramPanel diagram={shown.diagram} onBackgroundChange={edit.setBackground} />
+            <DiagramPanel
+              diagram={shown.diagram}
+              onBackgroundChange={edit.setBackground}
+              onIconStyleChange={edit.setIconStyle}
+            />
           ) : null
         }
         edges={
