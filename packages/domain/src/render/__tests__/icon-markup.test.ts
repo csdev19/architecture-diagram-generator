@@ -66,6 +66,18 @@ describe("renderIconMarkup", () => {
       expect(svg).not.toContain("<path d=");
     });
 
+    /**
+     * `onDark` is a judgment about the dark tile only — it must not gate the
+     * light tile too. Every other light-tile test above happens to use art
+     * fixtures with `onDark: true`, so without this one a regression that
+     * narrowed the light-tile-or-onDark check to an AND would still pass.
+     */
+    it("draws the art on a light tile even when it was judged not to read on dark", () => {
+      const svg = draw(artNotOnDark, TILE_VARIANTS.LIGHT, ICON_STYLES.COLOR);
+
+      expect(svg).toContain(ART_BODY);
+    });
+
     it("draws the art on a dark tile when it was judged to read there", () => {
       const svg = draw(withArt, TILE_VARIANTS.DARK, ICON_STYLES.COLOR);
 

@@ -16,9 +16,10 @@ export interface IconPlacement {
  *
  * Returns a nested `<svg>` rather than a transformed `<g>`: colour art comes in
  * whatever viewBox the brand authored it in, square or not, and a nested svg
- * with `preserveAspectRatio` fits any of them into the tile where a computed
- * scale would fit only the square ones. The mono mark goes through the same
- * element so that the renderer and the palette cannot drift apart.
+ * fits any of them into the tile by relying on SVG's default fitting behaviour
+ * (`xMidYMid meet`, applied when no `preserveAspectRatio` is given) where a
+ * computed scale would fit only the square ones. The mono mark goes through
+ * the same element so that the renderer and the palette cannot drift apart.
  *
  * Which of the two is drawn is the whole of the style decision, in one table:
  *
