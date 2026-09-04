@@ -179,6 +179,21 @@ describe("resolveDiagram", () => {
     expect(resolved.canvas).toEqual({ w: 800, h: 600 });
   });
 
+  it("carries the icon style across, and leaves it out when the document does", () => {
+    const document = example();
+    expect(resolveDiagram(diagramDocumentSchema.parse(document))).not.toHaveProperty("iconStyle");
+
+    document.content.iconStyle = "mono";
+    expect(resolveDiagram(diagramDocumentSchema.parse(document)).iconStyle).toBe("mono");
+  });
+
+  it("rejects an icon style the renderer does not know", () => {
+    const document = example();
+    (document.content as Record<string, unknown>).iconStyle = "sepia";
+
+    expect(() => diagramDocumentSchema.parse(document)).toThrow();
+  });
+
   it("is byte-stable", () => {
     expect(renderSVG(resolve(example()))).toBe(renderSVG(resolve(example())));
   });

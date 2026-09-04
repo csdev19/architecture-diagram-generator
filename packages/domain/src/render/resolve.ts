@@ -198,6 +198,7 @@ export const resolveDiagram = (document: DiagramDocument): ResolvedDiagram => {
   return {
     title: content.title,
     ...(content.background ? { background: content.background } : {}),
+    ...(content.iconStyle ? { iconStyle: content.iconStyle } : {}),
     ...(layout.canvas ? { canvas: layout.canvas } : {}),
     nodes,
     boundaries,

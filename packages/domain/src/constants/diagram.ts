@@ -93,6 +93,21 @@ export const CANVAS_TONES = {
 
 export type CanvasTone = ObjectProperties<typeof CANVAS_TONES>;
 
+/**
+ * How every brand mark in a diagram is coloured.
+ *
+ * Two values, not three: "black" and "white" are what the tile decides, and a
+ * mark forced to one of them would vanish on the other tile. `mono` means the
+ * silhouette in whichever of the two reads; `color` means the art when there
+ * is some, and the brand colour when it is legible.
+ */
+export const ICON_STYLES = {
+  COLOR: "color",
+  MONO: "mono",
+} as const;
+
+export type IconStyle = ObjectProperties<typeof ICON_STYLES>;
+
 export const isValidCanvasTone = (value: unknown): value is CanvasTone =>
   Object.values(CANVAS_TONES).includes(value as CanvasTone);
 
