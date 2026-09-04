@@ -71,6 +71,14 @@ describe("DIAGRAM_GUIDELINES", () => {
     expect(DIAGRAM_GUIDELINES).toContain("Check before answering");
   });
 
+  it("frames the dark tile as rare emphasis, not a quota to fill", () => {
+    // "for only 2-3 key nodes" reads as a target count. Handed a three-node
+    // sketch, a model made two of them dark — which emphasises nothing, and is
+    // the rule being followed rather than broken.
+    expect(DIAGRAM_GUIDELINES).toMatch(/usually none/i);
+    expect(DIAGRAM_GUIDELINES).not.toMatch(/for only 2-3 key nodes/i);
+  });
+
   it("gives the model a written word for every key it could not guess", () => {
     // A sketch says "Postgres"; the schema accepts "postgresql". If that
     // mapping is not in the text the model has to invent the key.

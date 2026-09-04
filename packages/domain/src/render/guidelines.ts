@@ -74,7 +74,9 @@ without drawing a box around them.
   characters — "Drizzle ORM", not "Drizzle ORM with Postgres".
 - \`sub\`: its role, lowercase, at most ${DIAGRAM_LIMITS.TEXT_MAX} characters —
   "orm / migrations".
-- \`tile: "dark"\` for only 2-3 key nodes; everything else stays light.
+- \`tile: "dark"\` is emphasis, and emphasis only works while it is rare:
+  **usually none at all**, never more than two or three in a large diagram, and
+  never a fixed count. Two dark tiles out of three have emphasised nothing.
 
 Every node shows one mark, and needs an \`iconKey\`, \`initials\` or an \`emoji\`. A
 node with none of the three is rejected; when a node carries more than one, the
