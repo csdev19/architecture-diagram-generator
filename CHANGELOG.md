@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/csdev19/architecture-diagram-generator/compare/v0.2.0...v0.2.1) (2026-09-04)
+
+
+### Bug Fixes
+
+* **domain:** bound each text field by the shape that actually draws it ([d712819](https://github.com/csdev19/architecture-diagram-generator/commit/d71281938038a4077f38633d77528096618c97db))
+* **domain:** bound each text field by the shape that actually draws it ([d0b0470](https://github.com/csdev19/architecture-diagram-generator/commit/d0b0470d6f0ec9f42c361d129500784f9292f3c7))
+
 ## [0.2.0](https://github.com/csdev19/architecture-diagram-generator/compare/v0.1.0...v0.2.0) (2026-09-04)
 
 
