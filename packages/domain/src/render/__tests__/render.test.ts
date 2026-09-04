@@ -129,20 +129,36 @@ describe("renderSVG", () => {
       expect(svg).not.toContain(`fill="#${DIAGRAM_ICONS.hono.mono.hex}"`);
     });
 
-    it("scales the 24px mark to the geometry's icon size and centres it on the tile", () => {
+    it("draws every mark as a silhouette when the document asks for mono", () => {
+      const svg = render({
+        ...singleNode({ emoji: undefined, iconKey: "cloudflare", tile: "light" }),
+        iconStyle: "mono",
+      });
+
+      // Cloudflare's orange reads on paper and is drawn in colour by default;
+      // under `mono` no brand colour survives.
+      expect(svg).toContain(DIAGRAM_ICONS.cloudflare.mono.path);
+      expect(svg).not.toContain(`fill="#${DIAGRAM_ICONS.cloudflare.mono.hex}"`);
+    });
+
+    it("places the mark as a nested svg of the geometry's icon size, centred on the tile", () => {
       const { ICON_SIZE, ICON_VIEWBOX } = DIAGRAM_GEOMETRY;
       const svg = render(singleNode({ emoji: undefined, iconKey: "hono" }));
 
       // The node sits at (350, 180), so the mark's top-left is half its size up and left.
-      expect(svg).toContain(`translate(${num(350 - ICON_SIZE / 2)} ${num(180 - ICON_SIZE / 2)})`);
-      expect(svg).toContain(`scale(${num(ICON_SIZE / ICON_VIEWBOX)})`);
+      expect(svg).toContain(
+        `<svg x="${num(350 - ICON_SIZE / 2)}" y="${num(180 - ICON_SIZE / 2)}" ` +
+          `width="${ICON_SIZE}" height="${ICON_SIZE}" viewBox="0 0 ${ICON_VIEWBOX} ${ICON_VIEWBOX}">`,
+      );
     });
 
     it("leaves an emoji-only node exactly as it was", () => {
       const svg = render(singleNode({ emoji: "🔥" }));
 
       expect(svg).toContain("🔥");
-      expect(svg, "an emoji node must not carry an icon boundary").not.toContain("scale(");
+      expect(svg, "an emoji node must not carry an icon boundary").not.toContain(
+        `height="${DIAGRAM_GEOMETRY.ICON_SIZE}" viewBox=`,
+      );
       expect(svg).toContain(`font-size="${DIAGRAM_TYPOGRAPHY.EMOJI_SIZE}"`);
     });
   });

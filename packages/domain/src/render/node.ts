@@ -4,12 +4,10 @@ import {
   DIAGRAM_TYPOGRAPHY,
   TILE_VARIANTS,
 } from "../constants/diagram";
-import {
-  DIAGRAM_ICONS,
-  resolveDiagramIconFill,
-  resolveMonogramFill,
-} from "../constants/diagram-icons";
+import type { IconStyle } from "../constants/diagram";
+import { DIAGRAM_ICONS, resolveMonogramFill } from "../constants/diagram-icons";
 import type { DiagramNode } from "../schemas/diagram";
+import { renderIconMarkup } from "./icon-markup";
 import { escapeXml, num } from "./svg";
 
 /** Baseline of the name, measured down from the bottom edge of the tile. */
@@ -35,20 +33,15 @@ const INITIALS_CAP_CENTRE = 0.36;
  * config keep a fallback without the renderer drawing two marks on top of each
  * other. The schema guarantees at least one is present.
  */
-const renderMark = (node: DiagramNode): string => {
+const renderMark = (node: DiagramNode, iconStyle: IconStyle): string => {
   if (node.iconKey) {
-    const { ICON_SIZE, ICON_VIEWBOX } = DIAGRAM_GEOMETRY;
-    const icon = DIAGRAM_ICONS[node.iconKey];
+    const { ICON_SIZE } = DIAGRAM_GEOMETRY;
     const offset = ICON_SIZE / 2;
-
-    // simple-icons paths are authored at 24x24 from the origin, so the boundary is
-    // moved to where the mark's top-left corner belongs and scaled up from there.
-    return (
-      `<g transform="translate(${num(node.x - offset)} ${num(node.y - offset)}) ` +
-      `scale(${num(ICON_SIZE / ICON_VIEWBOX)})">` +
-      `<path d="${escapeXml(icon.mono.path)}" fill="${resolveDiagramIconFill(icon, node.tile)}"/>` +
-      `</g>`
-    );
+    return renderIconMarkup(DIAGRAM_ICONS[node.iconKey], node.tile, iconStyle, {
+      x: node.x - offset,
+      y: node.y - offset,
+      size: ICON_SIZE,
+    });
   }
 
   if (node.initials) {
@@ -76,7 +69,7 @@ const renderMark = (node: DiagramNode): string => {
  * A node: a rounded tile with a centred mark, its name and sublabel stacked
  * underneath. `x`/`y` is the centre of the tile, not its corner.
  */
-export const renderNode = (node: DiagramNode): string => {
+export const renderNode = (node: DiagramNode, iconStyle: IconStyle): string => {
   const { TILE_SIZE, TILE_RADIUS } = DIAGRAM_GEOMETRY;
   const half = TILE_SIZE / 2;
   const isDark = node.tile === TILE_VARIANTS.DARK;
@@ -87,7 +80,7 @@ export const renderNode = (node: DiagramNode): string => {
     `fill="${isDark ? DIAGRAM_COLORS.TILE_DARK_FILL : DIAGRAM_COLORS.TILE_LIGHT_FILL}" ` +
     `stroke="${isDark ? DIAGRAM_COLORS.TILE_DARK_BORDER : DIAGRAM_COLORS.TILE_LIGHT_BORDER}"/>`;
 
-  const mark = renderMark(node);
+  const mark = renderMark(node, iconStyle);
 
   const nameY = node.y + half + NAME_BASELINE_OFFSET;
   const name =
