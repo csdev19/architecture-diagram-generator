@@ -227,6 +227,20 @@ describe("tile palette", () => {
 
     expect(screen.getByLabelText("Initials")).toBeInTheDocument();
   });
+
+  it("draws each brand mark through the renderer's own helper", () => {
+    render(<EditorPage />);
+
+    // The card is what the author is about to place, so it has to be the
+    // renderer's mark and not a second drawing of it. The nested svg with the
+    // mono viewBox is the helper's signature; a hand-rolled `<path>` has none.
+    // `width`/`height` are the tell: the helper sets them from its placement,
+    // and the React thumbnail this replaces never did.
+    // Anchored on the label alone: the card's accessible name also carries its
+    // trailing `iconKey: "hono"` debug line, so a full-string match would miss it.
+    const card = paletteCard(/^hono /i);
+    expect(card.querySelector('svg[width="22"][height="22"] > path')).not.toBeNull();
+  });
 });
 
 describe("prompt panel", () => {

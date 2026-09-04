@@ -3,7 +3,12 @@ import { toast } from "sonner";
 import { EXAMPLE_DIAGRAM_DOCUMENT, validateDiagramDocument } from "@diagram-tool/domain/schemas";
 import type { DiagramDocument, ResolvedDiagram } from "@diagram-tool/domain/schemas";
 import { facingSides, renderSVG, resolveDiagram } from "@diagram-tool/domain/render";
-import { BOUNDARY_PADDINGS, BOUNDARY_TONES, TILE_VARIANTS } from "@diagram-tool/domain/constants";
+import {
+  BOUNDARY_PADDINGS,
+  BOUNDARY_TONES,
+  ICON_STYLES,
+  TILE_VARIANTS,
+} from "@diagram-tool/domain/constants";
 import type { BoundaryPadding } from "@diagram-tool/domain/constants";
 import { downloadConfig, downloadSvg, downloadSvgAsPng } from "@/lib/export-png";
 import { DiagramPanel } from "@/components/editor/diagram-panel";
@@ -617,6 +622,7 @@ export function EditorPage() {
       {paletteOpen ? (
         <TilePalette
           selectedKey={tileKey}
+          iconStyle={shown?.diagram.iconStyle ?? ICON_STYLES.COLOR}
           onSelect={(key) => {
             setTileKey(key);
             // Choosing a tile is choosing what to place next, so the tool

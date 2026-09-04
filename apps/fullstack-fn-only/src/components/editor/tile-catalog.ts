@@ -1,7 +1,6 @@
 import {
   DIAGRAM_ICONS,
   DIAGRAM_ICON_KEYS,
-  resolveDiagramIconFill,
   resolveMonogramFill,
   TILE_VARIANTS,
 } from "@diagram-tool/domain/constants";
@@ -30,10 +29,6 @@ export interface BrandTile {
   /** Human name, and the `name` a freshly placed node gets. */
   label: string;
   iconKey: DiagramIconKey;
-  /** simple-icons path, drawn in a 24x24 viewBox. */
-  path: string;
-  /** Fill for the mark on a light tile, already through the contrast rule. */
-  fill: string;
 }
 
 export interface EmojiTile {
@@ -76,19 +71,12 @@ const LABEL_OVERRIDES: Partial<Record<DiagramIconKey, string>> = {
   betterauth: "Better Auth",
 };
 
-const BRAND_TILES: BrandTile[] = DIAGRAM_ICON_KEYS.map((iconKey) => {
-  const icon = DIAGRAM_ICONS[iconKey];
-  return {
-    kind: "icon",
-    key: iconKey,
-    label: LABEL_OVERRIDES[iconKey] ?? icon.title,
-    iconKey,
-    path: icon.mono.path,
-    // Palette thumbnails are the light tile in miniature, so the mark is
-    // resolved against the light tile — the same call the renderer makes.
-    fill: resolveDiagramIconFill(icon, TILE_VARIANTS.LIGHT),
-  };
-});
+const BRAND_TILES: BrandTile[] = DIAGRAM_ICON_KEYS.map((iconKey) => ({
+  kind: "icon",
+  key: iconKey,
+  label: LABEL_OVERRIDES[iconKey] ?? DIAGRAM_ICONS[iconKey].title,
+  iconKey,
+}));
 
 const EMOJI_TILES: EmojiTile[] = [
   { kind: "emoji", key: "desktop", label: "Desktop", emoji: "🖥️" },
