@@ -97,10 +97,11 @@ export function EdgeTools({ edges, onUpdate, onAnchors, onRemove }: EdgeToolsPro
                   aria-label={`Label ${index + 1}`}
                   placeholder="label"
                   value={edge.label ?? ""}
-                  maxLength={DIAGRAM_LIMITS.TEXT_MAX}
+                  maxLength={DIAGRAM_LIMITS.EDGE_LABEL_MAX}
                   onChange={(event) =>
                     onUpdate(edge.id, {
-                      label: event.target.value.slice(0, DIAGRAM_LIMITS.TEXT_MAX) || undefined,
+                      label:
+                        event.target.value.slice(0, DIAGRAM_LIMITS.EDGE_LABEL_MAX) || undefined,
                     })
                   }
                   className={cn(rowControl, "min-w-0 flex-1 placeholder:text-ed-text-3")}

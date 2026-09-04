@@ -11,11 +11,21 @@ import { DIAGRAM_GUIDELINES, DIAGRAM_SKETCH_PROMPT } from "../guidelines";
  */
 describe("DIAGRAM_GUIDELINES", () => {
   it("states the limits the schema enforces", () => {
-    expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_LIMITS.TEXT_MAX));
+    expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_LIMITS.NODE_NAME_MAX));
+    expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_LIMITS.NODE_SUB_MAX));
+    expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_LIMITS.BOUNDARY_LABEL_MAX));
+    expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_LIMITS.EDGE_LABEL_MAX));
     expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_LIMITS.MAX_NODES));
     expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_LIMITS.MAX_BOUNDARIES));
     expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_LIMITS.MAX_EDGES));
     expect(DIAGRAM_GUIDELINES).toContain(String(DIAGRAM_LIMITS.MAX_GROUPS));
+  });
+
+  it("tells the author a boundary label has more room than a node name", () => {
+    // The failure this guards is a model abbreviating "Monorepo — Turborepo +
+    // Bun workspaces" down to a node's length because one number was stated
+    // once and read as global.
+    expect(DIAGRAM_GUIDELINES).toContain("do not abbreviate a perimeter's real name");
   });
 
   it("tells the author to describe architecture and not geometry", () => {

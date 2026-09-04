@@ -46,7 +46,7 @@ const FALLBACK_INITIALS = "AB";
  */
 const MARK_INITIALS = "initials";
 
-const { TEXT_MAX, INITIALS_MAX } = DIAGRAM_LIMITS;
+const { NODE_NAME_MAX, NODE_SUB_MAX, INITIALS_MAX } = DIAGRAM_LIMITS;
 
 /** At most `INITIALS_MAX` characters, counted the way the schema counts them. */
 const clampInitials = (value: string): string => [...value].slice(0, INITIALS_MAX).join("");
@@ -109,13 +109,13 @@ export function NodeInspector({ node, darkTileCount, onChange }: NodeInspectorPr
         <MicroLabel>Node</MicroLabel>
       </header>
 
-      <Field label="Name" hint={`${TEXT_MAX} characters max — the schema limit`}>
+      <Field label="Name" hint={`${NODE_NAME_MAX} characters max — the schema limit`}>
         <EditorInput
           id="node-name"
           aria-label="Name"
           value={node.name}
-          maxLength={TEXT_MAX}
-          onChange={(event) => onChange({ name: event.target.value.slice(0, TEXT_MAX) })}
+          maxLength={NODE_NAME_MAX}
+          onChange={(event) => onChange({ name: event.target.value.slice(0, NODE_NAME_MAX) })}
         />
       </Field>
 
@@ -124,9 +124,9 @@ export function NodeInspector({ node, darkTileCount, onChange }: NodeInspectorPr
           id="node-sub"
           aria-label="Sub"
           value={node.sub}
-          maxLength={TEXT_MAX}
+          maxLength={NODE_SUB_MAX}
           placeholder="http server"
-          onChange={(event) => onChange({ sub: event.target.value.slice(0, TEXT_MAX) })}
+          onChange={(event) => onChange({ sub: event.target.value.slice(0, NODE_SUB_MAX) })}
         />
       </Field>
 

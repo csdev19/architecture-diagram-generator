@@ -73,9 +73,9 @@ without drawing a box around them.
 ## Nodes
 
 - \`id\`: short, lowercase, stable. Edges and groups refer to it.
-- \`name\`: the technology's proper name, at most ${DIAGRAM_LIMITS.TEXT_MAX}
+- \`name\`: the technology's proper name, at most ${DIAGRAM_LIMITS.NODE_NAME_MAX}
   characters — "Drizzle ORM", not "Drizzle ORM with Postgres".
-- \`sub\`: its role, lowercase, at most ${DIAGRAM_LIMITS.TEXT_MAX} characters —
+- \`sub\`: its role, lowercase, at most ${DIAGRAM_LIMITS.NODE_SUB_MAX} characters —
   "orm / migrations".
 - \`tile: "dark"\` is emphasis, and emphasis only works while it is rare:
   **usually none at all**, never more than two or three in a large diagram, and
@@ -120,6 +120,11 @@ members are node ids, a boundary id, and other group ids.
   \`${BOUNDARY_TONES.GREEN}\` for external services and data,
   \`${BOUNDARY_TONES.NEUTRAL}\` for anything else. The renderer owns the palette —
   pick meaning and let it choose the hex.
+- \`label\` is the perimeter's name and may run to ${DIAGRAM_LIMITS.BOUNDARY_LABEL_MAX}
+  characters — much longer than a node's, because it is drawn along the top
+  border of a box that grows to carry it. "Monorepo — Turborepo + Bun
+  workspaces" is a good label; write the name the perimeter actually has rather
+  than a clipped version of it.
 - \`padding\` is how tightly the box hugs what it holds:
   \`${Object.values(BOUNDARY_PADDINGS).join("`, `")}\`. Leave it out for
   \`${BOUNDARY_PADDINGS.NORMAL}\`. A nested boundary reads better with
@@ -132,8 +137,9 @@ edge connects tiles, never boundaries or groups.
 
 - \`id\` is optional: it is derived from the two endpoints. Write one only when
   two edges connect the same pair and you want to tell them apart.
-- Labels are short and technical. Protocol names stay as they are; other words
-  follow the language the user is writing in.
+- Labels are short and technical, at most ${DIAGRAM_LIMITS.EDGE_LABEL_MAX} characters:
+  they are set along the line, which has no room to spare. Protocol names stay as
+  they are; other words follow the language the user is writing in.
 - Do not write \`out\` or \`inn\`. Which side a line leaves is composition, and it
   is computed from where the tiles end up.
 
@@ -152,6 +158,10 @@ edge connects tiles, never boundaries or groups.
 - \`version\` must be 2, and \`content\` must be present.
 - At most ${DIAGRAM_LIMITS.MAX_BOUNDARIES} boundaries, ${DIAGRAM_LIMITS.MAX_GROUPS} groups, ${DIAGRAM_LIMITS.MIN_NODES}-${DIAGRAM_LIMITS.MAX_NODES} nodes, at most ${DIAGRAM_LIMITS.MAX_EDGES} edges.
 - Node, boundary and group ids share one namespace and must all be unique.
+- Text is bounded per field, not by one shared number: \`node.name\`
+  ${DIAGRAM_LIMITS.NODE_NAME_MAX}, \`node.sub\` ${DIAGRAM_LIMITS.NODE_SUB_MAX},
+  \`boundary.label\` ${DIAGRAM_LIMITS.BOUNDARY_LABEL_MAX}, \`edge.label\`
+  ${DIAGRAM_LIMITS.EDGE_LABEL_MAX}.
 - Every \`edge.from\` and \`edge.to\` names a node that exists, and an edge cannot
   connect a node to itself.
 - Every group member exists, belongs to no other group, and the nesting has no
@@ -166,7 +176,9 @@ edge connects tiles, never boundaries or groups.
 - Does every node have an \`iconKey\`, \`initials\` or an \`emoji\`, and is every
   \`iconKey\` one of the keys listed above?
 - Does every group hold at least one node and at most one boundary?
-- Is any \`name\` or \`sub\` longer than ${DIAGRAM_LIMITS.TEXT_MAX} characters? Abbreviate it.
+- Is any node \`name\` over ${DIAGRAM_LIMITS.NODE_NAME_MAX} characters, or any \`sub\` over
+  ${DIAGRAM_LIMITS.NODE_SUB_MAX}? Abbreviate it. A \`boundary.label\` has far more room
+  (${DIAGRAM_LIMITS.BOUNDARY_LABEL_MAX}) — do not abbreviate a perimeter's real name to a node's length.
 - Does the solid path read left to right through the whole system? That path is
   the diagram's spine, and everything else is placed relative to it.
 `;

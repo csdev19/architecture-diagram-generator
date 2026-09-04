@@ -17,6 +17,24 @@ const LABEL_LETTER_SPACING = 0.8;
 const ICON_SIZE = 13;
 const ICON_GAP = 5;
 
+/** Distance from the box's left edge to the start of the label's backing rect. */
+export const LABEL_INSET = 18;
+
+/**
+ * How much horizontal room a boundary's label occupies, backing rect included.
+ *
+ * Exported because layout needs the same number: a grouped boundary is sized by
+ * what it holds, which says nothing about how long its name is, so `resolve`
+ * widens the box to carry the label. Two estimates of that width would be two
+ * answers to whether the label fits, one of them wrong.
+ */
+export const boundaryLabelWidth = (label: string, icon: string): number => {
+  if (!label) return 0;
+
+  const iconWidth = icon ? ICON_SIZE + ICON_GAP : 0;
+  return iconWidth + label.length * LABEL_CHAR_WIDTH + LABEL_PADDING * 2;
+};
+
 /**
  * A boundary box: a rounded rect tinted by tone, with its label sitting on the top
  * border rather than inside the box, so the border appears to break around it.
@@ -38,9 +56,8 @@ export const renderBoundary = (boundary: DiagramBoundary, paper: string): string
   // 11px monospace face renders as an illegible smudge, so it gets its own,
   // larger element and the text starts after it.
   const iconWidth = boundary.icon ? ICON_SIZE + ICON_GAP : 0;
-  const textWidth = boundary.label.length * LABEL_CHAR_WIDTH;
-  const labelWidth = iconWidth + textWidth + LABEL_PADDING * 2;
-  const labelX = boundary.x + 18;
+  const labelWidth = boundaryLabelWidth(boundary.label, boundary.icon);
+  const labelX = boundary.x + LABEL_INSET;
   const labelHeight = labelSize + 6;
   const baseline = boundary.y + 4;
 

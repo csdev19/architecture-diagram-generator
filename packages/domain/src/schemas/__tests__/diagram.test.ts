@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DIAGRAM_LIMITS } from "../../constants/diagram";
 import {
   EXAMPLE_RESOLVED_DIAGRAM,
   resolvedDiagramSchema,
@@ -95,6 +96,54 @@ describe("resolvedDiagramSchema", () => {
     expect(messagesFor(config).some((m) => m.includes("26") && m.includes("abbreviate"))).toBe(
       true,
     );
+  });
+
+  /**
+   * The three fields carrying text are three different shapes on the page, and
+   * one shared limit made the boundary label the casualty: a perimeter's real
+   * name was refused for overflowing a tile it is not drawn in.
+   */
+  describe("text bounds are per field", () => {
+    it("lets a boundary label carry a full perimeter name", () => {
+      const config = validConfig();
+      const label = "Monorepo — Turborepo + Bun workspaces";
+      (config.boundaries as Array<Record<string, unknown>>)[0]!.label = label;
+
+      expect(label.length).toBeGreaterThan(DIAGRAM_LIMITS.NODE_NAME_MAX);
+      expect(messagesFor(config)).toEqual([]);
+    });
+
+    it("still refuses a boundary label that has become a sentence", () => {
+      const config = validConfig();
+      (config.boundaries as Array<Record<string, unknown>>)[0]!.label = "x".repeat(
+        DIAGRAM_LIMITS.BOUNDARY_LABEL_MAX + 1,
+      );
+
+      const messages = messagesFor(config);
+      expect(messages.some((m) => m.includes(String(DIAGRAM_LIMITS.BOUNDARY_LABEL_MAX)))).toBe(
+        true,
+      );
+      // The old message sent the author looking for a tile that does not exist.
+      expect(messages.some((m) => m.includes("tile"))).toBe(false);
+    });
+
+    it("gives the sublabel the few extra characters its smaller face buys", () => {
+      const config = validConfig();
+      const nodes = config.nodes as Array<Record<string, unknown>>;
+      nodes[0]!.sub = "x".repeat(DIAGRAM_LIMITS.NODE_SUB_MAX);
+
+      expect(DIAGRAM_LIMITS.NODE_SUB_MAX).toBeGreaterThan(DIAGRAM_LIMITS.NODE_NAME_MAX);
+      expect(messagesFor(config)).toEqual([]);
+    });
+
+    it("bounds an edge label, which used to have no limit at all", () => {
+      const config = validConfig();
+      (config.edges as Array<Record<string, unknown>>)[0]!.label = "x".repeat(
+        DIAGRAM_LIMITS.EDGE_LABEL_MAX + 1,
+      );
+
+      expect(messagesFor(config).some((m) => m.includes("Edge label"))).toBe(true);
+    });
   });
 
   it("accepts a coordinate anywhere, negatives included", () => {

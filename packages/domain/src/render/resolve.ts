@@ -4,6 +4,7 @@ import type { DiagramBoundary, DiagramNode, ResolvedDiagram } from "../schemas/d
 import { facingSides } from "./anchors";
 import type { Point } from "./anchors";
 import { boundaryBounds, nodeBounds, union } from "./bounds";
+import { LABEL_INSET, boundaryLabelWidth } from "./boundary";
 import type { Bounds } from "./bounds";
 import { layoutNodes } from "./layout";
 
@@ -134,11 +135,21 @@ export const resolveDiagram = (document: DiagramDocument): ResolvedDiagram => {
     // otherwise sit — the same allowance `boundaryBounds` reads back out.
     const top = bounds.minY - room + DIAGRAM_TYPOGRAPHY.BOUNDARY_LABEL_SIZE;
 
+    const left = Math.round(bounds.minX - room);
+    // What a group holds says nothing about how long its name is, so a box that
+    // fits its members can still be too narrow to carry its own label. Widening
+    // it is the honest answer; refusing the name because the members are small
+    // would let geometry veto the architecture.
+    const width = Math.max(
+      Math.round(bounds.maxX + room) - left,
+      LABEL_INSET + boundaryLabelWidth(drawn.label, drawn.icon) + LABEL_INSET,
+    );
+
     const resolved = {
       ...drawn,
-      x: Math.round(bounds.minX - room),
+      x: left,
       y: Math.round(top),
-      w: Math.round(bounds.maxX + room) - Math.round(bounds.minX - room),
+      w: width,
       h: Math.round(bounds.maxY + room) - Math.round(top),
     };
 
