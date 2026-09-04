@@ -234,19 +234,18 @@ picture nor the technology says what the component is for.
 No cloud provider, protocol, runtime, load balancer, cache, queue,
 authentication step or database that is not drawn or written down. A smaller
 diagram that matches the picture beats a fuller one that does not. A label you
-genuinely cannot read is reported at the end, after the JSON, not guessed.
+genuinely cannot read is not guessed.
 
 ## Arrows
 
 - An arrowhead is the direction: it points from \`from\` to \`to\`.
 - A line with no arrowhead is a relationship whose direction you must choose.
   Pick the one the request travels in — a client calls a server, a service reads
-  a database — and list it as an assumption after the JSON.
+  a database.
 - Arrowheads on a photograph are small and easily lost. Once every edge is
-  placed, read the solid path end to end: it should run from whoever makes the
-  request to whatever finally answers or stores it. **If it runs backwards — a
-  database calling a client, a service calling its own front end — you misread a
-  head.** Turn it round and say so in your assumptions.
+  placed, check that each visible head still points from \`from\` to \`to\`.
+  **Never reverse a visible arrowhead because a usual architecture would flow
+  the other way.** Only a line with no visible head may be inferred.
 - Text written on or beside a line is that edge's \`label\`. An unlabelled line
   gets no label; do not put "HTTPS" on it because it looked likely.
 - A line drawn to the side of the main flow, or dashed in the picture, is a
@@ -278,16 +277,30 @@ Never leave a node without one of the three, and never invent an \`iconKey\`.
   list? Look again. This is the single most common way this goes wrong.
 - Is any \`name\` in block capitals? Write it the way the product does.
 - Does every node have a \`sub\`?
-- Does the solid path run from the client through the services to the data
-  store? If not, re-read the arrowheads.
+- Does every visible arrowhead agree with \`edge.from\` and \`edge.to\`? Do not
+  alter an observed direction to make the architecture look conventional.
 - Is anything in your answer not in the picture? Remove it.
 
-## After the JSON
+## Output
 
-Return the JSON first, alone. Then, in a few short lines, list anything you
-assumed: a direction you chose for an arrow with no head, a label you could not
-read, a box whose product you could not identify.
+Return one valid JSON object and nothing else. Do not append assumptions or
+comments: the JSON is pasted directly into an editor. When you cannot read a
+label or arrowhead, choose the smallest supported diagram rather than adding
+text outside the document.
 
 ---
 
-${DIAGRAM_GUIDELINES}`;
+${DIAGRAM_GUIDELINES}
+
+## Sketch rules override the generic guide
+
+For this attached-image task, the observed sketch is stronger evidence than a
+generic architecture convention. These rules override any earlier generic rule:
+
+- Preserve every visible arrowhead, even if it makes the flow run right-to-left
+  or from a data store toward a client.
+- An edge without visible text has no \`label\`. Do not invent a protocol such
+  as HTTPS or SQL.
+- The generic request-path and left-to-right advice applies only when the image
+  leaves a line direction unknown; it does not override observed marks.
+- Return one valid JSON object and nothing else.`;
