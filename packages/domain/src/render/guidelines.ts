@@ -11,7 +11,7 @@ import { DIAGRAM_ICON_ALIASES, DIAGRAM_ICON_KEYS } from "../constants/diagram-ic
  * key. Derived, so an alias added to the registry advertises itself.
  */
 const ALIAS_LINES = Object.entries(DIAGRAM_ICON_ALIASES)
-  .map(([key, written]) => `  - ${(written ?? []).join(", ")} → \`${key}\``)
+  .map(([key, written]) => `  - ${written.join(", ")} → \`${key}\``)
   .join("\n");
 
 /**
@@ -185,12 +185,17 @@ edge connects tiles, never boundaries or groups.
  * one that copied a sketch's block capitals into a shouting label; and one that
  * was pulled towards a worked example the prompt itself had planted.
  */
-export const DIAGRAM_SKETCH_PROMPT = `# Turn this sketch into a diagram
+export const DIAGRAM_SKETCH_PROMPT = `# Read this sketch and return JSON
 
-You are reading an attached image — a hand drawing, a photograph of a whiteboard,
-a drawing on paper, or a screenshot of a diagram. An image is the only input:
-whatever you cannot see in it, you do not have. Turn it into the JSON document
-described below, and return ONLY that JSON.
+Your entire reply is one JSON document, described below. Nothing else.
+
+**Do not draw, render or generate an image.** You are not making a picture:
+another program draws it from the JSON you return. A reply containing an image,
+a rendered diagram or any prose is a failed reply, however good the picture is.
+
+You are reading an attached image — a hand drawing, a photograph of a
+whiteboard, a drawing on paper, or a screenshot of a diagram. That image is the
+only input: whatever you cannot see in it, you do not have.
 
 ## What a sketch box is
 
@@ -205,48 +210,47 @@ Ballpoint on paper, photographed at an angle, is genuinely hard to read, and the
 most expensive mistake available to you is deciding that a familiar technology
 is an unknown product with a strange name.
 
-So before a label becomes \`initials\`, hold it against the key list further down
-and ask whether it is a near match. "AN GULAR", "ANGULR" and "ANSULAR" are all
-\`angular\`. "NOSTJS" and "NEST JS" are \`nestjs\`. "P0STGRES" is \`postgresql\`.
-That list is short and everything on it is common; a near match to it is far
-likelier than a product nobody has heard of.
+So for every single box, before its label becomes \`initials\`, hold that label
+against the key list further down and ask whether it is a near match. "AN
+GULAR", "ANGULR" and "ANSULAR" are all \`angular\`. "NOSTJS" and "NEST JS" are
+\`nestjs\`. "P0STGRES" is \`postgresql\`. That list is short and everything on it
+is common; a near match to it is far likelier than a product nobody has heard
+of.
 
-Only when a label matches nothing on the list does it become \`initials\`.
+A label becomes \`initials\` only when it matches nothing on that list, and an
+\`emoji\` only when it names a role rather than a product — a user, a phone, a
+queue, a browser.
 
-## Names
+## Names and roles
 
 Write each name the way its own product writes it — Postgres, NestJS, Angular —
 not in the block capitals the sketch is drawn in. Handwriting is capitals
-because capitals are easier to draw, not because the product shouts.
+because capitals are easier to draw, not because the product shouts. For
+anything that is not a known product, the author's words are the name: their
+service is called what they called it, and only the letter-casing is yours.
 
-For anything that is not a known product, the author's words are the name: their
-service is called what they called it. Only the letter-casing is yours to fix.
-
-## Roles
-
-Give every node a \`sub\`: its role, in one or two lowercase words — "client",
-"api service", "database". For a technology you matched to the key list this is
-not a guess, it is what the thing is. Leave \`sub\` out only when neither the
-picture nor the technology says what the component is for.
+Give every node a \`sub\` as well: its role, in one or two lowercase words —
+"client", "api service", "database". For a technology you matched to the key
+list this is not a guess, it is what the thing is.
 
 ## Do not invent
 
 No cloud provider, protocol, runtime, load balancer, cache, queue,
 authentication step or database that is not drawn or written down. A smaller
-diagram that matches the picture beats a fuller one that does not. A label you
-genuinely cannot read is reported at the end, after the JSON, not guessed.
+diagram that matches the picture beats a fuller one that does not. Give a label
+you genuinely cannot read a name of \`?\` rather than a guess.
 
 ## Arrows
 
 - An arrowhead is the direction: it points from \`from\` to \`to\`.
-- A line with no arrowhead is a relationship whose direction you must choose.
-  Pick the one the request travels in — a client calls a server, a service reads
-  a database — and list it as an assumption after the JSON.
+- A line with no arrowhead is a relationship whose direction you choose. Pick
+  the one the request travels in — a client calls a server, a service reads a
+  database.
 - Arrowheads on a photograph are small and easily lost. Once every edge is
   placed, read the solid path end to end: it should run from whoever makes the
   request to whatever finally answers or stores it. **If it runs backwards — a
   database calling a client, a service calling its own front end — you misread a
-  head.** Turn it round and say so in your assumptions.
+  head.** Turn it round.
 - Text written on or beside a line is that edge's \`label\`. An unlabelled line
   gets no label; do not put "HTTPS" on it because it looked likely.
 - A line drawn to the side of the main flow, or dashed in the picture, is a
@@ -256,38 +260,22 @@ genuinely cannot read is reported at the end, after the JSON, not guessed.
 
 A rectangle enclosing several components is a \`group\`. If that rectangle has a
 title written on it — "AWS", "Kubernetes", "monorepo" — the group also gets a
-\`boundary\` with that title as its label. An untitled enclosure is a group with
-no boundary. Anything drawn outside the rectangle stays outside it.
-
-## Choosing a mark for each box
-
-For every component, in this order:
-
-1. Its label names a technology in the key list, exactly or nearly — use that
-   \`iconKey\`. Check this before anything else, for every single box.
-2. It names a specific product or service that is not on the list — use
-   \`initials\`: one or two characters from that name.
-3. It names a role rather than a product — a user, a phone, a queue, a browser —
-   use an \`emoji\`.
-
-Never leave a node without one of the three, and never invent an \`iconKey\`.
-
-## Before you answer
-
-- Does any node carry \`initials\` while its label resembles something on the key
-  list? Look again. This is the single most common way this goes wrong.
-- Is any \`name\` in block capitals? Write it the way the product does.
-- Does every node have a \`sub\`?
-- Does the solid path run from the client through the services to the data
-  store? If not, re-read the arrowheads.
-- Is anything in your answer not in the picture? Remove it.
-
-## After the JSON
-
-Return the JSON first, alone. Then, in a few short lines, list anything you
-assumed: a direction you chose for an arrow with no head, a label you could not
-read, a box whose product you could not identify.
+\`boundary\` carrying that title as its \`label\` and a \`tone\`, which is required
+and is chosen by meaning from the list further down. An untitled enclosure is a
+group with no boundary. Anything drawn outside the rectangle stays outside it.
 
 ---
 
-${DIAGRAM_GUIDELINES}`;
+${DIAGRAM_GUIDELINES}
+
+---
+
+## Last checks, for a diagram read from a picture
+
+- Is your reply anything other than one JSON document? Delete the rest.
+- Does any node carry \`initials\` while its label resembles something on the key
+  list? Look again. This is the single most common way this goes wrong.
+- Is any \`name\` in block capitals? Write it the way the product does.
+- Does every node have a \`sub\`, and every boundary a \`tone\`?
+- Is anything in your answer not in the picture? Remove it.
+`;

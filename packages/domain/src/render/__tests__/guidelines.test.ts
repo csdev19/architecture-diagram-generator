@@ -133,6 +133,41 @@ describe("DIAGRAM_SKETCH_PROMPT", () => {
    * notebook page of Angular → NestJS → Postgres, every one of the three in
    * the icon registry, of which the model recognised one.
    */
+  describe("the output contract", () => {
+    const preamble = DIAGRAM_SKETCH_PROMPT.replace(DIAGRAM_GUIDELINES, "");
+
+    it("never asks for a diagram to be produced", () => {
+      // The prompt opened with "Turn this sketch into a diagram". ChatGPT read
+      // that as an instruction to its image tool and returned a picture.
+      expect(preamble).not.toMatch(/turn this sketch into a diagram/i);
+      // The title is the first thing read and the strongest instruction in the
+      // prompt. It must name the output, not the artefact someone wants.
+      expect(preamble).not.toMatch(/^# .*\bdiagram\b/im);
+    });
+
+    it("forbids drawing, rendering or generating an image", () => {
+      expect(preamble).toMatch(/do not (draw|render|generate|produce)[^.]*image/i);
+    });
+
+    it("says the whole reply is JSON, and says it first", () => {
+      expect(preamble.slice(0, 400)).toMatch(/JSON/);
+    });
+
+    it("asks for no prose after the JSON, so a paste always parses", () => {
+      // The preamble used to collect assumptions after the JSON while the
+      // appended guidelines said "ONLY the JSON object — no commentary". The
+      // model obeyed one or the other; either way the round trip broke.
+      expect(preamble).not.toMatch(/assumption/i);
+      expect(preamble).not.toMatch(/after the JSON/i);
+    });
+
+    it("names every field the schema requires without a default", () => {
+      // `tone` has no default, so a boundary without one fails validation, and
+      // the preamble is where a model reading a picture looks for its fields.
+      expect(preamble).toContain("tone");
+    });
+  });
+
   describe("what the first evaluated sketch got wrong", () => {
     /**
      * The preamble alone. Asserting against the whole prompt would pass on
@@ -175,8 +210,14 @@ describe("DIAGRAM_SKETCH_PROMPT", () => {
       expect(preamble).toMatch(/backwards|runs the wrong way/i);
     });
 
-    it("carries a check the model runs before answering", () => {
-      expect(preamble).toContain("Before you answer");
+    it("puts its own checks last, after everything else it says", () => {
+      // They used to sit mid-document, with the whole contract printed after
+      // them — so the most important check was the furthest from the answer.
+      const checks = DIAGRAM_SKETCH_PROMPT.indexOf("Last checks");
+      const contract = DIAGRAM_SKETCH_PROMPT.indexOf("Check before answering");
+
+      expect(checks).toBeGreaterThan(contract);
+      expect(DIAGRAM_SKETCH_PROMPT.slice(checks)).not.toContain(DIAGRAM_GUIDELINES);
     });
 
     it("names no example that a misread label could be pulled towards", () => {

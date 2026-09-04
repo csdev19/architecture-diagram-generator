@@ -153,7 +153,7 @@ export function NodeInspector({ node, darkTileCount, onChange }: NodeInspectorPr
 
       <Field
         label="Tile"
-        hint={`${darkTileCount} dark ${darkTileCount === 1 ? "tile" : "tiles"} in this diagram — keep it to two or three.`}
+        hint={`${darkTileCount} dark ${darkTileCount === 1 ? "tile" : "tiles"} in this diagram. Emphasis only works while it is rare — most diagrams need none.`}
       >
         <div
           role="group"

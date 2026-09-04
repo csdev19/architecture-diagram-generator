@@ -57,9 +57,25 @@ describe("DIAGRAM_ICONS", () => {
 });
 
 describe("DIAGRAM_ICON_ALIASES", () => {
-  it("maps every alias to a key the registry actually has", () => {
-    for (const key of Object.keys(DIAGRAM_ICON_ALIASES)) {
-      expect(isValidDiagramIconKey(key), `"${key}" is not an icon key`).toBe(true);
+  /**
+   * The map keeps its literal type in production, so looking a key up by a
+   * variable is a type error there. Widening it here rather than loosening the
+   * export is the difference between a test that adapts and a contract that
+   * gives way to one.
+   */
+  const aliases: Partial<Record<DiagramIconKey, readonly string[]>> = DIAGRAM_ICON_ALIASES;
+
+  /** Letters and digits only, so "Better Auth" and "betterauth" compare equal. */
+  const bare = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  it("never lists an alias that is only its own key respelled", () => {
+    // The map exists for labels a key cannot be guessed from. "PostgreSQL" is
+    // `postgresql` with a shift key held down; carrying it is a line to keep
+    // true for no gain, which is what this module's own comment forbids.
+    for (const [key, written] of Object.entries(DIAGRAM_ICON_ALIASES)) {
+      for (const alias of written ?? []) {
+        expect(bare(alias), `"${alias}" is "${key}" respelled`).not.toBe(key);
+      }
     }
   });
 
@@ -68,7 +84,7 @@ describe("DIAGRAM_ICON_ALIASES", () => {
     // box and writes "nodedotjs". Without an alias the model has to invent the
     // key, and an invented key is rejected.
     for (const key of ["nodedotjs", "postgresql", "githubactions", "cloudflareworkers"]) {
-      expect(DIAGRAM_ICON_ALIASES[key as DiagramIconKey], `"${key}" has no alias`).toBeTruthy();
+      expect(aliases[key as DiagramIconKey], `"${key}" has no alias`).toBeTruthy();
     }
   });
 

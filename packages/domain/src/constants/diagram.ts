@@ -104,7 +104,7 @@ export const CANVAS_TONE_INFO: Record<CanvasTone, string> = {
   [CANVAS_TONES.BLUSH]: "#fdf8f6",
 };
 
-/** Tile fill treatment for a node. `dark` is reserved for 2-3 key nodes. */
+/** Tile fill treatment for a node. `dark` is emphasis, and works only while rare. */
 export const TILE_VARIANTS = {
   LIGHT: "light",
   DARK: "dark",

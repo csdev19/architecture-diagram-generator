@@ -133,14 +133,13 @@ export const DIAGRAM_ICON_KEYS = Object.keys(DIAGRAM_ICONS) as DiagramIconKey[];
  * An alias belongs to exactly one key. An ambiguous one is worse than none: it
  * turns the mapping into a coin flip the author cannot see being tossed.
  */
-export const DIAGRAM_ICON_ALIASES: Partial<Record<DiagramIconKey, readonly string[]>> = {
-  betterauth: ["Better Auth"],
-  cloudflareworkers: ["Cloudflare Workers", "CF Workers", "Workers"],
-  githubactions: ["GitHub Actions", "GH Actions"],
+export const DIAGRAM_ICON_ALIASES = {
+  cloudflareworkers: ["CF Workers", "Workers"],
+  githubactions: ["GH Actions"],
   nodedotjs: ["Node", "Node.js", "NodeJS"],
-  postgresql: ["Postgres", "PostgreSQL", "PG"],
-  tailwindcss: ["Tailwind", "Tailwind CSS"],
-};
+  postgresql: ["Postgres", "PG"],
+  tailwindcss: ["Tailwind"],
+} as const satisfies Partial<Record<DiagramIconKey, readonly string[]>>;
 
 /** `hasOwn`, not `in`: `"toString" in DIAGRAM_ICONS` is true and is not an icon. */
 export const isValidDiagramIconKey = (value: unknown): value is DiagramIconKey =>

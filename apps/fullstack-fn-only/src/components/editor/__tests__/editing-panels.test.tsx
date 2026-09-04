@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { EXAMPLE_DIAGRAM_DOCUMENT, diagramDocumentSchema } from "@diagram-tool/domain/schemas";
 import { DIAGRAM_SKETCH_PROMPT, resolveDiagram } from "@diagram-tool/domain/render";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { EditorPage } from "../editor-page";
 
 const stubScreenCTM = () => {
@@ -235,14 +235,23 @@ describe("prompt panel", () => {
    * which is the only thing worth asserting: the panel's whole job is putting
    * one specific string somewhere a person can paste it.
    */
-  const stubClipboard = () => {
+  const stubClipboard = (writeText?: () => Promise<void>) => {
     const written: string[] = [];
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
-      value: { writeText: (text: string) => (written.push(text), Promise.resolve()) },
+      value: {
+        writeText: writeText ?? ((text: string) => (written.push(text), Promise.resolve())),
+      },
     });
     return written;
   };
+
+  /** Without this the stub outlives its test and every later one runs on it. */
+  const removeClipboard = () => {
+    Reflect.deleteProperty(navigator, "clipboard");
+  };
+
+  afterEach(removeClipboard);
 
   it("offers the prompt behind its own tab", () => {
     render(<EditorPage />);
@@ -262,6 +271,33 @@ describe("prompt panel", () => {
     expect(written[0]).toBe(DIAGRAM_SKETCH_PROMPT);
   });
 
+  it("lets the button offer to copy again", async () => {
+    stubClipboard();
+    render(<EditorPage />);
+    openTab(/prompt/i);
+
+    fireEvent.click(panel().getByRole("button", { name: /copy prompt/i }));
+    await screen.findByRole("button", { name: /copied/i });
+
+    // Stuck on "Copied", a second copy gives no feedback at all and the author
+    // cannot tell whether the click registered.
+    await screen.findByRole("button", { name: /copy prompt/i }, { timeout: 3000 });
+  });
+
+  it("does not claim success when the browser exposes no clipboard", async () => {
+    // On a plain-http origin `navigator.clipboard` is undefined. Optional
+    // chaining made that resolve, so the button said "Copied" and the author
+    // pasted whatever they had copied last.
+    removeClipboard();
+    render(<EditorPage />);
+    openTab(/prompt/i);
+
+    fireEvent.click(panel().getByRole("button", { name: /copy prompt/i }));
+
+    await screen.findByRole("alert");
+    expect(panel().queryByRole("button", { name: /copied/i })).not.toBeInTheDocument();
+  });
+
   it("tells the reader how the generated JSON gets back into the editor", () => {
     // A prompt with no round trip is a dead end: the person has the JSON in a
     // chat window and no idea that the JSON tab is where it goes.
@@ -277,6 +313,32 @@ describe("prompt panel", () => {
     openTab(/prompt/i);
 
     expect(documentText()).toBe(before);
+  });
+});
+
+describe("side panel keyboard access", () => {
+  it("reaches the Prompt tab with an arrow key", () => {
+    // The tablist uses roving tabindex, so every inactive tab is skipped by
+    // Tab. Without arrow handling the Prompt tab — the whole AI path — cannot
+    // be opened without a mouse.
+    render(<EditorPage />);
+    const json = screen.getByRole("tab", { name: /json/i });
+    json.focus();
+
+    fireEvent.keyDown(json, { key: "ArrowRight" });
+
+    expect(screen.getByRole("tab", { name: /prompt/i })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("wraps from the last tab back to the first", () => {
+    render(<EditorPage />);
+    const edges = screen.getByRole("tab", { name: /edges/i });
+    fireEvent.click(edges);
+    edges.focus();
+
+    fireEvent.keyDown(edges, { key: "ArrowRight" });
+
+    expect(screen.getByRole("tab", { name: /json/i })).toHaveAttribute("aria-selected", "true");
   });
 });
 
