@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { assertArtReferencesResolve } from "../../tooling/icon-art";
 import { DIAGRAM_COLORS, TILE_VARIANTS } from "../diagram";
 import {
   DIAGRAM_ICON_ALIASES,
@@ -62,12 +63,31 @@ describe("DIAGRAM_ICONS", () => {
     for (const key of DIAGRAM_ICON_KEYS) {
       const art = DIAGRAM_ICONS[key].art;
       if (!art) continue;
-      for (const [, id] of art.body.matchAll(/\bid=["']([^"']+)["']/g)) {
+      // Whitespace before the `=` (`id ="a"`) is valid SVG and icon:add's own
+      // collection regex has the same blind spot, so this has to tolerate it
+      // too, or a hand-edited body that slips past the tool would slip past
+      // this test as well.
+      for (const [, id] of art.body.matchAll(/\bid\s*=\s*["']([^"']+)["']/g)) {
         expect(id, `"${key}" carries an unprefixed id`).toMatch(new RegExp(`^${key}-`));
       }
       expect(art.viewBox, `"${key}" has a malformed viewBox`).toMatch(
         /^-?\d+(\.\d+)? -?\d+(\.\d+)? \d+(\.\d+)? \d+(\.\d+)?$/,
       );
+    }
+  });
+
+  it("resolves every reference inside colour art to a declared id", () => {
+    // `normaliseIconArt` checks this at curation time, but a body pasted
+    // after a hand-edit never runs through the tool at all — this is what
+    // catches `fill="url(#a)"` shipping beside an id that renumbering left as
+    // "angular-0", which would render as nothing.
+    for (const key of DIAGRAM_ICON_KEYS) {
+      const art = DIAGRAM_ICONS[key].art;
+      if (!art) continue;
+      expect(
+        () => assertArtReferencesResolve(art.body),
+        `"${key}" has a reference to an id it does not declare`,
+      ).not.toThrow();
     }
   });
 

@@ -14,6 +14,35 @@
  * regenerated entry must come out identical. And the whitespace collapses, so
  * the body is one line a person can paste.
  */
+
+/**
+ * Throws when `body` contains a `url(#…)` or `href="#…"` naming an id that is
+ * not declared anywhere in it.
+ *
+ * Exported so both `normaliseIconArt` and the registry test can run the same
+ * check: the tooling runs it on a freshly renumbered body, and the registry
+ * test runs it on whatever is actually pasted into `diagram-icons.ts` — which
+ * may have been hand-edited after the tool ran, and is the only thing that
+ * would otherwise notice a reference left pointing at nothing.
+ */
+export const assertArtReferencesResolve = (body: string): void => {
+  const declared = new Set(
+    [...body.matchAll(/\bid\s*=\s*["']([^"']+)["']/g)].map((match) => match[1] ?? ""),
+  );
+  const referenced = [
+    ...[...body.matchAll(/url\(\s*["']?#([^"')\s]+)["']?\s*\)/g)].map((match) => match[1] ?? ""),
+    ...[...body.matchAll(/href\s*=\s*["']#([^"']+)["']/g)].map((match) => match[1] ?? ""),
+  ];
+  for (const id of referenced) {
+    if (!declared.has(id)) {
+      throw new Error(
+        `reference to "#${id}" has no matching id — either the source spells that reference in a ` +
+          `form icon-add does not rewrite, or a hand-edit removed the declaration it pointed at`,
+      );
+    }
+  }
+};
+
 export const normaliseIconArt = (key: string, svg: string): { viewBox: string; body: string } => {
   const open = svg.match(/<svg\b[^>]*>/);
   if (!open || open.index === undefined) throw new Error("not an SVG document: no <svg> element");
@@ -23,6 +52,44 @@ export const normaliseIconArt = (key: string, svg: string): { viewBox: string; b
 
   const close = svg.lastIndexOf("</svg>");
   let body = svg.slice(open.index + open[0].length, close === -1 ? undefined : close);
+
+  // A `<style>` block or a `class` attribute is CSS, and CSS selectors are not
+  // ids: this function only renumbers `id`/`url(#…)`/`href="#…"`, so a class
+  // name survives untouched, and two icons that both used `.cls-1` in one
+  // diagram restyle each other document-wide — the exact cross-brand
+  // collision the id rule exists to prevent, just spelled differently. Worse,
+  // the palette inlines this body into the app's own document, so a stray
+  // rule can reach the editor's own chrome. Namespacing CSS is a much larger
+  // job than this function does; refusing it here, at curation time, is
+  // cheap and turns a silent runtime hazard into a loud one a person fixes
+  // once, by hand, before it ever ships.
+  if (/<style\b/i.test(body)) {
+    throw new Error(
+      "source contains a <style> element — icon:add does not namespace CSS, so two such icons " +
+        "in one diagram would restyle each other, and this body is inlined straight into the " +
+        "app's own document. Inline the rules as presentation attributes (fill, stroke, ...) on " +
+        "the elements they target, remove the <style> block, and re-run icon:add.",
+    );
+  }
+  if (/\bclass\s*=\s*["'][^"']*["']/.test(body)) {
+    throw new Error(
+      "source carries a class attribute — classes are only meaningful alongside the <style> " +
+        "rules they select, which icon:add refuses for the same reason: nothing namespaces them. " +
+        "Inline the styling as presentation attributes (fill, stroke, ...), remove the class " +
+        "attributes, and re-run icon:add.",
+    );
+  }
+
+  // `href` is what SVG2 and every renderer downstream of this pipeline reads.
+  // `xlink:href` needs its namespace declared on the root element, which
+  // `renderSVG` never emits, so a standalone export with `xlink:href` in it is
+  // a hard XML parse error rather than a rendering quirk — and PNG export
+  // loads that document into an `<img>`, which parses strictly. That failure
+  // is not scoped to this one mark: it takes down the whole diagram's PNG
+  // export and SVG download. Rewriting the attribute name here, before the
+  // rename loop below runs, lets that loop's existing `href="#…"` handling
+  // renumber the reference exactly as it would for a plain `href`.
+  body = body.replaceAll("xlink:href", "href");
 
   // Either quote style declares an id — a hand-copied brand file is as likely
   // to write `id='a'` as `id="a"` — so both have to enter the rename map, or
@@ -50,6 +117,30 @@ export const normaliseIconArt = (key: string, svg: string): { viewBox: string; b
       .replaceAll(`href='#${id}'`, `href="#${next}"`);
   }
 
+  // A rename can alias onto an id an earlier rename just created: a source
+  // that declares both "x" and "acme-0" renames "x" to "acme-0" first, and
+  // that pass's `replaceAll` leaves the body carrying a second, brand-new
+  // "acme-0" — which the very next iteration, renaming the original
+  // "acme-0" to "acme-1", then rewrites too, because `replaceAll` cannot
+  // distinguish text it just wrote from text that was already there. Both
+  // elements end up sharing `id="acme-1"`, one painted from the other's
+  // definition, and it ships silently: the declared and referenced sets
+  // still agree, and every surviving id is still prefixed. The only way to
+  // catch it is to compare cardinality — a rename that preserved every id's
+  // identity leaves as many distinct ids as it started with; a collision
+  // leaves fewer.
+  const distinctAfterRename = new Set(
+    [...body.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1] ?? ""),
+  ).size;
+  if (distinctAfterRename !== ids.length) {
+    throw new Error(
+      `renaming ${ids.length} id(s) under "${key}-" produced only ${distinctAfterRename} ` +
+        `distinct id(s) — a rename aliased onto an id an earlier rename just created (for ` +
+        `example, a source that declares both "x" and "${key}-0" both land on "${key}-1"). ` +
+        `Rename the colliding source id before regenerating.`,
+    );
+  }
+
   // A reference spelled in a form this loop does not rewrite — `url( #a )`
   // with whitespace, `url("#a")` quoted, or a reference sitting inside a
   // <style> rule — would otherwise leave the declaration renumbered and the
@@ -58,21 +149,7 @@ export const normaliseIconArt = (key: string, svg: string): { viewBox: string; b
   // reference against what actually got declared turns that into a loud
   // failure here, while it is still cheap to fix, instead of chasing each
   // new spelling one at a time.
-  const declared = new Set(
-    [...body.matchAll(/\bid=["']([^"']+)["']/g)].map((match) => match[1] ?? ""),
-  );
-  const referenced = [
-    ...[...body.matchAll(/url\(\s*["']?#([^"')\s]+)["']?\s*\)/g)].map((match) => match[1] ?? ""),
-    ...[...body.matchAll(/(?:xlink:)?href=["']#([^"']+)["']/g)].map((match) => match[1] ?? ""),
-  ];
-  for (const id of referenced) {
-    if (!declared.has(id)) {
-      throw new Error(
-        `reference to "#${id}" has no matching id — this source spells that reference in a ` +
-          `form icon-add does not rewrite, so renumbering left a broken pointer`,
-      );
-    }
-  }
+  assertArtReferencesResolve(body);
 
   // The check above only catches a *mismatch* between what is declared and
   // what is referenced — a declaration and its references that agree with
@@ -80,6 +157,9 @@ export const normaliseIconArt = (key: string, svg: string): { viewBox: string; b
   // single-quoted id once was), sail straight through it. This asserts the
   // function's actual contract directly: every id left in the body must
   // carry the key's prefix, full stop.
+  const declared = new Set(
+    [...body.matchAll(/\bid=["']([^"']+)["']/g)].map((match) => match[1] ?? ""),
+  );
   for (const id of declared) {
     if (!id.startsWith(`${key}-`)) {
       throw new Error(

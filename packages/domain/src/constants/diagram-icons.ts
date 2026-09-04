@@ -62,6 +62,14 @@ export interface DiagramIconMono {
  * the box it was authored in. Every `id` inside `body` is prefixed with the
  * icon's key, because a diagram inlines every mark into one document and two
  * icons sharing an `id` would draw with each other's gradients.
+ *
+ * `body` is inlined into the rendered SVG verbatim, unescaped — `renderIconMarkup`
+ * interpolates it directly, and the palette feeds that markup to
+ * `dangerouslySetInnerHTML`. That is safe only because `body` is trusted: it
+ * must come from this repo, through `bun run icon:add`, and nowhere else. If
+ * this registry ever admits an icon pack from outside the repo, its `art.body`
+ * values have to be sanitised before they reach this type — treating them as
+ * trusted the way curated entries are would turn this into stored XSS.
  */
 export interface DiagramIconArt {
   viewBox: string;

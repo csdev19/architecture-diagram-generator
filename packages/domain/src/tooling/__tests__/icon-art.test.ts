@@ -111,4 +111,64 @@ describe("normaliseIconArt", () => {
     expect(body).toContain("url(#acme-0)");
     expect(body).toContain("url(#acme-1)");
   });
+
+  describe("mixed already-prefixed and fresh ids", () => {
+    // Renaming runs one id at a time with `replaceAll`. A source that
+    // declares both "x" and "acme-0" renames "x" to "acme-0" first, which
+    // writes a second, brand-new "acme-0" into the body — and the very next
+    // iteration, renaming the original "acme-0" to "acme-1", cannot tell that
+    // text apart from the one it is meant to rename, so it rewrites both.
+    // Both elements end up carrying `id="acme-1"`, one painted from the
+    // other's gradient, and neither existing guard notices: the declared and
+    // referenced sets still agree with each other, and every surviving id is
+    // still prefixed.
+    const mixedSource = `<svg viewBox="0 0 2 2"><defs><linearGradient id="x"/><linearGradient id="acme-0"/></defs><rect fill="url(#x)" width="1" height="2"/><rect fill="url(#acme-0)" width="1" height="2"/></svg>`;
+
+    it("refuses a mixed source where a rename would alias two ids onto one", () => {
+      expect(() => normaliseIconArt("acme", mixedSource)).toThrow(/produced only 1 distinct id/);
+    });
+
+    it("stays idempotent: an already-normalised body renames to itself unchanged", () => {
+      // Only a *mixed* source triggers the collision above. A body where
+      // every id is already `{key}-{n}`, in order, renames each id to
+      // itself — a no-op `replaceAll` — so re-running the tool on its own
+      // output must keep passing, or every regeneration would be a spurious
+      // diff at best and a rejection at worst.
+      const alreadyNormalised = `<svg viewBox="0 0 2 2"><defs><linearGradient id="acme-0"/><clipPath id="acme-1"/></defs><rect fill="url(#acme-0)" clip-path="url(#acme-1)" width="2" height="2"/></svg>`;
+
+      const { body } = normaliseIconArt("acme", alreadyNormalised);
+
+      expect(body).toContain('id="acme-0"');
+      expect(body).toContain('id="acme-1"');
+      expect(body).toContain("url(#acme-0)");
+      expect(body).toContain("url(#acme-1)");
+    });
+  });
+
+  describe("style and class rejection", () => {
+    it("refuses a source containing a <style> element", () => {
+      const source = `<svg viewBox="0 0 2 2"><style>.cls-1{fill:#f00}</style><rect class="cls-1" width="2" height="2"/></svg>`;
+
+      expect(() => normaliseIconArt("acme", source)).toThrow(/<style>/);
+    });
+
+    it("refuses a source carrying a class attribute even without a <style> block", () => {
+      const source = `<svg viewBox="0 0 2 2"><rect class="cls-1" width="2" height="2"/></svg>`;
+
+      expect(() => normaliseIconArt("acme", source)).toThrow(/class attribute/);
+    });
+  });
+
+  it("rewrites xlink:href to plain href and still renumbers it", () => {
+    // The standalone SVG document `renderSVG` produces declares no xlink
+    // namespace, so a surviving `xlink:href` is a hard XML parse error for
+    // PNG export's `<img>` load — which fails the whole diagram's export,
+    // not just this mark.
+    const source = `<svg viewBox="0 0 2 2"><defs><linearGradient id="a"/></defs><use xlink:href="#a"/></svg>`;
+
+    const { body } = normaliseIconArt("acme", source);
+
+    expect(body).not.toContain("xlink:href");
+    expect(body).toContain('href="#acme-0"');
+  });
 });

@@ -127,6 +127,7 @@ describe("renderSVG", () => {
       const svg = render(singleNode({ emoji: undefined, iconKey: "react", tile: "dark" }));
 
       expect(svg).toContain(DIAGRAM_ICONS.react.mono.path);
+      expect(svg).toContain(`fill="${DIAGRAM_COLORS.TILE_LIGHT_FILL}"`);
       expect(svg).not.toContain(`fill="#${DIAGRAM_ICONS.react.mono.hex}"`);
     });
 
@@ -137,8 +138,10 @@ describe("renderSVG", () => {
       });
 
       // Cloudflare's orange reads on paper and is drawn in colour by default;
-      // under `mono` no brand colour survives.
+      // under `mono` no brand colour survives — the mark falls back to
+      // near-black, the same as any silhouette on a light tile.
       expect(svg).toContain(DIAGRAM_ICONS.cloudflare.mono.path);
+      expect(svg).toContain(`fill="${DIAGRAM_COLORS.TILE_DARK_FILL}"`);
       expect(svg).not.toContain(`fill="#${DIAGRAM_ICONS.cloudflare.mono.hex}"`);
     });
 

@@ -83,6 +83,7 @@ list of strings.
 - ⚠️ Coordinates are unbounded, negatives included. There is no canvas to be outside of — the exported frame is derived from the drawing, so nothing is rejected for being too far out. See [ADR 0002](/architecture/decisions/adr-0002-the-frame-is-derived-not-declared).
 - ⚠️ `canvas` still exists but is optional, and setting it re-imposes a fixed frame that crops anything outside it. The editor never writes one; leave it out unless an exact size was asked for.
 - ⚠️ `background` names a paper tone, never a hex — the renderer owns the value, like every other colour in the format.
+- ⚠️ `iconStyle` is optional and defaults to `color`; setting it to `mono` draws every mark as a silhouette — near-black on light, white on dark — and never the brand hex or colour art, regardless of what an individual icon carries.
 - ⚠️ `version` is a literal `1`. A future shape change means a new version and an explicit migration, not a widened schema.
 - ⚠️ Whitespace-only text passes `.min(1)` without the `.trim()` in front of it. Every user-facing string field needs both.
 - ⚠️ A node may carry more than one mark, and the renderer draws the most specific: `iconKey`, then `initials`, then `emoji`. The ones behind it are not fallbacks the renderer will ever reach — they only matter if the winning field is later removed by hand.
