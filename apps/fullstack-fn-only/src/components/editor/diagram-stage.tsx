@@ -7,6 +7,7 @@ import type {
 import { DIAGRAM_GEOMETRY } from "@diagram-tool/domain/constants";
 import { contentFrame, renderSVG } from "@diagram-tool/domain/render";
 import type { ResolvedDiagram } from "@diagram-tool/domain/schemas";
+import { cn } from "@diagram-tool/web-ui";
 import {
   clientToViewBox,
   hitTestBoundary,
@@ -622,7 +623,30 @@ export function DiagramStage({
         {toolHint(tool, { tileLabel, edgeFrom })}
       </p>
 
-      <ZoomBar scale={view.scale} onScaleChange={view.setScaleCentred} onFit={view.fit} />
+      {/*
+        The bottom-left cluster: the zoom readout, and the byline beside it.
+
+        Attribution sits here rather than in the header because the header is
+        where the work happens. It was in the left pill, and the pill grows with
+        whatever it holds — far enough, at a normal window width, to reach the
+        centred toolbar and cover the tools.
+      */}
+      <div className="pointer-events-none absolute bottom-4 left-4 z-20 flex items-center gap-2">
+        <ZoomBar scale={view.scale} onScaleChange={view.setScaleCentred} onFit={view.fit} />
+
+        <a
+          href="https://cs19.dev"
+          target="_blank"
+          rel="noreferrer"
+          className={cn(
+            "pointer-events-auto rounded-[6px] px-1 py-0.5 font-mono text-[11px]",
+            "text-ed-text-3 hover:text-ed-text focus-visible:text-ed-text",
+            "outline-none focus-visible:shadow-[var(--ed-focus-ring)]",
+          )}
+        >
+          built by csdev
+        </a>
+      </div>
     </div>
   );
 }

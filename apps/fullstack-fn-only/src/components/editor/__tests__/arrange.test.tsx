@@ -78,7 +78,9 @@ describe("the Arrange button", () => {
     render(<EditorPage />);
 
     // Placing a tile settles the layout, so there is something to clear.
-    fireEvent.keyDown(window, { key: "3" });
+    // Choosing one in the palette is what arms the place gesture — there is no
+    // toolbar button for it, and no number key.
+    fireEvent.click(screen.getAllByRole("button", { name: /angular/i })[0] as HTMLElement);
     fireEvent.pointerDown(screen.getByTestId("diagram-canvas"), {
       clientX: 400,
       clientY: 300,

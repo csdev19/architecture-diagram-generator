@@ -117,9 +117,14 @@ export function TilePalette({ selectedKey, onSelect }: TilePaletteProps) {
       )}
     >
       <div className="space-y-2.5 border-b border-ed-border px-4 pt-3.5 pb-3">
-        <div className="flex items-baseline justify-between">
-          <MicroLabel>Tiles</MicroLabel>
-          <span className="font-mono text-[11px] text-ed-text-3">
+        <div className="flex items-baseline justify-between gap-3">
+          {/*
+            Named for what it does, not for what it holds. This panel is the
+            only way a tile gets onto the sheet — the toolbar has no button for
+            it — so its heading has to say that rather than label a category.
+          */}
+          <h2 className="text-[13px] font-semibold tracking-[-0.006em] text-ed-text">Add a tile</h2>
+          <span className="shrink-0 font-mono text-[11px] text-ed-text-3">
             {total} of {PALETTE_TILES.length}
           </span>
         </div>
@@ -140,7 +145,7 @@ export function TilePalette({ selectedKey, onSelect }: TilePaletteProps) {
         </div>
 
         <p className="text-[12.5px] text-ed-text-2">
-          Drag one onto the canvas. Or click it, then click the canvas.
+          Drag one onto the canvas, or click it and then click where it goes.
         </p>
       </div>
 

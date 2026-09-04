@@ -29,9 +29,8 @@ export function ZoomBar({ scale, onScaleChange, onFit }: ZoomBarProps) {
   return (
     <div
       className={cn(
-        "pointer-events-auto absolute bottom-4 left-4 z-20",
-        "flex items-center gap-1 rounded-[12px] border border-ed-border bg-ed-surface p-1.5",
-        "shadow-[var(--ed-shadow-md)]",
+        "pointer-events-auto flex items-center gap-1 rounded-[12px] p-1.5",
+        "border border-ed-border bg-ed-surface shadow-[var(--ed-shadow-md)]",
       )}
     >
       <button
