@@ -206,6 +206,11 @@ export const useStageView = (
 
   /** Drags the world by `dx`/`dy` screen pixels, which moves the camera the other way. */
   const panBy = useCallback((dx: number, dy: number) => {
+    // A pan is the author choosing where the camera points just as much as a
+    // zoom is, so it disarms auto-fit the same way: without this, the first
+    // wheel pan to empty space is undone the moment a panel opens or closes,
+    // or a tile is placed, and the camera yanks back to wherever Fit wants it.
+    userZoomedRef.current = true;
     setView((current) => ({
       ...current,
       camera: {

@@ -537,7 +537,10 @@ export function DiagramStage({
 
       if (event.ctrlKey || event.metaKey) {
         // Clamped per event rather than per frame, so a pinch's many small
-        // deltas still accumulate freely while one mouse notch cannot lurch.
+        // deltas still accumulate freely while each mouse notch contributes at
+        // most one clamp's worth — several notches inside one frame still add
+        // up to several times that, which is the point: three notches, three
+        // notches of zoom.
         const delta = event.deltaY * step;
         zoom += Math.max(-MAX_ZOOM_DELTA, Math.min(MAX_ZOOM_DELTA, delta));
         // The last point wins: a pinch barely moves, and the alternative is
