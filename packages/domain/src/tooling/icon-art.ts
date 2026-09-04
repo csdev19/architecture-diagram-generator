@@ -29,13 +29,42 @@ export const normaliseIconArt = (key: string, svg: string): { viewBox: string; b
   ].filter((id) => id.length > 0);
   const renamed = new Map(ids.map((id, index) => [id, `${key}-${index}`]));
 
-  // Longest first, so `ab` is rewritten before `a` can be found inside it.
-  for (const id of [...ids].sort((left, right) => right.length - left.length)) {
+  // Order does not matter here: every replacement is delimiter-bounded — the
+  // pattern for `id="a"`, `url(#a)`, or `href="#a"` always includes its own
+  // closing quote or bracket, so a shorter id can never match inside a longer
+  // id's occurrence (`id="a"` cannot be found inside `id="ab"`). Any future
+  // form added to this loop has to keep that same bounded shape, or this
+  // guarantee breaks.
+  for (const id of ids) {
     const next = renamed.get(id) ?? id;
     body = body
       .replaceAll(`id="${id}"`, `id="${next}"`)
       .replaceAll(`url(#${id})`, `url(#${next})`)
       .replaceAll(`href="#${id}"`, `href="#${next}"`);
+  }
+
+  // A reference spelled in a form this loop does not rewrite — `url( #a )`
+  // with whitespace, `url("#a")` quoted, a single-quoted `href='#a'`, or a
+  // reference sitting inside a <style> rule — would otherwise leave the
+  // declaration renumbered and the reference pointing at an id that no
+  // longer exists: a broken gradient that ships silently until a human looks
+  // at the mark. Comparing every reference against what actually got
+  // declared turns that into a loud failure here, while it is still cheap to
+  // fix, instead of chasing each new spelling one at a time.
+  const declared = new Set(
+    [...body.matchAll(/\bid=["']([^"']+)["']/g)].map((match) => match[1] ?? ""),
+  );
+  const referenced = [
+    ...[...body.matchAll(/url\(\s*["']?#([^"')\s]+)["']?\s*\)/g)].map((match) => match[1] ?? ""),
+    ...[...body.matchAll(/(?:xlink:)?href=["']#([^"']+)["']/g)].map((match) => match[1] ?? ""),
+  ];
+  for (const id of referenced) {
+    if (!declared.has(id)) {
+      throw new Error(
+        `reference to "#${id}" has no matching id — this source spells that reference in a ` +
+          `form icon-add does not rewrite, so renumbering left a broken pointer`,
+      );
+    }
   }
 
   body = body.replace(/\s+/g, " ").replace(/>\s+</g, "><").trim();

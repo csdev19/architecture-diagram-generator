@@ -39,8 +39,10 @@ describe("normaliseIconArt", () => {
     expect(body).not.toMatch(/\bid="ab"/);
   });
 
-  it("does not let a short id rewrite the inside of a longer one", () => {
-    // `a` is a prefix of `ab`; replacing `a` first would leave `ab` as `acme-0b`.
+  it("renumbers two ids where one is a prefix of the other, independently and correctly", () => {
+    // `a` is a prefix of `ab`. Each replacement is delimiter-bounded — its own
+    // closing quote or bracket — so `a`'s pattern can never be found inside
+    // `ab`'s occurrence, regardless of which one is rewritten first.
     const { body } = normaliseIconArt("acme", SOURCE);
 
     expect(body).not.toContain("acme-0b");
@@ -60,5 +62,20 @@ describe("normaliseIconArt", () => {
 
   it("refuses text that is not an svg at all", () => {
     expect(() => normaliseIconArt("acme", "<html></html>")).toThrow(/<svg>/);
+  });
+
+  it("refuses a reference spelled in a form it does not rewrite, which would ship as a broken pointer", () => {
+    // `url( #a )` with whitespace is not matched by the exact `url(#a)`
+    // replacement, so the declaration gets renumbered and this reference
+    // does not — exactly the silent breakage the guard exists to catch.
+    const source = `<svg viewBox="0 0 2 2"><defs><linearGradient id="a"/></defs><rect fill="url( #a )" width="2" height="2"/></svg>`;
+
+    expect(() => normaliseIconArt("acme", source)).toThrow(/#a/);
+  });
+
+  it("does not throw when every reference matches a declared id", () => {
+    // Guards against the guard: a normal, fully-renumbered document must
+    // still pass, or the check would start rejecting everything.
+    expect(() => normaliseIconArt("acme", SOURCE)).not.toThrow();
   });
 });
