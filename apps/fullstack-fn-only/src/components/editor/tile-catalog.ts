@@ -83,7 +83,7 @@ const BRAND_TILES: BrandTile[] = DIAGRAM_ICON_KEYS.map((iconKey) => {
     key: iconKey,
     label: LABEL_OVERRIDES[iconKey] ?? icon.title,
     iconKey,
-    path: icon.path,
+    path: icon.mono.path,
     // Palette thumbnails are the light tile in miniature, so the mark is
     // resolved against the light tile — the same call the renderer makes.
     fill: resolveDiagramIconFill(icon, TILE_VARIANTS.LIGHT),

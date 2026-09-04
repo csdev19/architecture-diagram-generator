@@ -46,7 +46,7 @@ const renderMark = (node: DiagramNode): string => {
     return (
       `<g transform="translate(${num(node.x - offset)} ${num(node.y - offset)}) ` +
       `scale(${num(ICON_SIZE / ICON_VIEWBOX)})">` +
-      `<path d="${escapeXml(icon.path)}" fill="${resolveDiagramIconFill(icon, node.tile)}"/>` +
+      `<path d="${escapeXml(icon.mono.path)}" fill="${resolveDiagramIconFill(icon, node.tile)}"/>` +
       `</g>`
     );
   }

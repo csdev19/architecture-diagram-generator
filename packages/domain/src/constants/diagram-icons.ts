@@ -30,7 +30,10 @@ import { DIAGRAM_COLORS, TILE_VARIANTS, type TileVariant } from "./diagram";
  * authored in a 24x24 viewBox, and the official brand hex — which is why it is
  * admissible in the domain where an `.svg` asset folder would not be: there is
  * no loader, no bundler magic and no DOM, so this works unchanged inside a
- * Cloudflare Worker. The package is CC0-1.0 and side-effect free, so only the
+ * Cloudflare Worker. That single path is every icon's `mono` mark. An icon may
+ * also carry `art` — colour, several fills, gradients — curated by hand from the
+ * brand's own SVG; the mono mark stays, because it is the one that is readable
+ * on any tile. The package is CC0-1.0 and side-effect free, so only the
  * marks imported below reach a bundle.
  *
  * Keys are the upstream `simple-icons` slug, lowercase, with no separator. One
@@ -41,14 +44,38 @@ import { DIAGRAM_COLORS, TILE_VARIANTS, type TileVariant } from "./diagram";
  * gate that a renamed or dropped upstream export fails loudly at build time.
  */
 
-/** A brand mark, reduced to the three fields the renderer needs. */
-export interface DiagramIcon {
-  /** Brand name as `simple-icons` records it. */
-  title: string;
-  /** The mark as a single SVG path, drawn in a 24x24 viewBox. */
+/** The single-path mark every icon carries, drawn in a 24x24 viewBox. */
+export interface DiagramIconMono {
+  /** The mark as one SVG path. */
   path: string;
   /** Official brand colour: six hex digits, no leading `#`. */
   hex: string;
+}
+
+/**
+ * Colour art, drawn as authored.
+ *
+ * The inner markup of an SVG — paths, groups, `<defs>` with gradients — and
+ * the box it was authored in. Every `id` inside `body` is prefixed with the
+ * icon's key, because a diagram inlines every mark into one document and two
+ * icons sharing an `id` would draw with each other's gradients.
+ */
+export interface DiagramIconArt {
+  viewBox: string;
+  body: string;
+  /**
+   * Whether the art reads on the dark tile. A judgment made at 32px by whoever
+   * curated it; when false, the dark tile falls back to the mono mark in white.
+   */
+  onDark: boolean;
+}
+
+/** A brand mark: the mono silhouette it always has, and the colour art it may have. */
+export interface DiagramIcon {
+  /** Brand name as `simple-icons` records it. */
+  title: string;
+  mono: DiagramIconMono;
+  art?: DiagramIconArt;
 }
 
 /**
@@ -56,7 +83,15 @@ export interface DiagramIcon {
  * fields rather than storing the whole object keeps the registry's shape ours,
  * so an upstream field being added or renamed cannot leak into the renderer.
  */
-const toDiagramIcon = ({ title, path, hex }: DiagramIcon): DiagramIcon => ({ title, path, hex });
+const toDiagramIcon = ({
+  title,
+  path,
+  hex,
+}: {
+  title: string;
+  path: string;
+  hex: string;
+}): DiagramIcon => ({ title, mono: { path, hex } });
 
 /**
  * Hono, drawn from the official logo rather than from `simple-icons`.
@@ -77,10 +112,12 @@ const toDiagramIcon = ({ title, path, hex }: DiagramIcon): DiagramIcon => ({ tit
  */
 const HONO_ICON: DiagramIcon = {
   title: "Hono",
-  path:
-    "M5.388 6.122l1.714 2.205s2.204-4.408 5.388-8.327c4.163 4.898 8.816 11.755 8.816 15.673 " +
-    "0 4.898-4.653 8.327-9.061 8.327C6.857 24 2.694 19.837 2.694 14.939c0-1.469 0.735-5.878 2.694-8.817Z",
-  hex: "E36002",
+  mono: {
+    path:
+      "M5.388 6.122l1.714 2.205s2.204-4.408 5.388-8.327c4.163 4.898 8.816 11.755 8.816 15.673 " +
+      "0 4.898-4.653 8.327-9.061 8.327C6.857 24 2.694 19.837 2.694 14.939c0-1.469 0.735-5.878 2.694-8.817Z",
+    hex: "E36002",
+  },
 };
 
 export const DIAGRAM_ICONS = {
@@ -201,6 +238,6 @@ export const resolveDiagramIconFill = (icon: DiagramIcon, tile: TileVariant): st
   if (tile === TILE_VARIANTS.DARK) return DIAGRAM_COLORS.TILE_LIGHT_FILL;
 
   const readable =
-    contrastRatio(icon.hex, DIAGRAM_COLORS.TILE_LIGHT_FILL) >= DIAGRAM_ICON_CONTRAST_MIN;
-  return readable ? `#${icon.hex}` : DIAGRAM_COLORS.TILE_DARK_FILL;
+    contrastRatio(icon.mono.hex, DIAGRAM_COLORS.TILE_LIGHT_FILL) >= DIAGRAM_ICON_CONTRAST_MIN;
+  return readable ? `#${icon.mono.hex}` : DIAGRAM_COLORS.TILE_DARK_FILL;
 };

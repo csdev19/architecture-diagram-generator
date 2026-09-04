@@ -27,8 +27,8 @@ describe("DIAGRAM_ICONS", () => {
       const icon = DIAGRAM_ICONS[key];
       expect(icon, `no icon resolved for "${key}" — check the simple-icons export`).toBeDefined();
       expect(icon.title.length, `"${key}" has an empty title`).toBeGreaterThan(0);
-      expect(icon.hex, `"${key}" has a malformed hex`).toMatch(/^[0-9a-f]{6}$/i);
-      expect(icon.path.length, `"${key}" has an empty path`).toBeGreaterThan(0);
+      expect(icon.mono.hex, `"${key}" has a malformed hex`).toMatch(/^[0-9a-f]{6}$/i);
+      expect(icon.mono.path.length, `"${key}" has an empty path`).toBeGreaterThan(0);
     }
   });
 
@@ -36,7 +36,7 @@ describe("DIAGRAM_ICONS", () => {
     for (const key of DIAGRAM_ICON_KEYS) {
       // Path data opens with a moveto. Either case is valid — a leading `m` is
       // relative to an implicit origin, so it draws identically to `M`.
-      expect(DIAGRAM_ICONS[key].path, `"${key}" is not SVG path data`).toMatch(/^[Mm]/);
+      expect(DIAGRAM_ICONS[key].mono.path, `"${key}" is not SVG path data`).toMatch(/^[Mm]/);
     }
   });
 
@@ -53,6 +53,22 @@ describe("DIAGRAM_ICONS", () => {
     expect(isValidDiagramIconKey(undefined)).toBe(false);
     // Inherited object members must not read as icons.
     expect(isValidDiagramIconKey("toString")).toBe(false);
+  });
+
+  it("prefixes every id inside colour art with the icon's own key", () => {
+    // Art is inlined into one SVG document per diagram, so two icons that both
+    // ship an `id="a"` gradient would silently draw with each other's colours.
+    // The prefix is what makes that impossible; this is the test that keeps it.
+    for (const key of DIAGRAM_ICON_KEYS) {
+      const art = DIAGRAM_ICONS[key].art;
+      if (!art) continue;
+      for (const [, id] of art.body.matchAll(/\bid="([^"]+)"/g)) {
+        expect(id, `"${key}" carries an unprefixed id`).toMatch(new RegExp(`^${key}-`));
+      }
+      expect(art.viewBox, `"${key}" has a malformed viewBox`).toMatch(
+        /^-?\d+(\.\d+)? -?\d+(\.\d+)? \d+(\.\d+)? \d+(\.\d+)?$/,
+      );
+    }
   });
 });
 
@@ -115,7 +131,7 @@ describe("resolveDiagramIconFill", () => {
   it("keeps a brand colour that reads on white", () => {
     // Cloudflare's orange scores 2.65 against the light tile.
     expect(resolveDiagramIconFill(DIAGRAM_ICONS.cloudflare, TILE_VARIANTS.LIGHT)).toBe(
-      `#${DIAGRAM_ICONS.cloudflare.hex}`,
+      `#${DIAGRAM_ICONS.cloudflare.mono.hex}`,
     );
   });
 

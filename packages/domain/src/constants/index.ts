@@ -39,5 +39,7 @@ export {
   resolveDiagramIconFill,
   resolveMonogramFill,
   type DiagramIcon,
+  type DiagramIconArt,
+  type DiagramIconMono,
   type DiagramIconKey,
 } from "./diagram-icons";

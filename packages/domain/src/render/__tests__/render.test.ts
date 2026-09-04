@@ -98,35 +98,35 @@ describe("renderSVG", () => {
     it("draws the registry's path when a node names an iconKey", () => {
       const svg = render(singleNode({ emoji: undefined, iconKey: "hono" }));
 
-      expect(svg).toContain(DIAGRAM_ICONS.hono.path);
+      expect(svg).toContain(DIAGRAM_ICONS.hono.mono.path);
     });
 
     it("lets an iconKey win over an emoji on the same node", () => {
       const svg = render(singleNode({ emoji: "🔥", iconKey: "hono" }));
 
-      expect(svg).toContain(DIAGRAM_ICONS.hono.path);
+      expect(svg).toContain(DIAGRAM_ICONS.hono.mono.path);
       expect(svg, "the emoji glyph is still drawn behind the mark").not.toContain("🔥");
     });
 
     it("draws a readable brand mark in its brand colour on a light tile", () => {
       const svg = render(singleNode({ emoji: undefined, iconKey: "hono", tile: "light" }));
 
-      expect(svg).toContain(`fill="#${DIAGRAM_ICONS.hono.hex}"`);
+      expect(svg).toContain(`fill="#${DIAGRAM_ICONS.hono.mono.hex}"`);
     });
 
     it("drops a brand colour that would vanish on a light tile", () => {
       // React's cyan scores 1.62 against white — legible only as a shape.
       const svg = render(singleNode({ emoji: undefined, iconKey: "react", tile: "light" }));
 
-      expect(svg).toContain(DIAGRAM_ICONS.react.path);
-      expect(svg).not.toContain(`fill="#${DIAGRAM_ICONS.react.hex}"`);
+      expect(svg).toContain(DIAGRAM_ICONS.react.mono.path);
+      expect(svg).not.toContain(`fill="#${DIAGRAM_ICONS.react.mono.hex}"`);
     });
 
     it("draws a mark in the light tile colour on a dark tile", () => {
       const svg = render(singleNode({ emoji: undefined, iconKey: "hono", tile: "dark" }));
 
-      expect(svg).toContain(DIAGRAM_ICONS.hono.path);
-      expect(svg).not.toContain(`fill="#${DIAGRAM_ICONS.hono.hex}"`);
+      expect(svg).toContain(DIAGRAM_ICONS.hono.mono.path);
+      expect(svg).not.toContain(`fill="#${DIAGRAM_ICONS.hono.mono.hex}"`);
     });
 
     it("scales the 24px mark to the geometry's icon size and centres it on the tile", () => {
@@ -169,7 +169,7 @@ describe("renderSVG", () => {
     it("lets an iconKey win over initials on the same node", () => {
       const svg = render(singleNode({ emoji: undefined, initials: "HO", iconKey: "hono" }));
 
-      expect(svg).toContain(DIAGRAM_ICONS.hono.path);
+      expect(svg).toContain(DIAGRAM_ICONS.hono.mono.path);
       expect(svg, "the monogram is still drawn behind the mark").not.toContain(">HO</text>");
     });
 
