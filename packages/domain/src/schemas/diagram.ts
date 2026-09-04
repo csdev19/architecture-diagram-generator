@@ -24,16 +24,24 @@ import { DIAGRAM_ICON_KEYS } from "../constants/diagram-icons";
  * all in one retry instead of discovering them one turn at a time.
  */
 
-/** Text that appears inside a tile: trimmed, non-empty, and short enough to fit. */
-const tileText = (field: string) =>
-  z
-    .string()
-    .trim()
-    .min(1, `${field} is required`)
-    .max(
-      DIAGRAM_LIMITS.TEXT_MAX,
-      `${field} must be at most ${DIAGRAM_LIMITS.TEXT_MAX} characters — abbreviate it to fit the tile`,
-    );
+/**
+ * Drawn text: trimmed, and no longer than the place it is drawn can carry.
+ *
+ * The bound and the reason both travel with the field rather than living in one
+ * shared constant. A node's name is bounded by the width of its column; a
+ * boundary's label is bounded by what stays readable along a border it cannot
+ * overflow. Collapsing those into a single number is what once told an author to
+ * "abbreviate it to fit the tile" about a label that is not in a tile.
+ */
+const boundedText = (field: string, max: number, reason: string) =>
+  z.string().trim().max(max, `${field} must be at most ${max} characters — ${reason}`);
+
+/** The same, for a field that must also say something. */
+const requiredText = (field: string, max: number, reason: string) =>
+  boundedText(field, max, reason).min(1, `${field} is required`);
+
+/** Why a node's text is bounded: the column it is centred in, not the tile above it. */
+const TILE_TEXT_REASON = "abbreviate it to fit the column under the tile";
 
 /**
  * Everything a node is, apart from where it sits.
@@ -65,15 +73,8 @@ export const nodeIdentityShape = {
       `Node initials must be at most ${DIAGRAM_LIMITS.INITIALS_MAX} characters — a longer mark is a name, and the tile already carries one`,
     )
     .optional(),
-  name: tileText("Node name"),
-  sub: z
-    .string()
-    .trim()
-    .max(
-      DIAGRAM_LIMITS.TEXT_MAX,
-      `Node sublabel must be at most ${DIAGRAM_LIMITS.TEXT_MAX} characters — abbreviate it to fit the tile`,
-    )
-    .default(""),
+  name: requiredText("Node name", DIAGRAM_LIMITS.NODE_NAME_MAX, TILE_TEXT_REASON),
+  sub: boundedText("Node sublabel", DIAGRAM_LIMITS.NODE_SUB_MAX, TILE_TEXT_REASON).default(""),
   tile: z.enum(TILE_VARIANTS).default(TILE_VARIANTS.LIGHT),
 };
 
@@ -116,7 +117,18 @@ export const diagramNodeSchema = z
 
 export const diagramBoundarySchema = z.object({
   id: z.string().trim().min(1, "Boundary id is required"),
-  label: tileText("Boundary label"),
+  /**
+   * The perimeter's name, and it may be a real one.
+   *
+   * Far longer than a node's, because it is drawn on the top border of a box
+   * `resolveDiagram` sizes to fit it rather than inside a fixed rectangle. What
+   * this bound protects is the reader, not the geometry.
+   */
+  label: requiredText(
+    "Boundary label",
+    DIAGRAM_LIMITS.BOUNDARY_LABEL_MAX,
+    "a perimeter has a name, not a sentence",
+  ),
   icon: z.string().default(""),
   x: z.number(),
   y: z.number(),
@@ -142,7 +154,12 @@ export const diagramEdgeSchema = z.object({
   to: z.string().trim().min(1, "Edge target is required"),
   out: z.enum(ANCHOR_SIDES),
   inn: z.enum(ANCHOR_SIDES),
-  label: z.string().trim().optional(),
+  /** A protocol or a verb, set along the line — the tightest of the three bounds. */
+  label: boundedText(
+    "Edge label",
+    DIAGRAM_LIMITS.EDGE_LABEL_MAX,
+    "an edge is labelled with a protocol or a verb, not a description",
+  ).optional(),
   style: z.enum(EDGE_STYLES).default(EDGE_STYLES.SOLID),
 });
 

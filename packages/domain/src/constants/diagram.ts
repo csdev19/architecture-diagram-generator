@@ -163,8 +163,8 @@ export const DIAGRAM_GEOMETRY = {
   NODE_SPACING: 140,
   /**
    * Horizontal step for auto-layout, wider than the minimum: a name may run to
-   * `TEXT_MAX` characters, which is around 180px set at `NAME_SIZE`, so columns
-   * spaced at the bare minimum would overlap their own labels.
+   * `NODE_NAME_MAX` characters, which is around 180px set at `NAME_SIZE`, so
+   * columns spaced at the bare minimum would overlap their own labels.
    */
   LAYOUT_COLUMN_GAP: 200,
   /**
@@ -229,8 +229,29 @@ export const DIAGRAM_LIMITS = {
   MIN_NODES: 1,
   MAX_NODES: 40,
   MAX_EDGES: 80,
-  /** Longer labels overflow the tile, so the schema rejects them. */
-  TEXT_MAX: 26,
+  /**
+   * Text bounds, one per field, because the three places a diagram draws text
+   * are not the same shape.
+   *
+   * A node's name and sublabel are centred under a 62px tile in a column stepped
+   * at `LAYOUT_COLUMN_GAP`, so what bounds them is the column: a longer label
+   * runs into its neighbour's. The sublabel gets a few more characters than the
+   * name because it is set smaller — 28 characters of `SUB_SIZE` monospace and
+   * 26 of `NAME_SIZE` sans occupy about the same 180px.
+   *
+   * A boundary's label is not in a box at all: it rides the top border of a
+   * rectangle that `resolveDiagram` widens to carry it. Nothing overflows, so
+   * the bound is legibility rather than fit — long enough for a real perimeter
+   * name like "Monorepo — Turborepo + Bun workspaces", short enough that a
+   * sentence is still refused.
+   *
+   * An edge label sits on a line whose length nothing guarantees, so it stays
+   * the tightest of the three.
+   */
+  NODE_NAME_MAX: 26,
+  NODE_SUB_MAX: 28,
+  BOUNDARY_LABEL_MAX: 48,
+  EDGE_LABEL_MAX: 32,
   /**
    * Characters a monogram may hold.
    *

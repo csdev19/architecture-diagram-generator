@@ -45,7 +45,7 @@ const PADDING_MEANINGS: Record<BoundaryPadding, string> = {
   [BOUNDARY_PADDINGS.LOOSE]: "Loose",
 };
 
-const { TEXT_MAX } = DIAGRAM_LIMITS;
+const { BOUNDARY_LABEL_MAX } = DIAGRAM_LIMITS;
 
 /** What each tone is *for*. The hex is the renderer's business. */
 const TONE_MEANINGS: Record<BoundaryTone, string> = {
@@ -92,12 +92,15 @@ export function BoundaryInspector({
         <MicroLabel>Boundary</MicroLabel>
       </header>
 
-      <Field label="Label" hint={`${TEXT_MAX} characters max. Short and upper case reads best.`}>
+      <Field
+        label="Label"
+        hint={`${BOUNDARY_LABEL_MAX} characters max. Upper case reads best; the box grows to fit.`}
+      >
         <EditorInput
           aria-label="Label"
           value={boundary.label}
-          maxLength={TEXT_MAX}
-          onChange={(event) => onChange({ label: event.target.value.slice(0, TEXT_MAX) })}
+          maxLength={BOUNDARY_LABEL_MAX}
+          onChange={(event) => onChange({ label: event.target.value.slice(0, BOUNDARY_LABEL_MAX) })}
         />
       </Field>
 

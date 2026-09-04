@@ -5,6 +5,7 @@ import {
   type DiagramDocumentInput,
 } from "../../schemas/diagram-document";
 import { validateResolvedDiagram } from "../../schemas/diagram";
+import { LABEL_INSET, boundaryLabelWidth } from "../boundary";
 import { renderSVG } from "../index";
 import { resolveDiagram } from "../resolve";
 import { escapeXml } from "../svg";
@@ -51,6 +52,31 @@ describe("resolveDiagram", () => {
       expect(node.y).toBeGreaterThan(cf.y);
       expect(node.y).toBeLessThan(cf.y + cf.h);
     }
+  });
+
+  it("widens a grouped boundary that is too narrow to carry its own label", () => {
+    // What a group holds says nothing about the length of its name, so a box
+    // sized only by its members can be narrower than the label riding its top
+    // border. The box grows; the name is not the thing that gives way.
+    const label = "Monorepo — Turborepo + Bun workspaces";
+    const oneNode = (boundaryLabel: string): DiagramDocumentInput => ({
+      version: 2,
+      content: {
+        title: "narrow",
+        nodes: [{ id: "bun", name: "Bun", emoji: "🍞" }],
+        boundaries: [{ id: "repo", label: boundaryLabel, tone: "blue" }],
+        groups: [{ id: "g", members: ["repo", "bun"] }],
+      },
+    });
+
+    const short = boundaryOf(resolve(oneNode("REPO")), "repo");
+    const long = boundaryOf(resolve(oneNode(label)), "repo");
+
+    expect(long.w).toBeGreaterThan(short.w);
+    expect(long.w).toBeGreaterThanOrEqual(LABEL_INSET + boundaryLabelWidth(label, ""));
+    // Only the width gives: the box still starts where its members put it.
+    expect(long.x).toBe(short.x);
+    expect(long.h).toBe(short.h);
   });
 
   it("leaves a node that is not a member outside the box", () => {
