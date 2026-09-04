@@ -204,10 +204,23 @@ describe("DIAGRAM_SKETCH_PROMPT", () => {
       expect(preamble).toContain("`sub`");
     });
 
-    it("tells the model to re-read the arrowheads when the spine runs backwards", () => {
-      // The result was NestJS → Angular: the client at the far right, outside
-      // its own boundary, because one arrowhead was read the wrong way.
-      expect(preamble).toMatch(/backwards|runs the wrong way/i);
+    it("never lets a convention overrule an arrowhead that can be seen", () => {
+      // The first fix for the reversed edge told the model to distrust a head
+      // whenever the resulting flow looked unusual. That inverts the prompt's
+      // own principle: it would quietly "correct" a store that really does push
+      // to a client. Only a line with no visible head may be inferred.
+      expect(preamble).toMatch(/never reverse a visible arrowhead/i);
+      expect(preamble).not.toMatch(/if it runs backwards/i);
+    });
+
+    it("says the picture outranks the general advice, and says it after that advice", () => {
+      // Composed, the prompt carries a sketch preamble and then a generic
+      // contract that describes how architectures usually read. Where the two
+      // disagree nothing said which won.
+      const precedence = DIAGRAM_SKETCH_PROMPT.lastIndexOf("overrides the general advice");
+      const generic = DIAGRAM_SKETCH_PROMPT.lastIndexOf("solid path read left to right");
+
+      expect(precedence).toBeGreaterThan(generic);
     });
 
     it("puts its own checks last, after everything else it says", () => {

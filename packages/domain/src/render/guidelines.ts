@@ -246,11 +246,10 @@ you genuinely cannot read a name of \`?\` rather than a guess.
 - A line with no arrowhead is a relationship whose direction you choose. Pick
   the one the request travels in — a client calls a server, a service reads a
   database.
-- Arrowheads on a photograph are small and easily lost. Once every edge is
-  placed, read the solid path end to end: it should run from whoever makes the
-  request to whatever finally answers or stores it. **If it runs backwards — a
-  database calling a client, a service calling its own front end — you misread a
-  head.** Turn it round.
+- Arrowheads on a photograph are small and easily lost, so read each one twice.
+  But **never reverse a visible arrowhead because a usual architecture would
+  flow the other way.** A sketch showing a store pushing to a client is telling
+  you that is what it does. Only a line with no visible head may be inferred.
 - Text written on or beside a line is that edge's \`label\`. An unlabelled line
   gets no label; do not put "HTTPS" on it because it looked likely.
 - A line drawn to the side of the main flow, or dashed in the picture, is a
@@ -270,9 +269,18 @@ ${DIAGRAM_GUIDELINES}
 
 ---
 
+## Reading a picture overrides the general advice above
+
+What you can see in the image is the strongest evidence there is. The guide
+above describes how architectures usually read — a request path running left to
+right, a protocol on a labelled line — and that advice applies only where the
+picture is silent. It never overrules a mark you can actually see.
+
 ## Last checks, for a diagram read from a picture
 
 - Is your reply anything other than one JSON document? Delete the rest.
+- Does every visible arrowhead agree with its edge's \`from\` and \`to\`? Never
+  change an observed direction to make the architecture look conventional.
 - Does any node carry \`initials\` while its label resembles something on the key
   list? Look again. This is the single most common way this goes wrong.
 - Is any \`name\` in block capitals? Write it the way the product does.
