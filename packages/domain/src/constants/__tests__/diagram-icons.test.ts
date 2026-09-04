@@ -70,6 +70,20 @@ describe("DIAGRAM_ICONS", () => {
       );
     }
   });
+
+  it("gives the three proving marks colour art that reads on both tiles", () => {
+    // Hono: two flat fills, the inner flame the silhouette had to cut away.
+    // Angular: two gradients, which is what the id rule exists for.
+    // TanStack Query: four flat fills in a box that is not square.
+    for (const key of ["hono", "angular", "reactquery"] as const) {
+      const art = DIAGRAM_ICONS[key].art;
+      expect(art, `"${key}" has no art`).toBeDefined();
+      expect(art?.onDark, `"${key}" was judged not to read on the dark tile`).toBe(true);
+    }
+    expect(DIAGRAM_ICONS.angular.art?.body).toContain("<linearGradient");
+    expect(DIAGRAM_ICONS.angular.art?.body).toContain("url(#angular-");
+    expect(DIAGRAM_ICONS.reactquery.art?.viewBox).toBe("0 0 256 230");
+  });
 });
 
 describe("DIAGRAM_ICON_ALIASES", () => {
@@ -99,7 +113,13 @@ describe("DIAGRAM_ICON_ALIASES", () => {
     // These are the slugs a sketch label cannot be guessed into: nobody draws a
     // box and writes "nodedotjs". Without an alias the model has to invent the
     // key, and an invented key is rejected.
-    for (const key of ["nodedotjs", "postgresql", "githubactions", "cloudflareworkers"]) {
+    for (const key of [
+      "nodedotjs",
+      "postgresql",
+      "githubactions",
+      "cloudflareworkers",
+      "reactquery",
+    ]) {
       expect(aliases[key as DiagramIconKey], `"${key}" has no alias`).toBeTruthy();
     }
   });

@@ -69,6 +69,7 @@ const LABEL_OVERRIDES: Partial<Record<DiagramIconKey, string>> = {
   githubactions: "Actions",
   nodedotjs: "Node.js",
   betterauth: "Better Auth",
+  reactquery: "TanStack Query",
 };
 
 const BRAND_TILES: BrandTile[] = DIAGRAM_ICON_KEYS.map((iconKey) => ({
