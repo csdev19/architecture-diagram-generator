@@ -31,6 +31,12 @@ import type { ChromeTheme } from "@/components/editor/use-chrome-theme";
  *
  * The two icon buttons on the left are view state, not document actions, which
  * is why they sit in the other pill.
+ *
+ * The left pill holds nothing that grows. It used to carry the document's name
+ * and its node and edge counts, and a pill that grows with its document reaches
+ * the centred toolbar and covers the tools — at an ordinary window width, not an
+ * extreme one. The name is in the inspector, where it can also be edited, and
+ * the edge count is on the Edges tab.
  */
 
 const pill = cn(
@@ -39,9 +45,6 @@ const pill = cn(
 );
 
 interface EditorHeaderProps {
-  title: string;
-  nodeCount: number;
-  edgeCount: number;
   paletteOpen: boolean;
   onTogglePalette: () => void;
   theme: ChromeTheme;
@@ -145,9 +148,6 @@ const iconButton = cn(
 );
 
 export function EditorHeader({
-  title,
-  nodeCount,
-  edgeCount,
   paletteOpen,
   onTogglePalette,
   theme,
@@ -191,35 +191,6 @@ export function EditorHeader({
         <h1 className="pl-1 text-[15px] font-semibold tracking-[-0.008em] text-ed-text">
           Diagram editor
         </h1>
-
-        {/*
-          The meta line and the byline are the first things to go on a narrow
-          window: below this breakpoint the pill would grow into the centred
-          toolbar.
-        */}
-        <p className="hidden min-w-0 truncate pr-1 font-mono text-[11px] text-ed-text-3 lg:block">
-          {title} · {nodeCount} {nodeCount === 1 ? "node" : "nodes"} · {edgeCount}{" "}
-          {edgeCount === 1 ? "edge" : "edges"}
-        </p>
-
-        {/*
-          Attribution, not navigation: it sits after the meta line, at the same
-          weight, so it reads as a signature rather than as a control competing
-          with the two buttons on the left of this pill.
-        */}
-        <a
-          href="https://cs19.dev"
-          target="_blank"
-          rel="noreferrer"
-          className={cn(
-            "hidden shrink-0 border-l border-ed-border py-0.5 pl-2 pr-1 lg:block",
-            "font-mono text-[11px] text-ed-text-3",
-            "rounded-[4px] hover:text-ed-text focus-visible:text-ed-text",
-            "outline-none focus-visible:shadow-[var(--ed-focus-ring)]",
-          )}
-        >
-          built by csdev
-        </a>
       </div>
 
       <div className={cn(pill, "right-3")}>

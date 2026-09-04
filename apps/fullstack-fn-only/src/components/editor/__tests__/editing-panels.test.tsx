@@ -377,11 +377,20 @@ describe("tool shortcuts", () => {
     fireEvent.keyDown(window, { key: "2" });
     expect(screen.getByRole("status")).toHaveTextContent(/drag to move around/i);
 
-    fireEvent.keyDown(window, { key: "4" });
+    fireEvent.keyDown(window, { key: "3" });
     expect(screen.getByRole("status")).toHaveTextContent(/drag a box around the tiles/i);
 
-    fireEvent.keyDown(window, { key: "5" });
+    fireEvent.keyDown(window, { key: "4" });
     expect(screen.getByRole("status")).toHaveTextContent(/click the source tile/i);
+  });
+
+  it("has no fifth tool, because placing is the palette's job", () => {
+    render(<EditorPage />);
+
+    fireEvent.keyDown(window, { key: "5" });
+
+    // Unchanged: `5` reaches nothing, and the hint still describes Select.
+    expect(screen.getByRole("status")).toHaveTextContent(/drag a tile from the palette/i);
   });
 
   it("leaves a number alone while a field has the focus", () => {

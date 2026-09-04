@@ -1,13 +1,21 @@
 import type { ObjectProperties } from "@diagram-tool/domain/types";
 
 /**
- * The stage's tools. Five, each of which does something.
+ * The stage's tools. Four, each of which does something.
  *
  * `boundary` was once here as an affordance only — pressing it changed the hint
  * and nothing else — and was removed, because a button that does nothing is the
  * least legible kind of button there is. It is back now that drawing a box is a
  * real gesture. `text` is still absent: labels are edited in the inspector, and
  * a tool for that would be the same lie.
+ *
+ * `node` is the same argument one step further. It is still a mode — but you
+ * enter it by choosing a tile in the palette, which is what choosing a tile
+ * already does, and what it places is whatever the palette has selected. As a
+ * button it drew a generic square, which is not what it places, and offered a
+ * starting point nobody starts from: pressing it before choosing a tile places
+ * whatever happened to be selected last. The palette is that tool's interface,
+ * so the palette is where it lives.
  *
  * Every tool is labelled in the toolbar rather than left as a bare glyph. A
  * square outline meaning "place a tile" is a thing you learn once and re-guess
@@ -23,11 +31,15 @@ export const EDITOR_TOOLS = {
 
 export type EditorTool = ObjectProperties<typeof EDITOR_TOOLS>;
 
-/** Toolbar order, which is also the `1`–`5` shortcut order. */
+/**
+ * Toolbar order, which is also the `1`–`4` shortcut order.
+ *
+ * `node` is deliberately absent: it is a mode the palette puts you in, not a
+ * tool you pick. Everything else in this file still knows about it.
+ */
 export const TOOL_ORDER: EditorTool[] = [
   EDITOR_TOOLS.SELECT,
   EDITOR_TOOLS.PAN,
-  EDITOR_TOOLS.NODE,
   EDITOR_TOOLS.BOUNDARY,
   EDITOR_TOOLS.EDGE,
 ];
@@ -36,7 +48,7 @@ export const TOOL_ORDER: EditorTool[] = [
 export const TOOL_LABELS: Record<EditorTool, string> = {
   [EDITOR_TOOLS.SELECT]: "Select",
   [EDITOR_TOOLS.PAN]: "Pan",
-  [EDITOR_TOOLS.NODE]: "Place",
+  [EDITOR_TOOLS.NODE]: "Place a tile",
   [EDITOR_TOOLS.BOUNDARY]: "Boundary",
   [EDITOR_TOOLS.EDGE]: "Connect",
 };

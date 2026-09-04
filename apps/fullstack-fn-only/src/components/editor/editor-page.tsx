@@ -591,9 +591,6 @@ export function EditorPage() {
       />
 
       <EditorHeader
-        title={shown?.diagram.title ?? "diagram"}
-        nodeCount={shown?.diagram.nodes.length ?? 0}
-        edgeCount={shown?.diagram.edges.length ?? 0}
         paletteOpen={paletteOpen}
         onTogglePalette={() => setPaletteOpen((open) => !open)}
         theme={theme}

@@ -31,10 +31,24 @@ describe("EditorPage", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("names the diagram and its size in the header", () => {
+  it("keeps the document out of the header, so the pill cannot grow into the toolbar", () => {
     render(<EditorPage />);
 
-    expect(screen.getByText(/payments · 4 nodes · 3 edges/)).toBeInTheDocument();
+    // The header used to carry the diagram's name and its counts, and a pill
+    // that grows with its document reaches the centred toolbar and covers the
+    // tools. The name lives in the inspector, where it can also be edited.
+    expect(screen.queryByText(/payments · 4 nodes · 3 edges/)).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Diagram editor" })).toBeInTheDocument();
+  });
+
+  it("signs the canvas at the bottom, clear of the tools", () => {
+    render(<EditorPage />);
+
+    const byline = screen.getByRole("link", { name: /built by csdev/i });
+
+    expect(byline).toHaveAttribute("href", "https://cs19.dev");
+    // Attribution sits with the zoom readout, not in the working row.
+    expect(screen.getByRole("banner")).not.toContainElement(byline);
   });
 
   it("offers both exports from the File menu once the document is valid", () => {
