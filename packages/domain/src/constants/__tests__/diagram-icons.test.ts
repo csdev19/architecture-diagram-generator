@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { DIAGRAM_COLORS, TILE_VARIANTS } from "../diagram";
 import {
+  DIAGRAM_ICON_ALIASES,
   DIAGRAM_ICON_CONTRAST_MIN,
   DIAGRAM_ICON_KEYS,
   DIAGRAM_ICONS,
+  type DiagramIconKey,
   contrastRatio,
   isValidDiagramIconKey,
   resolveDiagramIconFill,
@@ -51,6 +53,35 @@ describe("DIAGRAM_ICONS", () => {
     expect(isValidDiagramIconKey(undefined)).toBe(false);
     // Inherited object members must not read as icons.
     expect(isValidDiagramIconKey("toString")).toBe(false);
+  });
+});
+
+describe("DIAGRAM_ICON_ALIASES", () => {
+  it("maps every alias to a key the registry actually has", () => {
+    for (const key of Object.keys(DIAGRAM_ICON_ALIASES)) {
+      expect(isValidDiagramIconKey(key), `"${key}" is not an icon key`).toBe(true);
+    }
+  });
+
+  it("covers the keys a person would never write on a whiteboard", () => {
+    // These are the slugs a sketch label cannot be guessed into: nobody draws a
+    // box and writes "nodedotjs". Without an alias the model has to invent the
+    // key, and an invented key is rejected.
+    for (const key of ["nodedotjs", "postgresql", "githubactions", "cloudflareworkers"]) {
+      expect(DIAGRAM_ICON_ALIASES[key as DiagramIconKey], `"${key}" has no alias`).toBeTruthy();
+    }
+  });
+
+  it("never gives one written word to two different marks", () => {
+    // An ambiguous alias is worse than none: it makes the mapping a coin flip.
+    const seen = new Set<string>();
+    for (const aliases of Object.values(DIAGRAM_ICON_ALIASES)) {
+      for (const alias of aliases ?? []) {
+        const needle = alias.toLowerCase();
+        expect(seen.has(needle), `"${alias}" is claimed by two keys`).toBe(false);
+        seen.add(needle);
+      }
+    }
   });
 });
 

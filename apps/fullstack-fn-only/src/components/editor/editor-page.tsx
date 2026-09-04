@@ -32,6 +32,7 @@ import {
 } from "@/components/editor/group-tree";
 import { REFUSAL_MESSAGES, groupRefusal } from "@/components/editor/edits/group-edits";
 import type { Point } from "@/components/editor/pointer-geometry";
+import { PromptPanel } from "@/components/editor/prompt-panel";
 import { SIDE_PANEL_TABS, SIDE_PANEL_WIDTH, SidePanel } from "@/components/editor/side-panel";
 import type { SidePanelTab } from "@/components/editor/side-panel";
 import {
@@ -663,6 +664,7 @@ export function EditorPage() {
             lastValidText={shown?.text ?? null}
           />
         }
+        prompt={<PromptPanel />}
         inspector={
           selectedNode ? (
             <NodeInspector

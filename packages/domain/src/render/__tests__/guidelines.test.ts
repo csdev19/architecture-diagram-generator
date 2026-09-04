@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BOUNDARY_PADDINGS, BOUNDARY_TONES, DIAGRAM_LIMITS } from "../../constants/diagram";
 import { DIAGRAM_ICON_KEYS } from "../../constants/diagram-icons";
-import { DIAGRAM_GUIDELINES } from "../guidelines";
+import { DIAGRAM_GUIDELINES, DIAGRAM_SKETCH_PROMPT } from "../guidelines";
 
 /**
  * The guidelines are what a model reads before writing a document, so they must
@@ -71,9 +71,56 @@ describe("DIAGRAM_GUIDELINES", () => {
     expect(DIAGRAM_GUIDELINES).toContain("Check before answering");
   });
 
+  it("gives the model a written word for every key it could not guess", () => {
+    // A sketch says "Postgres"; the schema accepts "postgresql". If that
+    // mapping is not in the text the model has to invent the key.
+    expect(DIAGRAM_GUIDELINES).toContain("Postgres");
+    expect(DIAGRAM_GUIDELINES).toContain("Node.js");
+    expect(DIAGRAM_GUIDELINES).toContain("GH Actions");
+  });
+
   it("leaves no unresolved interpolation", () => {
     expect(DIAGRAM_GUIDELINES).not.toContain("${");
     expect(DIAGRAM_GUIDELINES).not.toContain("undefined");
     expect(DIAGRAM_GUIDELINES).not.toContain("NaN");
+  });
+});
+
+/**
+ * The prompt a person copies out of the editor and pastes into a chat with a
+ * photograph of a whiteboard. It is the format contract plus the part that
+ * tells a model how to read a picture — never a second, drifting copy of the
+ * contract.
+ */
+describe("DIAGRAM_SKETCH_PROMPT", () => {
+  it("carries the authoring guidelines verbatim", () => {
+    expect(DIAGRAM_SKETCH_PROMPT).toContain(DIAGRAM_GUIDELINES);
+  });
+
+  it("tells the model it is reading an attached image", () => {
+    expect(DIAGRAM_SKETCH_PROMPT).toContain("attached image");
+  });
+
+  it("tells the model to copy the labels rather than rename them", () => {
+    // The single largest source of a wrong diagram from a good sketch: the
+    // model "improves" the author's own words.
+    expect(DIAGRAM_SKETCH_PROMPT).toMatch(/labels?[^.]*are the node names/i);
+  });
+
+  it("offers the monogram as the way out when a box has no logo", () => {
+    expect(DIAGRAM_SKETCH_PROMPT).toContain("initials");
+  });
+
+  it("forbids inventing what the picture does not show", () => {
+    expect(DIAGRAM_SKETCH_PROMPT).toContain("Do not invent");
+  });
+
+  it("says what to do with an arrow that has no head", () => {
+    expect(DIAGRAM_SKETCH_PROMPT).toContain("arrow");
+  });
+
+  it("leaves no unresolved interpolation", () => {
+    expect(DIAGRAM_SKETCH_PROMPT).not.toContain("${");
+    expect(DIAGRAM_SKETCH_PROMPT).not.toContain("undefined");
   });
 });

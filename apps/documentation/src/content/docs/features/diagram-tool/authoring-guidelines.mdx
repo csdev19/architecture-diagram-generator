@@ -23,6 +23,12 @@ minimum spacing, tone semantics, and a self-check to run before answering. In
 phase 1 the MCP `get_diagram_guidelines` tool returns this text verbatim, which
 is what lets any fresh Claude session use the tool well with no prior context.
 
+A second export, `DIAGRAM_SKETCH_PROMPT`, is the same text with a preamble on
+how to read a picture. It is what the editor's Prompt tab hands a person to
+paste into a chat alongside a photograph of a whiteboard, and it is composed
+from the guidelines rather than written beside them — so a pasted prompt can
+never describe a format the validator has stopped accepting.
+
 The canonical text lives in `packages/domain/src/render/guidelines.ts` and is
 deliberately not restated here — one source, or it drifts.
 
@@ -30,10 +36,11 @@ deliberately not restated here — one source, or it drifts.
 
 ### Files Changed
 
-| Path                                       | Purpose                                                                        |
-| ------------------------------------------ | ------------------------------------------------------------------------------ |
-| `packages/domain/src/render/guidelines.ts` | The guidelines text, with every limit interpolated from the schema's constants |
-| `packages/domain/src/render/index.ts`      | Exports it alongside the renderer                                              |
+| Path                                             | Purpose                                                                        |
+| ------------------------------------------------ | ------------------------------------------------------------------------------ |
+| `packages/domain/src/render/guidelines.ts`       | The guidelines text, with every limit interpolated from the schema's constants |
+| `packages/domain/src/render/index.ts`            | Exports it alongside the renderer                                              |
+| `packages/domain/src/constants/diagram-icons.ts` | `DIAGRAM_ICON_ALIASES` — the written words that map to an unguessable key      |
 
 ### Domain Model
 
@@ -67,6 +74,8 @@ every model on the next build with no edit here.
 - ⚠️ When a model makes the same layout mistake twice, add a rule here rather than fixing the output by hand. This file is what teaches the tool; correcting the symptom teaches nothing.
 - ⚠️ The interpolation is guarded by a test asserting there is no unresolved `${` and no `undefined` in the output. Removing that test makes a broken template silently shippable.
 - ⚠️ This text is consumed by a model, not a human reader. Prefer imperative, checkable rules over explanation.
+- ⚠️ `DIAGRAM_SKETCH_PROMPT` **contains** `DIAGRAM_GUIDELINES`; it is not a variant of it. A test asserts the containment. Writing sketch-specific format rules into the preamble instead of the guidelines is how the two start disagreeing.
+- ⚠️ Only unguessable keys get an alias. `react` needs none — a box labelled "React" already spells its key — and an alias belongs to exactly one key, because an ambiguous one turns the mapping into a coin flip nobody can see being tossed.
 - ⚠️ A drift test asserts every key in `DIAGRAM_ICON_KEYS` appears in the text. Adding an icon without rebuilding the guidelines fails that test rather than silently shipping a key no model knows about.
 
 ## Dependencies

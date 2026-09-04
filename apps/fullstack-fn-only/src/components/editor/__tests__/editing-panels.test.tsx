@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { EXAMPLE_DIAGRAM_DOCUMENT, diagramDocumentSchema } from "@diagram-tool/domain/schemas";
-import { resolveDiagram } from "@diagram-tool/domain/render";
+import { DIAGRAM_SKETCH_PROMPT, resolveDiagram } from "@diagram-tool/domain/render";
 import { beforeEach, describe, expect, it } from "vitest";
 import { EditorPage } from "../editor-page";
 
@@ -226,6 +226,57 @@ describe("tile palette", () => {
     clickAt(NOWHERE);
 
     expect(screen.getByLabelText("Initials")).toBeInTheDocument();
+  });
+});
+
+describe("prompt panel", () => {
+  /**
+   * jsdom ships no clipboard. The stub records what a copy would have written,
+   * which is the only thing worth asserting: the panel's whole job is putting
+   * one specific string somewhere a person can paste it.
+   */
+  const stubClipboard = () => {
+    const written: string[] = [];
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: (text: string) => (written.push(text), Promise.resolve()) },
+    });
+    return written;
+  };
+
+  it("offers the prompt behind its own tab", () => {
+    render(<EditorPage />);
+    openTab(/prompt/i);
+
+    expect(panel().getByRole("button", { name: /copy prompt/i })).toBeInTheDocument();
+  });
+
+  it("copies the sketch prompt rather than the document", async () => {
+    const written = stubClipboard();
+    render(<EditorPage />);
+    openTab(/prompt/i);
+
+    fireEvent.click(panel().getByRole("button", { name: /copy prompt/i }));
+    await screen.findByRole("button", { name: /copied/i });
+
+    expect(written[0]).toBe(DIAGRAM_SKETCH_PROMPT);
+  });
+
+  it("tells the reader how the generated JSON gets back into the editor", () => {
+    // A prompt with no round trip is a dead end: the person has the JSON in a
+    // chat window and no idea that the JSON tab is where it goes.
+    render(<EditorPage />);
+    openTab(/prompt/i);
+
+    expect(panel().getByText(/JSON tab/i)).toBeInTheDocument();
+  });
+
+  it("leaves the document untouched — the panel only reads", () => {
+    render(<EditorPage />);
+    const before = documentText();
+    openTab(/prompt/i);
+
+    expect(documentText()).toBe(before);
   });
 });
 

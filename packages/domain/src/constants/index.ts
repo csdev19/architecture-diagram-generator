@@ -31,6 +31,7 @@ export {
 // Diagram brand icons
 export {
   DIAGRAM_ICONS,
+  DIAGRAM_ICON_ALIASES,
   DIAGRAM_ICON_KEYS,
   DIAGRAM_ICON_CONTRAST_MIN,
   contrastRatio,

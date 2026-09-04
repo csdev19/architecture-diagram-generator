@@ -4,7 +4,15 @@ import {
   CANVAS_TONES,
   DIAGRAM_LIMITS,
 } from "../constants/diagram";
-import { DIAGRAM_ICON_KEYS } from "../constants/diagram-icons";
+import { DIAGRAM_ICON_ALIASES, DIAGRAM_ICON_KEYS } from "../constants/diagram-icons";
+
+/**
+ * The alias map as one line per key, for a model that has a label and needs a
+ * key. Derived, so an alias added to the registry advertises itself.
+ */
+const ALIAS_LINES = Object.entries(DIAGRAM_ICON_ALIASES)
+  .map(([key, written]) => `  - ${(written ?? []).join(", ")} → \`${key}\``)
+  .join("\n");
 
 /**
  * The authoring guide for a `DiagramDocument` — the text that turns "draw me
@@ -77,6 +85,11 @@ icon is drawn, then the initials.
   glyph, and it is what makes a diagram look deliberate. Do not invent a key:
   anything outside this list is rejected. The available keys are exactly:
   ${DIAGRAM_ICON_KEYS.join(", ")}.
+
+  Several keys are not what a person writes on a box. When a label reads like
+  the left side, the key is the one on the right:
+
+${ALIAS_LINES}
 - \`initials\`: at most ${DIAGRAM_LIMITS.INITIALS_MAX} characters, for a named
   product with no logo in the list above — "ST" for Stripe, "K8" for Kubernetes.
   Drawn exactly as written, so type the capitals you want to see. Prefer it over
@@ -152,3 +165,78 @@ edge connects tiles, never boundaries or groups.
 - Does the solid path read left to right through the whole system? That path is
   the diagram's spine, and everything else is placed relative to it.
 `;
+
+/**
+ * The prompt a person copies out of the editor and pastes into a chat together
+ * with a photograph of a whiteboard, an Excalidraw export or a napkin.
+ *
+ * It is `DIAGRAM_GUIDELINES` with a preamble, not a second document. The
+ * contract has exactly one text; what changes when the input is a picture is
+ * how to *read* it, and that is all the preamble says. Composing rather than
+ * copying is what makes it impossible for the pasted prompt to describe a
+ * format the validator no longer accepts.
+ *
+ * Every rule below exists because of a specific way a sketch goes wrong:
+ * a model that renames "Notes API" to "Notes Service", one that reads a
+ * plain line as bidirectional, one that adds a load balancer nobody drew, and
+ * one that stalls on a box whose product it does not recognise.
+ */
+export const DIAGRAM_SKETCH_PROMPT = `# Turn this sketch into a diagram
+
+You are reading an attached image — a hand drawing, a whiteboard photograph, an
+Excalidraw or Figma export, or a screenshot of another diagram. Turn it into the
+JSON document described below, and return ONLY that JSON.
+
+## Read the picture, do not improve it
+
+- **The labels in the image are the node names.** Copy them as written. Do not
+  translate them, expand an abbreviation, or replace someone's name for their
+  own service with a generic one. "Notes API" stays "Notes API".
+- Handwriting that is genuinely illegible is the one exception: say so at the
+  end, after the JSON, rather than guessing a name.
+- **Do not invent.** No cloud provider, protocol, runtime, load balancer, cache,
+  queue, authentication step or database that is not drawn or written down. A
+  smaller diagram that matches the picture beats a fuller one that does not.
+
+## Arrows
+
+- An arrowhead is the direction: it points from \`from\` to \`to\`.
+- A line with no arrowhead is a relationship whose direction you must choose.
+  Pick the one the request travels in — a client calls a server, a service
+  reads a database — and list it as an assumption after the JSON.
+- Text written on or beside a line is that edge's \`label\`. An unlabelled line
+  gets no label; do not put "HTTPS" on it because it looked likely.
+- A line drawn to the side of the main flow, or dashed in the picture, is a
+  \`dashed\` edge.
+
+## Boxes drawn around things
+
+A rectangle enclosing several components is a \`group\`. If that rectangle has a
+title written on it — "AWS", "Kubernetes", "monorepo" — the group also gets a
+\`boundary\` with that title as its label. An untitled enclosure is a group with
+no boundary.
+
+## Choosing a mark for each box
+
+For every component, in this order:
+
+1. If the box shows a known logo, or its label names a technology in the key
+   list below, use that \`iconKey\`. The label-to-key table is there because a
+   sketch says "Postgres" where the key is \`postgresql\`.
+2. Otherwise, if the box names a specific product or service — "Stripe",
+   "Notes API", an internal system — use \`initials\`: one or two characters
+   taken from that name.
+3. Otherwise, if the box names a role rather than a product — a user, a phone,
+   a queue, a browser — use an \`emoji\`.
+
+Never leave a node without one of the three, and never invent an \`iconKey\`.
+
+## After the JSON
+
+Return the JSON first, alone. Then, in a few short lines, list anything you
+assumed: a direction you chose for an arrow with no head, a label you could not
+read, a box whose product you could not identify.
+
+---
+
+${DIAGRAM_GUIDELINES}`;

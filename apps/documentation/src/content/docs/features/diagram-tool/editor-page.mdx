@@ -48,6 +48,7 @@ the canvas.
 | `apps/fullstack-fn-only/src/components/editor/edits/group-repair.ts`  | Putting a document back into a shape its own validator accepts              |
 | `apps/fullstack-fn-only/src/components/editor/tile-palette.tsx`       | The draggable palette: brand logos, emoji, and one monogram tile            |
 | `apps/fullstack-fn-only/src/components/editor/stage-toolbar.tsx`      | The five tools, each labelled                                               |
+| `apps/fullstack-fn-only/src/components/editor/prompt-panel.tsx`       | The Prompt tab: the sketch prompt, the round trip, and a copy button        |
 | `apps/fullstack-fn-only/src/components/editor/node-inspector.tsx`     | The panel for the selected tile                                             |
 | `apps/fullstack-fn-only/src/components/editor/boundary-inspector.tsx` | The panel for the selected boundary — label, tone, and padding or rectangle |
 | `apps/fullstack-fn-only/src/components/editor/diagram-panel.tsx`      | The panel with nothing selected: the paper tone                             |
@@ -116,6 +117,7 @@ the same single source of truth every edit went through on the way in.
 
 ## Gotchas & Warnings
 
+- ⚠️ The Prompt tab is the whole AI path until a server exists, and it is deliberately one-directional: it hands out text and reads nothing back. The return leg is the JSON tab, which is why the panel spells that out rather than only offering a button.
 - ⚠️ The palette's "Custom" card places a monogram, and the inspector reaches the same mark through the `initials` sentinel in its Mark select. That sentinel is read **after** `isValidDiagramIconKey`, so a brand that ever ships under the `initials` slug still resolves to its own logo.
 - ⚠️ A group is never drawn. The dashed rectangle around a selected one is an overlay, and anything that puts it in the exported SVG is a bug.
 - ⚠️ Any mutation that can re-flow the drawing must go through `settled` in `useDiagramEditing`, which materialises the layout first. Skipping it means a gesture that touches one tile visibly rearranges the others.

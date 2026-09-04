@@ -117,6 +117,31 @@ export type DiagramIconKey = keyof typeof DIAGRAM_ICONS;
  */
 export const DIAGRAM_ICON_KEYS = Object.keys(DIAGRAM_ICONS) as DiagramIconKey[];
 
+/**
+ * The words a person actually writes, mapped to the key that draws them.
+ *
+ * A registry key is a `simple-icons` slug, and several of them are nothing
+ * anybody would put in a box on a whiteboard: `nodedotjs`, `cloudflareworkers`,
+ * `githubactions`. Handed only the slug list, a model reading a sketch labelled
+ * "Node" has to invent the key — and an invented key is rejected, which costs a
+ * whole correction round before the author sees a diagram.
+ *
+ * Only the keys a label cannot be guessed into are listed. `react` needs no
+ * alias because a box labelled "React" already spells its key, and an entry
+ * that restates the obvious is one more line to keep true for no gain.
+ *
+ * An alias belongs to exactly one key. An ambiguous one is worse than none: it
+ * turns the mapping into a coin flip the author cannot see being tossed.
+ */
+export const DIAGRAM_ICON_ALIASES: Partial<Record<DiagramIconKey, readonly string[]>> = {
+  betterauth: ["Better Auth"],
+  cloudflareworkers: ["Cloudflare Workers", "CF Workers", "Workers"],
+  githubactions: ["GitHub Actions", "GH Actions"],
+  nodedotjs: ["Node", "Node.js", "NodeJS"],
+  postgresql: ["Postgres", "PostgreSQL", "PG"],
+  tailwindcss: ["Tailwind", "Tailwind CSS"],
+};
+
 /** `hasOwn`, not `in`: `"toString" in DIAGRAM_ICONS` is true and is not an icon. */
 export const isValidDiagramIconKey = (value: unknown): value is DiagramIconKey =>
   typeof value === "string" && Object.hasOwn(DIAGRAM_ICONS, value);
