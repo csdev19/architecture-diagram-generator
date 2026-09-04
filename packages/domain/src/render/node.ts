@@ -4,7 +4,11 @@ import {
   DIAGRAM_TYPOGRAPHY,
   TILE_VARIANTS,
 } from "../constants/diagram";
-import { DIAGRAM_ICONS, resolveDiagramIconFill } from "../constants/diagram-icons";
+import {
+  DIAGRAM_ICONS,
+  resolveDiagramIconFill,
+  resolveMonogramFill,
+} from "../constants/diagram-icons";
 import type { DiagramNode } from "../schemas/diagram";
 import { escapeXml, num } from "./svg";
 
@@ -12,13 +16,23 @@ import { escapeXml, num } from "./svg";
 const NAME_BASELINE_OFFSET = 17;
 /** Baseline of the sublabel, measured down from the name's baseline. */
 const SUB_BASELINE_OFFSET = 14;
+/**
+ * Baseline of a monogram, as a fraction of its size below the tile's centre.
+ *
+ * Capitals sit entirely above the baseline, so a glyph centred by its baseline
+ * would ride high in the tile. Half a cap height — about 0.36em for the sans
+ * stack — puts the letterforms' own middle on the middle of the tile.
+ */
+const INITIALS_CAP_CENTRE = 0.36;
 
 /**
  * The mark inside a tile.
  *
- * `iconKey` wins over `emoji` when a node carries both: a real logo identifies
- * a technology faster than any glyph, and letting the two coexist means a
- * config can keep a fallback without the renderer drawing them on top of each
+ * Three kinds, drawn in one order: `iconKey`, then `initials`, then `emoji`.
+ * A real logo identifies a technology faster than any glyph, and a monogram
+ * names a specific product where an emoji only names a role — so each kind
+ * yields to the more specific one above it. Letting them coexist is what lets a
+ * config keep a fallback without the renderer drawing two marks on top of each
  * other. The schema guarantees at least one is present.
  */
 const renderMark = (node: DiagramNode): string => {
@@ -34,6 +48,17 @@ const renderMark = (node: DiagramNode): string => {
       `scale(${num(ICON_SIZE / ICON_VIEWBOX)})">` +
       `<path d="${escapeXml(icon.path)}" fill="${resolveDiagramIconFill(icon, node.tile)}"/>` +
       `</g>`
+    );
+  }
+
+  if (node.initials) {
+    const { INITIALS_SIZE, NAME_FAMILY } = DIAGRAM_TYPOGRAPHY;
+
+    return (
+      `<text x="${num(node.x)}" y="${num(node.y + INITIALS_SIZE * INITIALS_CAP_CENTRE)}" ` +
+      `font-family="${NAME_FAMILY}" font-size="${INITIALS_SIZE}" font-weight="700" ` +
+      `text-anchor="middle" fill="${resolveMonogramFill(node.tile)}">` +
+      `${escapeXml(node.initials)}</text>`
     );
   }
 

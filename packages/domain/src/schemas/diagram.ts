@@ -49,6 +49,22 @@ export const nodeIdentityShape = {
   emoji: z.string().trim().min(1, "Node emoji must not be empty").optional(),
   /** A brand mark from the icon registry. Takes precedence over `emoji`. */
   iconKey: z.enum(DIAGRAM_ICON_KEYS).optional(),
+  /**
+   * A monogram, for a named product the registry has no logo for.
+   *
+   * Measured in code points rather than with `.max()`, which counts UTF-16
+   * units: "🖥️" is three units and one mark on the tile, and a rule that
+   * rejected it would be counting something the author cannot see.
+   */
+  initials: z
+    .string()
+    .trim()
+    .min(1, "Node initials must not be empty")
+    .refine(
+      (value) => [...value].length <= DIAGRAM_LIMITS.INITIALS_MAX,
+      `Node initials must be at most ${DIAGRAM_LIMITS.INITIALS_MAX} characters — a longer mark is a name, and the tile already carries one`,
+    )
+    .optional(),
   name: tileText("Node name"),
   sub: z
     .string()
@@ -69,17 +85,23 @@ export const nodeIdentityShape = {
  * field-level mutations included.
  */
 export const requireNodeMark = (
-  node: { id: string; emoji?: string | undefined; iconKey?: string | undefined },
+  node: {
+    id: string;
+    emoji?: string | undefined;
+    iconKey?: string | undefined;
+    initials?: string | undefined;
+  },
   ctx: z.RefinementCtx,
 ): void => {
-  if (node.emoji || node.iconKey) return;
+  if (node.emoji || node.iconKey || node.initials) return;
 
   ctx.addIssue({
     code: "custom",
     message:
-      `"${node.id}" has neither emoji nor iconKey — a node must show one of the two. ` +
+      `"${node.id}" has no mark — a node must show an iconKey, initials or an emoji. ` +
       `Use iconKey when the technology has a brand mark; the authoring guidelines list every ` +
-      `available key. Otherwise pick an emoji.`,
+      `available key. Use initials for a named product with no logo in that list, and an emoji ` +
+      `for a role rather than a product.`,
   });
 };
 

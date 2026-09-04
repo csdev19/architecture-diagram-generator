@@ -150,6 +150,40 @@ describe("node inspector", () => {
     expect(screen.queryByLabelText("Emoji")).not.toBeInTheDocument();
   });
 
+  it("swaps a node to a monogram seeded from its own name", () => {
+    render(<EditorPage />);
+    selectInside(at("api"));
+
+    fireEvent.change(screen.getByLabelText("Mark"), { target: { value: "initials" } });
+
+    // Seeded rather than left blank: an empty mark is a document the schema
+    // rejects, and the author asked to change the mark, not to break the file.
+    expect(nodeById("api")?.initials).toBe("AP");
+    expect(nodeById("api")).not.toHaveProperty("iconKey");
+    expect(nodeById("api")).not.toHaveProperty("emoji");
+  });
+
+  it("offers the initials field only while the node is a monogram", () => {
+    render(<EditorPage />);
+    selectInside(at("api"));
+    expect(screen.queryByLabelText("Initials")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Mark"), { target: { value: "initials" } });
+    expect(screen.getByLabelText("Initials")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Emoji")).not.toBeInTheDocument();
+  });
+
+  it("stops a monogram at the two characters the tile can hold", () => {
+    render(<EditorPage />);
+    selectInside(at("api"));
+    fireEvent.change(screen.getByLabelText("Mark"), { target: { value: "initials" } });
+
+    fireEvent.change(screen.getByLabelText("Initials"), { target: { value: "STR" } });
+
+    expect(nodeById("api")?.initials).toBe("ST");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("darkens a tile and counts the emphasis already spent", () => {
     render(<EditorPage />);
     selectInside(at("api"));
@@ -166,6 +200,32 @@ describe("node inspector", () => {
     clickAt(NOWHERE);
 
     expect(screen.queryByRole("region", { name: /node api/i })).not.toBeInTheDocument();
+  });
+});
+
+describe("tile palette", () => {
+  /** The palette card by its label, so no other button can answer to it. */
+  const paletteCard = (name: RegExp) =>
+    within(screen.getByRole("complementary", { name: /tiles/i })).getByRole("button", { name });
+
+  it("places a monogram tile for a technology the registry has no logo for", () => {
+    render(<EditorPage />);
+
+    fireEvent.click(paletteCard(/custom/i));
+    clickAt(NOWHERE);
+
+    expect(nodeById("custom")?.initials).toBeTruthy();
+    expect(nodeById("custom")).not.toHaveProperty("emoji");
+    expect(nodeById("custom")).not.toHaveProperty("iconKey");
+  });
+
+  it("opens the placed monogram in the inspector, ready to be typed over", () => {
+    render(<EditorPage />);
+
+    fireEvent.click(paletteCard(/custom/i));
+    clickAt(NOWHERE);
+
+    expect(screen.getByLabelText("Initials")).toBeInTheDocument();
   });
 });
 

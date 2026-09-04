@@ -36,6 +36,7 @@ export {
   contrastRatio,
   isValidDiagramIconKey,
   resolveDiagramIconFill,
+  resolveMonogramFill,
   type DiagramIcon,
   type DiagramIconKey,
 } from "./diagram-icons";

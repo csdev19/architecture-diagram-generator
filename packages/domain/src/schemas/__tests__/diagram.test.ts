@@ -297,6 +297,59 @@ describe("node icons", () => {
   });
 });
 
+describe("node initials", () => {
+  it("accepts a node identified by initials alone", () => {
+    expect(resolvedDiagramSchema.safeParse(configWithNode({ initials: "ST" })).success).toBe(true);
+  });
+
+  it("accepts a single character", () => {
+    expect(resolvedDiagramSchema.safeParse(configWithNode({ initials: "S" })).success).toBe(true);
+  });
+
+  it("rejects a third character, which would not fit the tile", () => {
+    const result = validateResolvedDiagram(configWithNode({ initials: "STR" }));
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errors.some((e) => e.includes("nodes[0].initials"))).toBe(true);
+    }
+  });
+
+  it("counts a glyph made of several code units as the one character it draws", () => {
+    // "🖥️" is three UTF-16 units and one mark on the tile. A length measured in
+    // units would reject it while a person counts one character and disagrees.
+    expect(resolvedDiagramSchema.safeParse(configWithNode({ initials: "🖥️" })).success).toBe(true);
+  });
+
+  it("rejects initials that are only whitespace", () => {
+    // The emoji keeps the node marked, so the only thing left to fail on is
+    // the blank field itself rather than a node with nothing to show.
+    const result = validateResolvedDiagram(configWithNode({ initials: "  ", emoji: "🔥" }));
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errors.some((e) => e.includes("nodes[0].initials"))).toBe(true);
+    }
+  });
+
+  it("leaves initials absent rather than defaulting them", () => {
+    const parsed = resolvedDiagramSchema.parse(configWithNode({ emoji: "🔥" }));
+
+    expect(parsed.nodes[0]?.initials).toBeUndefined();
+  });
+
+  it("offers initials as a third way out when a node has no mark at all", () => {
+    const messages = messagesFor(configWithNode({}));
+
+    expect(messages.some((m) => m.includes("initials"))).toBe(true);
+  });
+
+  it("keeps initials on a node that also names an iconKey", () => {
+    const parsed = resolvedDiagramSchema.parse(configWithNode({ initials: "HO", iconKey: "hono" }));
+
+    expect(parsed.nodes[0]?.initials).toBe("HO");
+  });
+});
 describe("validateResolvedDiagram", () => {
   it("returns the parsed config, defaults filled in, when valid", () => {
     const result = validateResolvedDiagram(EXAMPLE_RESOLVED_DIAGRAM);

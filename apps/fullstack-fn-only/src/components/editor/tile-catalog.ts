@@ -2,6 +2,7 @@ import {
   DIAGRAM_ICONS,
   DIAGRAM_ICON_KEYS,
   resolveDiagramIconFill,
+  resolveMonogramFill,
   TILE_VARIANTS,
 } from "@diagram-tool/domain/constants";
 import type { DiagramIconKey } from "@diagram-tool/domain/constants";
@@ -15,6 +16,11 @@ import type { DiagramIconKey } from "@diagram-tool/domain/constants";
  * `emoji` field accepts any glyph, and a palette that offered "any glyph" would
  * offer nothing. These six are the roles a diagram keeps needing that no brand
  * mark covers — the fallback the schema designed for, not a gap in it.
+ *
+ * The monogram tile at the end is the same argument taken one step further: an
+ * emoji names a role, and some things are a named product with no logo here.
+ * One card, because what distinguishes those tiles is the two characters the
+ * author types, not a choice the palette could have made for them.
  */
 
 export interface BrandTile {
@@ -37,7 +43,24 @@ export interface EmojiTile {
   emoji: string;
 }
 
-export type PaletteTile = BrandTile | EmojiTile;
+export interface InitialsTile {
+  kind: "initials";
+  key: string;
+  label: string;
+  /** The monogram a freshly placed tile carries until it is typed over. */
+  initials: string;
+  /** Fill for the letters on a light tile — the call the renderer makes. */
+  fill: string;
+}
+
+export type PaletteTile = BrandTile | EmojiTile | InitialsTile;
+
+/** The mark field a placed tile writes. Exactly one, chosen by its kind. */
+export const markOf = (tile: PaletteTile): Record<string, string> => {
+  if (tile.kind === "icon") return { iconKey: tile.iconKey };
+  if (tile.kind === "initials") return { initials: tile.initials };
+  return { emoji: tile.emoji };
+};
 
 /**
  * Names `simple-icons` records that read wrong as a node label.
@@ -76,7 +99,17 @@ const EMOJI_TILES: EmojiTile[] = [
   { kind: "emoji", key: "storage", label: "Storage", emoji: "🗄️" },
 ];
 
-export const PALETTE_TILES: PaletteTile[] = [...BRAND_TILES, ...EMOJI_TILES];
+const INITIALS_TILES: InitialsTile[] = [
+  {
+    kind: "initials",
+    key: "custom",
+    label: "Custom",
+    initials: "AB",
+    fill: resolveMonogramFill(TILE_VARIANTS.LIGHT),
+  },
+];
+
+export const PALETTE_TILES: PaletteTile[] = [...BRAND_TILES, ...EMOJI_TILES, ...INITIALS_TILES];
 
 /**
  * The drag payload a palette card carries: the tile's key, nothing else.

@@ -68,15 +68,20 @@ without drawing a box around them.
   "orm / migrations".
 - \`tile: "dark"\` for only 2-3 key nodes; everything else stays light.
 
-Every node shows one mark, and needs either an \`iconKey\` or an \`emoji\`. A node
-with neither is rejected; a node carrying both draws the icon.
+Every node shows one mark, and needs an \`iconKey\`, \`initials\` or an \`emoji\`. A
+node with none of the three is rejected; when a node carries more than one, the
+icon is drawn, then the initials.
 
 - \`iconKey\`: the technology's real logo, drawn in its brand colour. Prefer it
   whenever the technology has a key below — a logo is recognised faster than any
   glyph, and it is what makes a diagram look deliberate. Do not invent a key:
   anything outside this list is rejected. The available keys are exactly:
   ${DIAGRAM_ICON_KEYS.join(", ")}.
-- \`emoji\`: one evocative, distinct glyph, for everything with no key above —
+- \`initials\`: at most ${DIAGRAM_LIMITS.INITIALS_MAX} characters, for a named
+  product with no logo in the list above — "ST" for Stripe, "K8" for Kubernetes.
+  Drawn exactly as written, so type the capitals you want to see. Prefer it over
+  an emoji whenever the thing has a name a reader would recognise.
+- \`emoji\`: one evocative, distinct glyph, for a role rather than a product —
   human actors, generic clients, queues, concepts. Client, server, database,
   auth, packages, runtime, cloud and tooling all read better with different
   glyphs.
@@ -133,15 +138,15 @@ edge connects tiles, never boundaries or groups.
   connect a node to itself.
 - Every group member exists, belongs to no other group, and the nesting has no
   cycle.
-- Every node carries an \`iconKey\` from the list above or an \`emoji\`.
+- Every node carries an \`iconKey\` from the list above, \`initials\`, or an \`emoji\`.
 
 ## Check before answering
 
 - Is there any \`x\`, \`y\`, \`w\`, \`h\`, \`out\`, \`inn\` or \`layout\` in your answer?
   Delete it.
 - Does every \`edge.from\` and \`edge.to\` name a node that exists?
-- Does every node have an \`iconKey\` or an \`emoji\`, and is every \`iconKey\` one
-  of the keys listed above?
+- Does every node have an \`iconKey\`, \`initials\` or an \`emoji\`, and is every
+  \`iconKey\` one of the keys listed above?
 - Does every group hold at least one node and at most one boundary?
 - Is any \`name\` or \`sub\` longer than ${DIAGRAM_LIMITS.TEXT_MAX} characters? Abbreviate it.
 - Does the solid path read left to right through the whole system? That path is

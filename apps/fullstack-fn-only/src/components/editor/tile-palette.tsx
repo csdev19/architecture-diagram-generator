@@ -45,6 +45,10 @@ function TileThumbnail({ tile }: { tile: PaletteTile }) {
         <svg viewBox="0 0 24 24" className="size-[22px]" role="presentation">
           <path d={tile.path} fill={tile.fill} />
         </svg>
+      ) : tile.kind === "initials" ? (
+        <span className="text-[15px] leading-none font-bold" style={{ color: tile.fill }}>
+          {tile.initials}
+        </span>
       ) : (
         <span className="text-[19px] leading-none">{tile.emoji}</span>
       )}
@@ -87,7 +91,7 @@ function TileCard({
       <span className="min-w-0">
         <span className="block truncate text-[13px] font-medium text-ed-text">{tile.label}</span>
         <span className="block truncate font-mono text-[10.5px] text-ed-text-3">
-          {tile.kind === "icon" ? `iconKey: "${tile.iconKey}"` : "emoji"}
+          {tile.kind === "icon" ? `iconKey: "${tile.iconKey}"` : tile.kind}
         </span>
       </span>
     </button>
@@ -97,11 +101,12 @@ function TileCard({
 export function TilePalette({ selectedKey, onSelect }: TilePaletteProps) {
   const [query, setQuery] = useState("");
 
-  const { brands, emojis, total } = useMemo(() => {
+  const { brands, emojis, customs, total } = useMemo(() => {
     const visible = PALETTE_TILES.filter((tile) => matchesQuery(tile, query));
     return {
       brands: visible.filter((tile) => tile.kind === "icon"),
       emojis: visible.filter((tile) => tile.kind === "emoji"),
+      customs: visible.filter((tile) => tile.kind === "initials"),
       total: visible.length,
     };
   }, [query]);
@@ -152,8 +157,8 @@ export function TilePalette({ selectedKey, onSelect }: TilePaletteProps) {
       <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-4 py-3">
         {total === 0 ? (
           <p className="text-[12.5px] text-ed-text-2">
-            No tile matches that. Only {BRAND_TILE_COUNT} brand logos exist — anything else uses an
-            emoji.
+            No tile matches that. Only {BRAND_TILE_COUNT} brand logos exist — anything else is a
+            monogram or an emoji.
           </p>
         ) : null}
 
@@ -174,6 +179,22 @@ export function TilePalette({ selectedKey, onSelect }: TilePaletteProps) {
         ) : null}
 
         {emojis.map((tile) => (
+          <TileCard
+            key={tile.key}
+            tile={tile}
+            selected={tile.key === selectedKey}
+            onSelect={() => onSelect(tile.key)}
+          />
+        ))}
+
+        {customs.length > 0 ? (
+          <div className="flex items-center gap-2 pt-3 pb-1">
+            <MicroLabel>No logo for it</MicroLabel>
+            <span className="h-px flex-1 bg-ed-border" />
+          </div>
+        ) : null}
+
+        {customs.map((tile) => (
           <TileCard
             key={tile.key}
             tile={tile}

@@ -147,6 +147,82 @@ describe("renderSVG", () => {
     });
   });
 
+  describe("initials", () => {
+    /**
+     * The one `<text>` element whose content is `glyph`.
+     *
+     * Asserting on the whole document would pass on a fill or a coordinate that
+     * belongs to the node's name instead — every tile already carries text at
+     * the same x, in one of the same two colours.
+     */
+    const markElement = (svg: string, glyph: string): string =>
+      svg.match(
+        new RegExp(`<text[^>]*>${glyph.replace(/[.*+?^$()|[\]\\]/g, "\\$&")}</text>`),
+      )?.[0] ?? "";
+
+    it("draws the letters when a node names initials", () => {
+      const svg = render(singleNode({ emoji: undefined, initials: "ST" }));
+
+      expect(svg).toContain(">ST</text>");
+    });
+
+    it("lets an iconKey win over initials on the same node", () => {
+      const svg = render(singleNode({ emoji: undefined, initials: "HO", iconKey: "hono" }));
+
+      expect(svg).toContain(DIAGRAM_ICONS.hono.path);
+      expect(svg, "the monogram is still drawn behind the mark").not.toContain(">HO</text>");
+    });
+
+    it("lets initials win over an emoji on the same node", () => {
+      const svg = render(singleNode({ emoji: "🔥", initials: "ST" }));
+
+      expect(svg).toContain(">ST</text>");
+      expect(svg, "the emoji glyph is still drawn behind the monogram").not.toContain("🔥");
+    });
+
+    it("draws a monogram in the tile's own dark colour on a light tile", () => {
+      const svg = render(singleNode({ emoji: undefined, initials: "ST", tile: "light" }));
+
+      expect(markElement(svg, "ST")).toContain(`fill="${DIAGRAM_COLORS.TILE_DARK_FILL}"`);
+    });
+
+    it("draws a monogram in the tile's light colour on a dark tile", () => {
+      const svg = render(singleNode({ emoji: undefined, initials: "ST", tile: "dark" }));
+
+      // The tile itself is the dark fill, so the monogram has to be the other one.
+      expect(markElement(svg, "ST")).toContain(`fill="${DIAGRAM_COLORS.TILE_LIGHT_FILL}"`);
+    });
+
+    it("sets the monogram at the typography's initials size, not the emoji's", () => {
+      const svg = render(singleNode({ emoji: undefined, initials: "ST" }));
+
+      expect(svg).toContain(`font-size="${DIAGRAM_TYPOGRAPHY.INITIALS_SIZE}"`);
+      expect(svg).not.toContain(`font-size="${DIAGRAM_TYPOGRAPHY.EMOJI_SIZE}"`);
+    });
+
+    it("draws initials as they were authored rather than upper-casing them", () => {
+      const svg = render(singleNode({ emoji: undefined, initials: "Db" }));
+
+      expect(svg).toContain(">Db</text>");
+    });
+
+    it("escapes a monogram character that XML would read as markup", () => {
+      const svg = render(singleNode({ emoji: undefined, initials: "<3" }));
+
+      expect(svg).toContain(">&lt;3</text>");
+    });
+
+    it("centres the monogram on the tile", () => {
+      const svg = render(singleNode({ emoji: undefined, initials: "ST" }));
+
+      // The node sits at (350, 180) and the glyph is centred on that point.
+      const mark = markElement(svg, "ST");
+
+      expect(mark).toContain(`x="${num(350)}"`);
+      expect(mark).toContain('text-anchor="middle"');
+    });
+  });
+
   describe("edge styles", () => {
     const twoNodes = (style: "solid" | "dashed"): ResolvedDiagramInput => ({
       canvas: { w: 700, h: 360 },
