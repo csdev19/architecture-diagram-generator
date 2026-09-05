@@ -1,6 +1,11 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { EXAMPLE_DIAGRAM_DOCUMENT, diagramDocumentSchema } from "@diagram-tool/domain/schemas";
-import { DIAGRAM_SKETCH_PROMPT, resolveDiagram } from "@diagram-tool/domain/render";
+import {
+  DIAGRAM_REPOSITORY_PROMPTS,
+  DIAGRAM_SKETCH_PROMPT,
+  REPOSITORY_PROMPT_SHAPES,
+  resolveDiagram,
+} from "@diagram-tool/domain/render";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { EditorPage } from "../editor-page";
 
@@ -47,7 +52,14 @@ const boundaryById = (id: string) =>
   parsed().content.boundaries.find((boundary: { id: string }) => boundary.id === id);
 
 const openTab = (name: RegExp) => fireEvent.click(screen.getByRole("tab", { name }));
-const panel = () => within(screen.getByRole("tabpanel"));
+/**
+ * The side panel's body. Named, because the Prompt tab nests a second tablist
+ * whose active panel is a tabpanel too; the outer one is labelled by its tab.
+ */
+const panel = () =>
+  within(screen.getByRole("tabpanel", { name: /^(json|prompt|inspector|edges)/i }));
+/** The prompt source that is showing — Project or Image. The other is hidden. */
+const promptSource = () => within(screen.getByRole("tabpanel", { name: /^(project|image)$/i }));
 
 /** Presses and releases on a point, which is how something gets selected. */
 const clickAt = ({ x, y }: { x: number; y: number }) => {
@@ -133,7 +145,9 @@ describe("node inspector", () => {
     selectInside(at("api"));
     const before = parsed().layout;
 
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Gateway" } });
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Gateway" },
+    });
 
     expect(nodeById("api")?.name).toBe("Gateway");
     expect(parsed().layout).toEqual(before);
@@ -142,7 +156,9 @@ describe("node inspector", () => {
   it("stops the name at the schema's own limit", () => {
     render(<EditorPage />);
     selectInside(at("api"));
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "x".repeat(40) } });
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "x".repeat(40) },
+    });
 
     // A labelled field enforces the limit it knows. The textarea stays the
     // place where anything at all can be written — and reported.
@@ -159,7 +175,9 @@ describe("node inspector", () => {
     // Seeded rather than left blank, so the document stays valid.
     expect(nodeById("api")?.emoji).toBeTruthy();
 
-    fireEvent.change(screen.getByLabelText("Mark"), { target: { value: "react" } });
+    fireEvent.change(screen.getByLabelText("Mark"), {
+      target: { value: "react" },
+    });
     expect(nodeById("api")?.iconKey).toBe("react");
     expect(nodeById("api")).not.toHaveProperty("emoji");
   });
@@ -177,7 +195,9 @@ describe("node inspector", () => {
     render(<EditorPage />);
     selectInside(at("api"));
 
-    fireEvent.change(screen.getByLabelText("Mark"), { target: { value: "initials" } });
+    fireEvent.change(screen.getByLabelText("Mark"), {
+      target: { value: "initials" },
+    });
 
     // Seeded rather than left blank: an empty mark is a document the schema
     // rejects, and the author asked to change the mark, not to break the file.
@@ -191,7 +211,9 @@ describe("node inspector", () => {
     selectInside(at("api"));
     expect(screen.queryByLabelText("Initials")).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Mark"), { target: { value: "initials" } });
+    fireEvent.change(screen.getByLabelText("Mark"), {
+      target: { value: "initials" },
+    });
     expect(screen.getByLabelText("Initials")).toBeInTheDocument();
     expect(screen.queryByLabelText("Emoji")).not.toBeInTheDocument();
   });
@@ -199,9 +221,13 @@ describe("node inspector", () => {
   it("stops a monogram at the two characters the tile can hold", () => {
     render(<EditorPage />);
     selectInside(at("api"));
-    fireEvent.change(screen.getByLabelText("Mark"), { target: { value: "initials" } });
+    fireEvent.change(screen.getByLabelText("Mark"), {
+      target: { value: "initials" },
+    });
 
-    fireEvent.change(screen.getByLabelText("Initials"), { target: { value: "STR" } });
+    fireEvent.change(screen.getByLabelText("Initials"), {
+      target: { value: "STR" },
+    });
 
     expect(nodeById("api")?.initials).toBe("ST");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -294,18 +320,87 @@ describe("prompt panel", () => {
     render(<EditorPage />);
     openTab(/prompt/i);
 
-    expect(panel().getByRole("button", { name: /copy prompt/i })).toBeInTheDocument();
+    expect(promptSource().getByRole("button", { name: /copy prompt/i })).toBeInTheDocument();
   });
 
-  it("copies the sketch prompt rather than the document", async () => {
+  it("opens on the project prompt, with the image prompt behind a second tab", () => {
+    // A repository is the input most people have at hand — the whiteboard photo
+    // is the exception — so the tab a person lands on is the one for their repo.
+    render(<EditorPage />);
+    openTab(/prompt/i);
+
+    expect(screen.getByRole("tab", { name: /project/i })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: /image/i })).toHaveAttribute("aria-selected", "false");
+  });
+
+  it("copies the runtime-flow repository prompt by default", async () => {
     const written = stubClipboard();
     render(<EditorPage />);
     openTab(/prompt/i);
 
-    fireEvent.click(panel().getByRole("button", { name: /copy prompt/i }));
+    fireEvent.click(promptSource().getByRole("button", { name: /copy prompt/i }));
+    await screen.findByRole("button", { name: /copied/i });
+
+    expect(written[0]).toBe(
+      DIAGRAM_REPOSITORY_PROMPTS[REPOSITORY_PROMPT_SHAPES.RUNTIME_FLOW].prompt,
+    );
+  });
+
+  it("copies the shape that is picked, and explains it before the copy", async () => {
+    // The selector is a set of choices, not a set of panels: picking one swaps
+    // the prompt text and says in one line what that shape draws.
+    const written = stubClipboard();
+    const fullStack = DIAGRAM_REPOSITORY_PROMPTS[REPOSITORY_PROMPT_SHAPES.FULL_STACK];
+    render(<EditorPage />);
+    openTab(/prompt/i);
+
+    fireEvent.click(promptSource().getByRole("radio", { name: /full stack/i }));
+
+    expect(promptSource().getByRole("radio", { name: /full stack/i })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(promptSource().getByText(fullStack.blurb)).toBeInTheDocument();
+
+    fireEvent.click(promptSource().getByRole("button", { name: /copy prompt/i }));
+    await screen.findByRole("button", { name: /copied/i });
+
+    expect(written[0]).toBe(fullStack.prompt);
+  });
+
+  it("offers every repository shape with its own explanation", () => {
+    render(<EditorPage />);
+    openTab(/prompt/i);
+
+    for (const shape of Object.values(REPOSITORY_PROMPT_SHAPES)) {
+      const { label } = DIAGRAM_REPOSITORY_PROMPTS[shape];
+      expect(promptSource().getByRole("radio", { name: label })).toBeInTheDocument();
+    }
+  });
+
+  it("copies the sketch prompt from the Image tab", async () => {
+    const written = stubClipboard();
+    render(<EditorPage />);
+    openTab(/prompt/i);
+    openTab(/image/i);
+
+    fireEvent.click(promptSource().getByRole("button", { name: /copy prompt/i }));
     await screen.findByRole("button", { name: /copied/i });
 
     expect(written[0]).toBe(DIAGRAM_SKETCH_PROMPT);
+  });
+
+  it("reaches the Image tab with an arrow key", () => {
+    // The inner tablist uses roving tabindex like the outer one, so without
+    // arrow handling the sketch prompt would be mouse-only.
+    render(<EditorPage />);
+    openTab(/prompt/i);
+    const project = screen.getByRole("tab", { name: /project/i });
+    project.focus();
+
+    fireEvent.keyDown(project, { key: "ArrowRight" });
+
+    expect(screen.getByRole("tab", { name: /image/i })).toHaveAttribute("aria-selected", "true");
   });
 
   it("lets the button offer to copy again", async () => {
@@ -313,7 +408,7 @@ describe("prompt panel", () => {
     render(<EditorPage />);
     openTab(/prompt/i);
 
-    fireEvent.click(panel().getByRole("button", { name: /copy prompt/i }));
+    fireEvent.click(promptSource().getByRole("button", { name: /copy prompt/i }));
     await screen.findByRole("button", { name: /copied/i });
 
     // Stuck on "Copied", a second copy gives no feedback at all and the author
@@ -329,25 +424,38 @@ describe("prompt panel", () => {
     render(<EditorPage />);
     openTab(/prompt/i);
 
-    fireEvent.click(panel().getByRole("button", { name: /copy prompt/i }));
+    fireEvent.click(promptSource().getByRole("button", { name: /copy prompt/i }));
 
     await screen.findByRole("alert");
-    expect(panel().queryByRole("button", { name: /copied/i })).not.toBeInTheDocument();
+    expect(promptSource().queryByRole("button", { name: /copied/i })).not.toBeInTheDocument();
   });
 
-  it("tells the reader how the generated JSON gets back into the editor", () => {
+  it("tells the reader how the generated JSON gets back into the editor, on both tabs", () => {
     // A prompt with no round trip is a dead end: the person has the JSON in a
     // chat window and no idea that the JSON tab is where it goes.
     render(<EditorPage />);
     openTab(/prompt/i);
+    expect(promptSource().getByText(/JSON tab/i)).toBeInTheDocument();
 
-    expect(panel().getByText(/JSON tab/i)).toBeInTheDocument();
+    openTab(/image/i);
+    expect(promptSource().getByText(/JSON tab/i)).toBeInTheDocument();
+  });
+
+  it("tells the reader that the repository never leaves their machine", () => {
+    // The whole appeal of the project prompt is that a private codebase is read
+    // where it sits. If the panel does not say so, nobody trusts it enough to try.
+    render(<EditorPage />);
+    openTab(/prompt/i);
+
+    expect(promptSource().getByText(/your machine/i)).toBeInTheDocument();
   });
 
   it("leaves the document untouched — the panel only reads", () => {
     render(<EditorPage />);
     const before = documentText();
     openTab(/prompt/i);
+    fireEvent.click(promptSource().getByRole("radio", { name: /layers/i }));
+    openTab(/image/i);
 
     expect(documentText()).toBe(before);
   });
@@ -383,9 +491,21 @@ describe("boundaries", () => {
   /** Drags a box out on the canvas, which is how a boundary is made. */
   const drawBox = (from: { x: number; y: number }, to: { x: number; y: number }) => {
     pickTool(/drag a box around/i);
-    fireEvent.pointerDown(canvas(), { clientX: from.x, clientY: from.y, pointerId: 1 });
-    fireEvent.pointerMove(canvas(), { clientX: to.x, clientY: to.y, pointerId: 1 });
-    fireEvent.pointerUp(canvas(), { clientX: to.x, clientY: to.y, pointerId: 1 });
+    fireEvent.pointerDown(canvas(), {
+      clientX: from.x,
+      clientY: from.y,
+      pointerId: 1,
+    });
+    fireEvent.pointerMove(canvas(), {
+      clientX: to.x,
+      clientY: to.y,
+      pointerId: 1,
+    });
+    fireEvent.pointerUp(canvas(), {
+      clientX: to.x,
+      clientY: to.y,
+      pointerId: 1,
+    });
   };
 
   const EMPTY_BOX = { from: { x: -900, y: 500 }, to: { x: -500, y: 800 } };
@@ -402,7 +522,10 @@ describe("boundaries", () => {
       tone: "neutral",
     });
     // A box drawn on its own belongs to no group, so it carries its rectangle.
-    expect(parsed().layout.boundaries.boundary).toMatchObject({ w: 403, h: 299 });
+    expect(parsed().layout.boundaries.boundary).toMatchObject({
+      w: 403,
+      h: 299,
+    });
     expect(screen.getByRole("region", { name: /boundary boundary/i })).toBeInTheDocument();
   });
 
@@ -410,7 +533,10 @@ describe("boundaries", () => {
     render(<EditorPage />);
     drawBox(EMPTY_BOX.to, EMPTY_BOX.from);
 
-    expect(parsed().layout.boundaries.boundary).toMatchObject({ w: 403, h: 299 });
+    expect(parsed().layout.boundaries.boundary).toMatchObject({
+      w: 403,
+      h: 299,
+    });
   });
 
   it("ignores a drag too small to hold anything", () => {
@@ -425,17 +551,24 @@ describe("boundaries", () => {
     render(<EditorPage />);
     drawBox(EMPTY_BOX.from, EMPTY_BOX.to);
 
-    fireEvent.change(screen.getByLabelText("Label"), { target: { value: "DATA" } });
+    fireEvent.change(screen.getByLabelText("Label"), {
+      target: { value: "DATA" },
+    });
     fireEvent.click(screen.getByRole("button", { name: /external services and data/i }));
 
-    expect(parsed().content.boundaries.at(-1)).toMatchObject({ label: "DATA", tone: "green" });
+    expect(parsed().content.boundaries.at(-1)).toMatchObject({
+      label: "DATA",
+      tone: "green",
+    });
   });
 
   it("offers a rectangle for a boundary that was placed", () => {
     render(<EditorPage />);
     drawBox(EMPTY_BOX.from, EMPTY_BOX.to);
 
-    fireEvent.change(screen.getByLabelText("Boundary width"), { target: { value: "500" } });
+    fireEvent.change(screen.getByLabelText("Boundary width"), {
+      target: { value: "500" },
+    });
 
     expect(parsed().layout.boundaries.boundary).toMatchObject({ w: 500 });
     expect(screen.queryByRole("group", { name: /padding/i })).not.toBeInTheDocument();
@@ -497,7 +630,9 @@ describe("edge tools", () => {
   it("edits an edge label", () => {
     render(<EditorPage />);
     openTab(/edges/i);
-    fireEvent.change(screen.getByLabelText("Label 1"), { target: { value: "HTTP/2" } });
+    fireEvent.change(screen.getByLabelText("Label 1"), {
+      target: { value: "HTTP/2" },
+    });
 
     expect(parsed().content.edges[0]?.label).toBe("HTTP/2");
   });
@@ -516,7 +651,9 @@ describe("edge tools", () => {
   it("re-anchors an edge into layout, leaving the relation alone", () => {
     render(<EditorPage />);
     openTab(/edges/i);
-    fireEvent.change(screen.getByLabelText("Out 1"), { target: { value: "b" } });
+    fireEvent.change(screen.getByLabelText("Out 1"), {
+      target: { value: "b" },
+    });
 
     // Which side a line leaves is composition, so it belongs in layout — the
     // edge in `content` still says only what connects to what.
@@ -543,7 +680,10 @@ describe("edge tools", () => {
     clickAt(at("db"));
 
     expect(parsed().content.edges).toHaveLength(4);
-    expect(parsed().content.edges.at(-1)).toMatchObject({ from: "web", to: "db" });
+    expect(parsed().content.edges.at(-1)).toMatchObject({
+      from: "web",
+      to: "db",
+    });
     // Web is left of D1, so the line leaves the right and arrives on the left.
     expect(parsed().layout.edges["web-db"]).toEqual({ out: "r", inn: "l" });
     expect(panel().getByText("web → db")).toBeInTheDocument();
@@ -573,8 +713,16 @@ describe("edge tools", () => {
     render(<EditorPage />);
     pickTool(/connect them/i);
 
-    fireEvent.pointerDown(canvas(), { clientX: at("api").x, clientY: at("api").y, pointerId: 1 });
-    fireEvent.pointerMove(canvas(), { clientX: 500, clientY: 300, pointerId: 1 });
+    fireEvent.pointerDown(canvas(), {
+      clientX: at("api").x,
+      clientY: at("api").y,
+      pointerId: 1,
+    });
+    fireEvent.pointerMove(canvas(), {
+      clientX: 500,
+      clientY: 300,
+      pointerId: 1,
+    });
 
     expect(parsed().layout?.nodes?.api).toBeUndefined();
   });
