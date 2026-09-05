@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.3.0](https://github.com/csdev19/architecture-diagram-generator/compare/v0.2.1...v0.3.0) (2026-09-05)
+
+
+### Features
+
+* **domain:** add icon:add, which turns any svg into a registry art entry ([8734740](https://github.com/csdev19/architecture-diagram-generator/commit/87347409c29aa1d50c62b85c1ec5cefb1c82edfe))
+* **domain:** add tanstack and effect to the brand-mark registry ([bc70030](https://github.com/csdev19/architecture-diagram-generator/commit/bc700304a870d8a0b57cf1c162e0130e29f7d8fd))
+* **domain:** draw brand marks in colour, with a mono switch ([4eb0146](https://github.com/csdev19/architecture-diagram-generator/commit/4eb01467ce1d42eadbb28a4cef6f180653c92640))
+* **domain:** draw every brand mark through one helper that knows about colour art ([d5f1421](https://github.com/csdev19/architecture-diagram-generator/commit/d5f14214d5d0623ecd4ac073c34aafe5394c8044))
+* **domain:** give hono, angular and tanstack query their colour art ([7312eb6](https://github.com/csdev19/architecture-diagram-generator/commit/7312eb6b595c9d8c5dbb7b060ee8cbf836326e21))
+* **domain:** let a document choose colour or mono for its brand marks ([df2f3b8](https://github.com/csdev19/architecture-diagram-generator/commit/df2f3b8a2a86daba956ca8b829f31511aa7181d1))
+* **editor:** draw palette thumbnails with the renderer's mark helper ([7ae6e6e](https://github.com/csdev19/architecture-diagram-generator/commit/7ae6e6ed6c315ca135ced435ce50760d8ec62886))
+* **editor:** export a PNG with no paper or grid behind it ([5c22d2c](https://github.com/csdev19/architecture-diagram-generator/commit/5c22d2cabeb53ff4269ac2a5a5f34c538419483e))
+* **editor:** export a PNG with no paper or grid behind it ([740508d](https://github.com/csdev19/architecture-diagram-generator/commit/740508d843d2398efc89a8bd9d162b888aa3594f))
+* **editor:** let the author switch brand marks between colour and mono ([1230207](https://github.com/csdev19/architecture-diagram-generator/commit/1230207dea610428e64e68963868f8dd7d7ff9b3))
+* **editor:** navigate the canvas the way Excalidraw does ([fd3f56e](https://github.com/csdev19/architecture-diagram-generator/commit/fd3f56eee9d7a915c21efd50947ff96430499a45))
+* **editor:** pan the canvas with the wheel, a frame at a time ([f4c6402](https://github.com/csdev19/architecture-diagram-generator/commit/f4c6402a15096fcb5b57247b7d0b0781b776e14f))
+* **editor:** zoom the canvas on a pinch rather than on every wheel ([2ff2571](https://github.com/csdev19/architecture-diagram-generator/commit/2ff2571f7444536b3be65aa4750c8a8a58bf0ea4))
+
+
+### Bug Fixes
+
+* **domain:** close the curation gaps a fourth icon would fall into ([eac52f4](https://github.com/csdev19/architecture-diagram-generator/commit/eac52f46a3c642e2f8e19a4eba5995f58ce019a2))
+* **domain:** drop the sort that guarded a bug that cannot happen, add a reference-integrity guard ([d9de7bb](https://github.com/csdev19/architecture-diagram-generator/commit/d9de7bba64081d08005310e79dbee8ec1fef3038))
+* **domain:** renumber single-quoted ids too, and assert no id ships unprefixed ([dae4676](https://github.com/csdev19/architecture-diagram-generator/commit/dae46760aeda544eb1ad8770808316604b0b8845))
+* **editor:** hold a dragged tile where it was grabbed, not by its centre ([019e7c3](https://github.com/csdev19/architecture-diagram-generator/commit/019e7c3fdc876eebeeb8e1842f4a5f6d19724b1e))
+* **editor:** keep a panned camera from snapping back, and close review gaps ([61f9e62](https://github.com/csdev19/architecture-diagram-generator/commit/61f9e624d35ba6bc00d4a14072a8a8ee2c3708bc))
+
+
+### Code Refactoring
+
+* **domain:** give every brand mark a mono half, so colour art has somewhere to go ([80449e6](https://github.com/csdev19/architecture-diagram-generator/commit/80449e69ba4e172abbc44d119470d9e4c5551697))
+
 ## [0.2.1](https://github.com/csdev19/architecture-diagram-generator/compare/v0.2.0...v0.2.1) (2026-09-04)
 
 
