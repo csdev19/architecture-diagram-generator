@@ -1,0 +1,42 @@
+{
+  "version": 2,
+  "content": {
+    "title": "cloudflare-neon-stack",
+    "nodes": [
+      {
+        "id": "tanstack-start",
+        "name": "TanStack Start",
+        "sub": "web framework",
+        "iconKey": "typescript"
+      },
+      { "id": "hono", "name": "Hono", "sub": "api service", "iconKey": "hono" },
+      { "id": "drizzle", "name": "Drizzle ORM", "sub": "orm", "iconKey": "drizzle" },
+      { "id": "postgres", "name": "Postgres", "sub": "database", "iconKey": "postgresql" },
+      { "id": "turborepo", "name": "Turborepo", "sub": "monorepo", "iconKey": "turborepo" },
+      { "id": "unknown-tool", "name": "?", "sub": "tool", "initials": "?" },
+      { "id": "github", "name": "GitHub", "sub": "source control", "iconKey": "github" },
+      { "id": "zod", "name": "Zod", "sub": "validation", "iconKey": "zod" },
+      { "id": "effect", "name": "Effect", "sub": "tooling", "initials": "E" }
+    ],
+    "boundaries": [
+      { "id": "cloudflare-web", "label": "Cloudflare", "tone": "orange", "padding": "normal" },
+      { "id": "cloudflare-api", "label": "Cloudflare", "tone": "orange", "padding": "normal" },
+      { "id": "neon", "label": "Neon", "tone": "green", "padding": "normal" },
+      { "id": "tools", "label": "Tools", "tone": "blue", "padding": "normal" }
+    ],
+    "groups": [
+      { "id": "web-group", "members": ["cloudflare-web", "tanstack-start"] },
+      { "id": "api-group", "members": ["cloudflare-api", "hono", "drizzle"] },
+      { "id": "database-group", "members": ["neon", "postgres"] },
+      {
+        "id": "tools-group",
+        "members": ["tools", "turborepo", "unknown-tool", "github", "zod", "effect"]
+      }
+    ],
+    "edges": [
+      { "from": "postgres", "to": "drizzle", "style": "solid" },
+      { "from": "drizzle", "to": "hono", "style": "solid" },
+      { "from": "hono", "to": "tanstack-start", "style": "solid" }
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "sketch": "A notebook page, photographed at an angle. Angular sits on the left, outside a dashed rectangle titled AWS; NestJS and Postgres sit inside it, in that order. A double-headed arrow joins Angular and NestJS, and a single arrow runs from Postgres into NestJS.",
+  "readingOrder": ["angular", "nestjs", "postgres"],
+  "rows": [["angular", "nestjs", "postgres"]],
+  "inside": { "aws-boundary": ["nestjs", "postgres"] },
+  "outside": { "aws-boundary": ["angular"] },
+  "misreadings": [
+    "The double-headed arrow between Angular and NestJS became two opposed edges rather than one, which draws two lines on top of each other.",
+    "The AWS rectangle is drawn with a broken line on the page and came back solid."
+  ]
+}

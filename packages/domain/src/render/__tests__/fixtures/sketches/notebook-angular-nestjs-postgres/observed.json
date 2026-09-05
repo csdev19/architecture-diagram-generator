@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "content": {
+    "title": "angular-nestjs-postgres",
+    "nodes": [
+      { "id": "angular", "name": "Angular", "sub": "client", "iconKey": "angular" },
+      { "id": "nestjs", "name": "NestJS", "sub": "api service", "iconKey": "nestjs" },
+      { "id": "postgres", "name": "Postgres", "sub": "database", "iconKey": "postgresql" }
+    ],
+    "boundaries": [{ "id": "aws-boundary", "label": "AWS", "tone": "orange", "padding": "normal" }],
+    "groups": [{ "id": "aws", "members": ["aws-boundary", "nestjs", "postgres"] }],
+    "edges": [
+      { "from": "angular", "to": "nestjs", "style": "solid" },
+      { "from": "nestjs", "to": "angular", "style": "solid" },
+      { "from": "postgres", "to": "nestjs", "style": "solid" }
+    ]
+  }
+}

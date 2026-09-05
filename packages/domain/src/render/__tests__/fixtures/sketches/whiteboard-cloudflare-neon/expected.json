@@ -1,0 +1,22 @@
+{
+  "sketch": "A whiteboard. Three titled boxes across the top — CLOUDFLARE holding TS, CLOUDFLARE holding HO and D, NEON holding PG — wired right to left by three arrows. A TOOLS band underneath holds five tiles with no lines between them: T, O, GH, Z and E.",
+  "readingOrder": ["tanstack-start", "hono", "drizzle", "postgres"],
+  "rows": [
+    ["tanstack-start", "hono", "drizzle", "postgres"],
+    ["turborepo", "unknown-tool", "github", "zod", "effect"]
+  ],
+  "inside": {
+    "cloudflare-web": ["tanstack-start"],
+    "cloudflare-api": ["hono", "drizzle"],
+    "neon": ["postgres"],
+    "tools": ["turborepo", "unknown-tool", "github", "zod", "effect"]
+  },
+  "outside": {
+    "cloudflare-api": ["tanstack-start", "postgres"],
+    "tools": ["tanstack-start", "hono", "drizzle", "postgres"]
+  },
+  "below": ["turborepo", "unknown-tool", "github", "zod", "effect"],
+  "misreadings": [
+    "The tool tile — a box holding the letter O over a word reading OXUNT, almost certainly oxlint — became a node named `?` carrying `?` as its monogram, which throws away the one letter that was legible."
+  ]
+}

@@ -63,6 +63,25 @@ drain, so that level fell back to declaration order. It happened to look right.
 - Running `bun test` inside `packages/domain` writes a duplicate key into
   `render.test.ts.snap` — the snapshot was authored by Vitest, whose key format
   differs. Use `bun run test`.
-- No fixture suite yet. These two sketches, and the one from the previous
-  review, are the obvious first cases: an image, the document a model returned
-  from it, and the reviewed facts that document must satisfy.
+- No model-backed evaluation yet. Whether a model _reads_ a sketch correctly has
+  a different answer every run and needs an API key to ask, so it is a scorecard
+  rather than a test, and it belongs with the generation layer in
+  [the AI consumption design](../specs/2026-09-03-ai-diagram-consumption-design.md).
+  The recordings collected below are its corpus.
+
+## What is now covered
+
+`packages/domain/src/render/__tests__/fixtures/sketches/` holds one directory
+per photographed sketch: the image, the document a model actually returned from
+it, and the reviewed facts about the picture that document must be drawn as.
+`sketch-fixtures.test.ts` resolves each recording and checks reading order,
+rows, the band, boundary containment and overlap.
+
+Both sketches from this review are in it, and both fail on the commit before the
+fix — with `expected [ 'angular', 'postgres', 'nestjs' ] to deeply equal
+[ 'angular', 'nestjs', 'postgres' ]`, which is the bug stated in one line.
+
+A recording is never edited. A model's misreading stays in the file and is
+written down as prose under `misreadings`, asserted by nothing: the suite's
+question is what this project draws from what a model returns, not whether the
+model was right.
