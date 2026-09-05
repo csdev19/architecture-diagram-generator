@@ -1,6 +1,31 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorPage } from "../editor-page";
+
+/**
+ * What the export was handed, captured rather than rasterised.
+ *
+ * jsdom implements no canvas, so `downloadSvgAsPng` cannot run here — and it is
+ * not the interesting half anyway. What each menu item asks the renderer for is,
+ * and that is a string this can read.
+ */
+const exported: { svg: string; filename: string }[] = [];
+
+vi.mock("@/lib/export-png", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/export-png")>()),
+  downloadSvgAsPng: (svg: string, filename: string) => {
+    exported.push({ svg, filename });
+    return Promise.resolve();
+  },
+}));
+
+/** Opens the File menu and clicks one of its items. */
+const chooseFileItem = (name: string | RegExp) => {
+  fireEvent.click(screen.getByRole("button", { name: "File" }));
+  // An exact string where the two PNG labels share a prefix: a regex that
+  // matched "Export PNG 2" would find both and Testing Library would throw.
+  fireEvent.click(screen.getByRole("menuitem", { name }));
+};
 
 /**
  * The smoke test that proves the app's test rig works at all: React, jsdom, the
@@ -51,12 +76,49 @@ describe("EditorPage", () => {
     expect(screen.getByRole("banner")).not.toContainElement(byline);
   });
 
-  it("offers both exports from the File menu once the document is valid", () => {
+  it("offers every export from the File menu once the document is valid", () => {
     render(<EditorPage />);
     fireEvent.click(screen.getByRole("button", { name: "File" }));
 
     expect(screen.getByRole("menuitem", { name: /download svg/i })).toBeEnabled();
-    expect(screen.getByRole("menuitem", { name: /export png/i })).toBeEnabled();
+    expect(screen.getByRole("menuitem", { name: "Export PNG 2×" })).toBeEnabled();
+    expect(screen.getByRole("menuitem", { name: /transparent/i })).toBeEnabled();
+  });
+
+  describe("exporting a PNG", () => {
+    beforeEach(() => {
+      exported.length = 0;
+    });
+
+    it("paints the paper and the grid into the ordinary export", () => {
+      render(<EditorPage />);
+
+      chooseFileItem("Export PNG 2×");
+
+      return waitFor(() => {
+        expect(exported).toHaveLength(1);
+        expect(exported[0]?.filename).toBe("payments@2x.png");
+        // The grid is painted by a rect filled with the pattern, so its
+        // reference is the tell that the background layer was drawn at all.
+        expect(exported[0]?.svg).toContain("url(#diagram-grid)");
+      });
+    });
+
+    it("leaves the paper and the grid out of a transparent export", () => {
+      render(<EditorPage />);
+
+      chooseFileItem(/transparent/i);
+
+      return waitFor(() => {
+        expect(exported).toHaveLength(1);
+        // A different name, so exporting both does not overwrite one with the other.
+        expect(exported[0]?.filename).toBe("payments@2x-transparent.png");
+        // Paper and grid are one layer in the renderer, so dropping it drops both.
+        expect(exported[0]?.svg).not.toContain("url(#diagram-grid)");
+        // The drawing itself is untouched — this is a background switch, not a redraw.
+        expect(exported[0]?.svg).toContain("<text");
+      });
+    });
   });
 
   it("collapses the JSON panel and offers to bring it back", () => {

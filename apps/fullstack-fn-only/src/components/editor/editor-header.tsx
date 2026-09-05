@@ -53,7 +53,8 @@ interface EditorHeaderProps {
   onArrange: () => void;
   onOpenFile: () => void;
   onDownloadSvg: () => void;
-  onExportPng: () => void;
+  /** `true` leaves the paper and the grid out, for pasting onto something else. */
+  onExportPng: (transparent: boolean) => void;
   onSaveJson: () => void;
   canExport: boolean;
   jsonOpen: boolean;
@@ -212,7 +213,13 @@ export function EditorHeader({
             {
               label: "Export PNG 2×",
               icon: ImageIcon,
-              onSelect: onExportPng,
+              onSelect: () => onExportPng(false),
+              disabled: !canExport,
+            },
+            {
+              label: "Export PNG 2× (transparent)",
+              icon: ImageIcon,
+              onSelect: () => onExportPng(true),
               disabled: !canExport,
             },
           ]}
