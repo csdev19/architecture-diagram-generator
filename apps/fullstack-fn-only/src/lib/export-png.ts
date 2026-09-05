@@ -7,6 +7,33 @@
  * SVG string; turning that string into a raster is the browser's.
  */
 
+/** Two digits, because a date built from single digits does not sort. */
+const pad = (value: number): string => String(value).padStart(2, "0");
+
+/**
+ * The name a download carries: the diagram's title, then when it was taken.
+ *
+ * The stamp is local time rather than UTC — it is there so an author can tell
+ * two exports of the same diagram apart in their downloads folder, and the
+ * clock they are reading is their own. It lives here rather than in the domain
+ * because the renderer is deterministic by design, and a clock is the one thing
+ * that would make the same diagram produce two different outputs.
+ *
+ * The title is already safe to put in a filename: the panel that writes it
+ * accepts nothing else. Its edges are trimmed here rather than there, because
+ * a field that ate a trailing hyphen could never be typed through on the way to
+ * `my-flow` — the filename is the only place that hyphen is worth removing.
+ */
+export const exportFilename = (title: string, suffix: string): string => {
+  const stem = title.replace(/^-+|-+$/g, "") || "diagram";
+  const now = new Date();
+  const stamp =
+    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}` +
+    `-${pad(now.getHours())}${pad(now.getMinutes())}`;
+
+  return `${stem}-${stamp}${suffix}`;
+};
+
 /** Renders at 2x so the PNG stays sharp on a high-DPI screen and when scaled. */
 const PNG_SCALE = 2;
 

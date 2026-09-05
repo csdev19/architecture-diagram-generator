@@ -1,8 +1,13 @@
-import { CANVAS_TONES, CANVAS_TONE_INFO, ICON_STYLES } from "@diagram-tool/domain/constants";
+import {
+  CANVAS_TONES,
+  CANVAS_TONE_INFO,
+  DIAGRAM_LIMITS,
+  ICON_STYLES,
+} from "@diagram-tool/domain/constants";
 import type { CanvasTone, IconStyle } from "@diagram-tool/domain/constants";
 import type { ResolvedDiagram } from "@diagram-tool/domain/schemas";
 import { cn } from "@diagram-tool/web-ui";
-import { MicroLabel, MonoText } from "@/components/editor/editor-chrome";
+import { EditorInput, MicroLabel, MonoText } from "@/components/editor/editor-chrome";
 
 /**
  * The inspector with nothing selected: the diagram itself.
@@ -12,10 +17,28 @@ import { MicroLabel, MonoText } from "@/components/editor/editor-chrome";
  * why they live in the diagram and not in a theme.
  */
 
+/**
+ * Everything a title may hold.
+ *
+ * Every download is named after the title, so the field refuses what a
+ * filesystem would: no slashes to make a path, no colons for Windows, nothing
+ * a shell would read as syntax. A space becomes a hyphen because that is what
+ * someone means by it when they are naming a file, and restricting the field is
+ * kinder than silently rewriting the name at export time — the author sees
+ * exactly what their file will be called while they type it.
+ */
+const titleFromInput = (value: string): string =>
+  value
+    .replace(/\s+/g, "-")
+    .replace(/[^A-Za-z0-9_-]/g, "")
+    .replace(/-{2,}/g, "-")
+    .slice(0, DIAGRAM_LIMITS.TITLE_MAX);
+
 interface DiagramPanelProps {
   diagram: ResolvedDiagram;
   onBackgroundChange: (tone: CanvasTone) => void;
   onIconStyleChange: (style: IconStyle) => void;
+  onTitleChange: (title: string) => void;
 }
 
 /** The order they read in, plainest first. */
@@ -46,6 +69,7 @@ export function DiagramPanel({
   diagram,
   onBackgroundChange,
   onIconStyleChange,
+  onTitleChange,
 }: DiagramPanelProps) {
   const current = diagram.background ?? CANVAS_TONES.GREY;
   const iconStyle = diagram.iconStyle ?? ICON_STYLES.COLOR;
@@ -56,6 +80,23 @@ export function DiagramPanel({
         <MonoText className="text-[15px] font-medium text-ed-text">{diagram.title}</MonoText>
         <MicroLabel>Diagram</MicroLabel>
       </header>
+
+      <div className="space-y-1.5">
+        <label htmlFor="diagram-title" className="block text-[12.5px] font-medium text-ed-text">
+          Title
+        </label>
+
+        <EditorInput
+          id="diagram-title"
+          value={diagram.title}
+          maxLength={DIAGRAM_LIMITS.TITLE_MAX}
+          onChange={(event) => onTitleChange(titleFromInput(event.target.value))}
+        />
+
+        <span className="block text-[11.5px] text-ed-text-3">
+          Letters, numbers, hyphens. Every export is named after it.
+        </span>
+      </div>
 
       <div className="space-y-1.5">
         <span className="block text-[12.5px] font-medium text-ed-text">Paper</span>

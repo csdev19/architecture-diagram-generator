@@ -10,7 +10,7 @@ import {
   TILE_VARIANTS,
 } from "@diagram-tool/domain/constants";
 import type { BoundaryPadding } from "@diagram-tool/domain/constants";
-import { downloadConfig, downloadSvg, downloadSvgAsPng } from "@/lib/export-png";
+import { downloadConfig, downloadSvg, downloadSvgAsPng, exportFilename } from "@/lib/export-png";
 import { DiagramPanel } from "@/components/editor/diagram-panel";
 import { DiagramStage } from "@/components/editor/diagram-stage";
 import { EdgeTools } from "@/components/editor/edge-tools";
@@ -581,7 +581,7 @@ export function EditorPage() {
       const svg = renderSVG(shown.diagram, { background: !transparent });
       // The two exports carry different names so running both keeps both.
       const suffix = transparent ? "@2x-transparent" : "@2x";
-      await downloadSvgAsPng(svg, `${shown.diagram.title}${suffix}.png`);
+      await downloadSvgAsPng(svg, exportFilename(shown.diagram.title, `${suffix}.png`));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "The export failed");
     }
@@ -621,9 +621,12 @@ export function EditorPage() {
         canArrange={Boolean(parsed.shown)}
         onArrange={edit.arrangeNodes}
         onOpenFile={() => fileRef.current?.click()}
-        onSaveJson={() => downloadConfig(text, `${shown?.diagram.title ?? "diagram"}.json`)}
+        onSaveJson={() =>
+          downloadConfig(text, exportFilename(shown?.diagram.title ?? "diagram", ".json"))
+        }
         onDownloadSvg={() =>
-          shown && downloadSvg(renderSVG(shown.diagram), `${shown.diagram.title}.svg`)
+          shown &&
+          downloadSvg(renderSVG(shown.diagram), exportFilename(shown.diagram.title, ".svg"))
         }
         onExportPng={(transparent) => void handleExportPng(transparent)}
         canExport={Boolean(shown)}
@@ -720,6 +723,7 @@ export function EditorPage() {
               diagram={shown.diagram}
               onBackgroundChange={edit.setBackground}
               onIconStyleChange={edit.setIconStyle}
+              onTitleChange={edit.setTitle}
             />
           ) : null
         }
