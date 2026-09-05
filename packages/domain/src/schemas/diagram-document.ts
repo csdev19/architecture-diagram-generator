@@ -71,7 +71,12 @@ export const diagramGroupSchema = z.object({
 });
 
 export const diagramContentSchema = z.object({
-  title: z.string().trim().min(1, "Title is required").default("diagram"),
+  title: z
+    .string()
+    .trim()
+    .min(1, "Title is required")
+    .max(DIAGRAM_LIMITS.TITLE_MAX, `A title is at most ${DIAGRAM_LIMITS.TITLE_MAX} characters`)
+    .default("diagram"),
   /**
    * The paper tone. Content rather than layout: it is a semantic choice like a
    * boundary's tone, and arranging a diagram must never be able to lose it.
@@ -470,7 +475,7 @@ export type DiagramDocumentInput = z.input<typeof diagramDocumentSchema>;
 export const EXAMPLE_DIAGRAM_DOCUMENT: DiagramDocumentInput = {
   version: 2,
   content: {
-    title: "payments",
+    title: "diagram",
     nodes: [
       { id: "web", iconKey: "react", name: "Web", sub: "portal" },
       { id: "api", iconKey: "hono", name: "API", sub: "http server" },

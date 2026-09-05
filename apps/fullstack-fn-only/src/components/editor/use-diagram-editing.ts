@@ -12,6 +12,7 @@ import {
   removeNode,
   setBackground,
   setIconStyle,
+  setTitle,
   updateBoundaryFields,
   updateEdgeFields,
   updateNodeFields,
@@ -108,6 +109,7 @@ export const useDiagramEditing = (
 
       setBackground: (tone: CanvasTone) => setText((text) => setBackground(text, tone)),
       setIconStyle: (style: IconStyle) => setText((text) => setIconStyle(text, style)),
+      setTitle: (title: string) => setText((text) => setTitle(text, title)),
       arrangeNodes: () => setText(clearNodeLayout),
     };
   }, [setText, diagram]);

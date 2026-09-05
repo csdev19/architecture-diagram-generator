@@ -4,6 +4,7 @@ import {
   diagramDocumentSchema,
   validateDiagramDocument,
 } from "../diagram-document";
+import { DIAGRAM_LIMITS } from "../../constants/diagram";
 
 /**
  * The document under test is the spec's payments example: four nodes, one
@@ -30,6 +31,7 @@ const EDGES = [
 ];
 
 interface Overrides {
+  title?: unknown;
   nodes?: unknown;
   boundaries?: unknown;
   groups?: unknown;
@@ -70,6 +72,23 @@ describe("diagramDocumentSchema", () => {
     expect(parsed.content.boundaries[0]?.padding).toBe("normal");
     expect(parsed.content.edges[0]?.style).toBe("solid");
     expect(parsed.layout).toEqual({ nodes: {}, boundaries: {}, edges: {} });
+  });
+
+  it("rejects a title too long to be a filename", () => {
+    // Nothing draws the title, so the picture does not bound it. Every download
+    // is named after it, which does.
+    const parsed = diagramDocumentSchema.safeParse(
+      documentWith({ title: "x".repeat(DIAGRAM_LIMITS.TITLE_MAX + 1) }),
+    );
+
+    expect(parsed.success).toBe(false);
+    expect(parsed.error?.issues[0]?.message).toBe(
+      `A title is at most ${DIAGRAM_LIMITS.TITLE_MAX} characters`,
+    );
+    expect(
+      diagramDocumentSchema.safeParse(documentWith({ title: "x".repeat(DIAGRAM_LIMITS.TITLE_MAX) }))
+        .success,
+    ).toBe(true);
   });
 
   it("rejects a version other than 2", () => {
