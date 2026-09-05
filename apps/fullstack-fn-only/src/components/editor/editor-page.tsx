@@ -566,10 +566,22 @@ export function EditorPage() {
     if (fileRef.current) fileRef.current.value = "";
   };
 
-  const handleExportPng = async () => {
+  /**
+   * Rasterises the diagram, with or without the paper under it.
+   *
+   * `background: false` is the switch the canvas already uses to draw its own
+   * paper across the whole window, so a transparent export is the renderer
+   * doing less rather than anything new. Paper and grid are one layer there,
+   * which is why leaving it out leaves out both — what pasting a diagram into
+   * a slide or a document asks for.
+   */
+  const handleExportPng = async (transparent: boolean) => {
     if (!shown) return;
     try {
-      await downloadSvgAsPng(renderSVG(shown.diagram), `${shown.diagram.title}@2x.png`);
+      const svg = renderSVG(shown.diagram, { background: !transparent });
+      // The two exports carry different names so running both keeps both.
+      const suffix = transparent ? "@2x-transparent" : "@2x";
+      await downloadSvgAsPng(svg, `${shown.diagram.title}${suffix}.png`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "The export failed");
     }
@@ -613,7 +625,7 @@ export function EditorPage() {
         onDownloadSvg={() =>
           shown && downloadSvg(renderSVG(shown.diagram), `${shown.diagram.title}.svg`)
         }
-        onExportPng={() => void handleExportPng()}
+        onExportPng={(transparent) => void handleExportPng(transparent)}
         canExport={Boolean(shown)}
         jsonOpen={panelOpen}
         onToggleJson={() => setPanelOpen((open) => !open)}
