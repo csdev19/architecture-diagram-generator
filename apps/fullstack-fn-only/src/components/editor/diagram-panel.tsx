@@ -94,7 +94,7 @@ export function DiagramPanel({
         />
 
         <span className="block text-[11.5px] text-ed-text-3">
-          Letters, numbers, hyphens. Every export is named after it.
+          Names the diagram, and every file you export from it. Letters, numbers, hyphens.
         </span>
       </div>
 

@@ -42,7 +42,7 @@ describe("EditorPage", () => {
     const textarea = screen.getByLabelText<HTMLTextAreaElement>(/diagram document/i);
 
     expect(textarea.value).toContain('"version": 2');
-    expect(textarea.value).toContain('"title": "payments"');
+    expect(textarea.value).toContain('"title": "diagram"');
     expect(textarea.value, "the seed lost its brand icons").toContain('"iconKey": "hono"');
     expect(textarea.value, "the seed should demonstrate a content-only document").not.toContain(
       '"layout"',
@@ -62,7 +62,7 @@ describe("EditorPage", () => {
     // The header used to carry the diagram's name and its counts, and a pill
     // that grows with its document reaches the centred toolbar and covers the
     // tools. The name lives in the inspector, where it can also be edited.
-    expect(screen.queryByText(/payments · 4 nodes · 3 edges/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/diagram · 4 nodes · 3 edges/)).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Diagram editor" })).toBeInTheDocument();
   });
 
@@ -108,7 +108,7 @@ describe("EditorPage", () => {
       return waitFor(() => {
         expect(exported).toHaveLength(1);
         // Title, then when it was taken: two exports of the same diagram keep both.
-        expect(exported[0]?.filename).toBe("payments-2026-09-05-1423@2x.png");
+        expect(exported[0]?.filename).toBe("diagram-2026-09-05-1423@2x.png");
         // The grid is painted by a rect filled with the pattern, so its
         // reference is the tell that the background layer was drawn at all.
         expect(exported[0]?.svg).toContain("url(#diagram-grid)");
@@ -123,7 +123,7 @@ describe("EditorPage", () => {
       return waitFor(() => {
         expect(exported).toHaveLength(1);
         // A different name, so exporting both does not overwrite one with the other.
-        expect(exported[0]?.filename).toBe("payments-2026-09-05-1423@2x-transparent.png");
+        expect(exported[0]?.filename).toBe("diagram-2026-09-05-1423@2x-transparent.png");
         // Paper and grid are one layer in the renderer, so dropping it drops both.
         expect(exported[0]?.svg).not.toContain("url(#diagram-grid)");
         // The drawing itself is untouched — this is a background switch, not a redraw.

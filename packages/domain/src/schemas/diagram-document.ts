@@ -475,7 +475,7 @@ export type DiagramDocumentInput = z.input<typeof diagramDocumentSchema>;
 export const EXAMPLE_DIAGRAM_DOCUMENT: DiagramDocumentInput = {
   version: 2,
   content: {
-    title: "payments",
+    title: "diagram",
     nodes: [
       { id: "web", iconKey: "react", name: "Web", sub: "portal" },
       { id: "api", iconKey: "hono", name: "API", sub: "http server" },
