@@ -1,9 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { EXAMPLE_DIAGRAM_DOCUMENT, diagramDocumentSchema } from "@diagram-tool/domain/schemas";
 import { resolveDiagram } from "@diagram-tool/domain/render";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorPage } from "../editor-page";
 import { hitTestNode } from "../pointer-geometry";
+import { snapToGrid } from "../edits/edit-document";
 
 /**
  * The seed as the editor draws it.
@@ -39,6 +40,82 @@ const stubScreenCTM = (matrix: Partial<DOMMatrix> = {}) => {
     writable: true,
     value: () => ctm,
   });
+};
+
+/** The stage element, which is where the wheel listener lives. */
+const stage = () => screen.getByTestId("diagram-stage");
+
+/**
+ * The camera rectangle, read back off the `viewBox` the renderer wrote.
+ *
+ * The renderer rounds to two decimals, so assertions against these numbers use
+ * `toBeCloseTo` rather than exact equality.
+ */
+const camera = () => {
+  const svg = canvas().querySelector("svg");
+  if (!svg) throw new Error("the stage drew no scene to read a camera from");
+  const [x, y, w, h] = (svg.getAttribute("viewBox") ?? "").split(" ").map(Number);
+  return { x: x ?? NaN, y: y ?? NaN, w: w ?? NaN, h: h ?? NaN };
+};
+
+/** The stage measures 1000 x 800 in tests; `src/vitest.setup.ts` stubs it there. */
+const STAGE_WIDTH = 1000;
+
+/**
+ * World units one screen pixel is worth right now, derived from the camera
+ * itself so the assertions never have to know what scale Fit chose.
+ */
+const worldPerPixel = () => camera().w / STAGE_WIDTH;
+
+/**
+ * The world point at the centre of the viewBox.
+ *
+ * `camera().x` is the *left edge* the renderer wrote, not the camera state's
+ * own `x`: the two coincide only while the width is constant. A zoom changes
+ * the width on purpose, which shifts the left edge even when the point the
+ * camera is centred on has not moved — so a test that wants to know whether
+ * the camera itself moved has to look at the centre, not the edge.
+ */
+const centreOf = (rect: { x: number; w: number }) => rect.x + rect.w / 2;
+
+/**
+ * The stage spends wheel input once per animation frame, and jsdom never
+ * paints. Callbacks are collected rather than run inline so a test can also
+ * assert that a burst of events produced a single frame.
+ */
+let frames: FrameRequestCallback[] = [];
+
+const captureFrames = () => {
+  frames = [];
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    frames.push(callback);
+    return frames.length;
+  });
+};
+
+/** Runs everything the stage asked to do on the next frame. */
+const runFrame = () => {
+  const pending = frames;
+  frames = [];
+  // Wrapped because the callback is what actually moves the camera, and React
+  // would otherwise warn that the update escaped `act`.
+  act(() => {
+    for (const callback of pending) callback(0);
+  });
+};
+
+/**
+ * A wheel event on the stage, plus the frame it schedules.
+ *
+ * Returns what `fireEvent.wheel` returns: `false` once `preventDefault` was
+ * called on the event, which is the whole reason the listener is native
+ * rather than React's `onWheel` — a passive listener could not stop the page
+ * from scrolling or the browser from zooming behind the canvas.
+ */
+const wheel = (init: WheelEventInit) => {
+  const notCancelled = fireEvent.wheel(stage(), init);
+  runFrame();
+  return notCancelled;
 };
 
 const canvas = () => screen.getByTestId("diagram-canvas");
@@ -103,6 +180,28 @@ describe("dragging a node", () => {
     dragSelected("api", { x: 301, y: 197 });
 
     expect(positionIn(documentText(), "api")).toEqual({ x: 299, y: 195 });
+  });
+
+  it("keeps the grab offset instead of jumping the tile's centre to the pointer", () => {
+    render(<EditorPage />);
+    selectTile("api");
+
+    const start = at("api");
+    // Half a tile is 31, so 26 to the right is a press well off centre but
+    // still inside the tile — and it is two whole grid cells, so the snap
+    // cannot quietly absorb the difference the bug used to introduce.
+    const grab = { x: start.x + 26, y: start.y };
+    const to = { x: grab.x + 130, y: grab.y + 130 };
+
+    fireEvent.pointerDown(canvas(), { clientX: grab.x, clientY: grab.y, pointerId: 1 });
+    fireEvent.pointerMove(canvas(), { clientX: to.x, clientY: to.y, pointerId: 1 });
+    fireEvent.pointerUp(canvas(), { clientX: to.x, clientY: to.y, pointerId: 1 });
+
+    // The tile travels exactly as far as the pointer did, and no further.
+    expect(positionIn(documentText(), "api")).toEqual({
+      x: snapToGrid(start.x + 130),
+      y: snapToGrid(start.y + 130),
+    });
   });
 
   it("leaves the architecture completely alone", () => {
@@ -396,5 +495,189 @@ describe("the injected scene", () => {
     fireEvent.pointerUp(canvas(), { clientX: x, clientY: y, pointerId: 1 });
 
     expect(canvas().querySelector("svg")).toBe(before);
+  });
+});
+
+describe("navigating with the wheel", () => {
+  beforeEach(captureFrames);
+  afterEach(() => vi.restoreAllMocks());
+
+  it("pans down without changing the zoom", () => {
+    render(<EditorPage />);
+    const before = camera();
+    const perPixel = worldPerPixel();
+
+    // The return value is `false` once `preventDefault` was called — proof
+    // this listener is the native one and not React's passive `onWheel`.
+    expect(wheel({ deltaY: 100 })).toBe(false);
+
+    const after = camera();
+    // Scrolling down moves the camera down the plane by what those pixels are
+    // worth, and the rectangle it looks at keeps its size: this is not a zoom.
+    expect(after.y).toBeCloseTo(before.y + 100 * perPixel, 1);
+    expect(after.x).toBeCloseTo(before.x, 1);
+    expect(after.w).toBeCloseTo(before.w, 1);
+  });
+
+  it("pans sideways on a horizontal delta", () => {
+    render(<EditorPage />);
+    const before = camera();
+    const perPixel = worldPerPixel();
+
+    wheel({ deltaX: 80 });
+
+    const after = camera();
+    expect(after.x).toBeCloseTo(before.x + 80 * perPixel, 1);
+    expect(after.y).toBeCloseTo(before.y, 1);
+  });
+
+  it("turns a shifted vertical wheel sideways", () => {
+    render(<EditorPage />);
+    const before = camera();
+    const perPixel = worldPerPixel();
+
+    wheel({ deltaY: 80, shiftKey: true });
+
+    const after = camera();
+    expect(after.x).toBeCloseTo(before.x + 80 * perPixel, 1);
+    expect(after.y).toBeCloseTo(before.y, 1);
+  });
+
+  it("scales a delta reported in lines rather than pixels", () => {
+    render(<EditorPage />);
+    const before = camera();
+    const perPixel = worldPerPixel();
+
+    // A notch on a mouse that reports lines is 3, not 3 pixels — unscaled the
+    // pan would be three units and go unnoticed.
+    wheel({ deltaY: 3, deltaMode: 1 });
+
+    expect(camera().y).toBeCloseTo(before.y + 48 * perPixel, 1);
+  });
+
+  it("spends a burst of events in a single frame", () => {
+    render(<EditorPage />);
+    const before = camera();
+    const perPixel = worldPerPixel();
+    // Whatever React or the floating panels asked for on mount is not what is
+    // under test here, and this assertion counts frames.
+    frames.length = 0;
+
+    fireEvent.wheel(stage(), { deltaY: 20 });
+    fireEvent.wheel(stage(), { deltaY: 20 });
+    fireEvent.wheel(stage(), { deltaY: 20 });
+
+    // A trackpad outruns the compositor. Three events, one render.
+    expect(frames).toHaveLength(1);
+    runFrame();
+
+    // And nothing is dropped on the way: the frame spends all three.
+    expect(camera().y).toBeCloseTo(before.y + 60 * perPixel, 1);
+  });
+
+  it("zooms in on a pinch, which the browser reports as a ctrl-wheel", () => {
+    render(<EditorPage />);
+    const before = camera();
+
+    // Fired at the origin because jsdom reports a zero-sized bounding box, so
+    // the stage's centre is (0, 0) there: the camera point then stays put and
+    // the scale is the only thing under test.
+    //
+    // Also asserts `preventDefault` was called — the same guarantee the pan
+    // test above checks, covered here too because the zoom branch is a
+    // separate code path that could regress independently.
+    expect(wheel({ deltaY: -10, ctrlKey: true, clientX: 0, clientY: 0 })).toBe(false);
+
+    // Zooming in narrows the rectangle the camera looks at.
+    expect(camera().w).toBeCloseTo(before.w * Math.exp(-10 / 140), 1);
+    // A handler that zoomed and panned at once would pass the assertion above
+    // too, so the camera point itself has to stay put: firing at the origin
+    // means the zero-sized jsdom bounds make it the fixed point.
+    expect(centreOf(camera())).toBeCloseTo(centreOf(before), 1);
+  });
+
+  it("zooms out on the opposite pinch", () => {
+    render(<EditorPage />);
+    const before = camera();
+
+    wheel({ deltaY: 10, ctrlKey: true, clientX: 0, clientY: 0 });
+
+    expect(camera().w).toBeCloseTo(before.w * Math.exp(10 / 140), 1);
+    expect(centreOf(camera())).toBeCloseTo(centreOf(before), 1);
+  });
+
+  it("caps how far one mouse notch under Cmd can zoom", () => {
+    render(<EditorPage />);
+    const before = camera();
+
+    // A notch reports 100 or more where a pinch reports single digits. Without
+    // the cap the same code that feels right under two fingers lurches.
+    wheel({ deltaY: -400, metaKey: true, clientX: 0, clientY: 0 });
+
+    expect(camera().w).toBeCloseTo(before.w * Math.exp(-24 / 140), 1);
+    expect(centreOf(camera())).toBeCloseTo(centreOf(before), 1);
+  });
+
+  it("keeps the point under a pinch fixed when the stage sits away from the window's origin", () => {
+    render(<EditorPage />);
+
+    // jsdom's `getBoundingClientRect` is otherwise all zeros, which is why
+    // every zoom test above fires at (0, 0): that coincidence makes the
+    // pointer offset zero regardless of whether the handler used it at all.
+    // A realistic rectangle is the only way to exercise `zoomX`/`zoomY` for
+    // real, matching the 1000x800 viewport `src/vitest.setup.ts` stubs.
+    const bounds = { left: 240, top: 120, width: STAGE_WIDTH, height: 800 };
+    vi.spyOn(stage(), "getBoundingClientRect").mockReturnValue({
+      ...bounds,
+      right: bounds.left + bounds.width,
+      bottom: bounds.top + bounds.height,
+      x: bounds.left,
+      y: bounds.top,
+      toJSON: () => bounds,
+    });
+
+    // Well away from the stage's centre, so a handler that dropped the
+    // pointer offset (or measured it from the wrong origin) would move this.
+    const clientX = bounds.left + 800;
+    const clientY = bounds.top + 600;
+
+    // Where the screen point falls in world units: the camera rectangle scaled
+    // by how far across the stage that point sits.
+    const worldAt = (x: number, y: number) => {
+      const rect = camera();
+      return {
+        x: rect.x + ((x - bounds.left) / bounds.width) * rect.w,
+        y: rect.y + ((y - bounds.top) / bounds.height) * rect.h,
+      };
+    };
+
+    const before = worldAt(clientX, clientY);
+
+    wheel({ deltaY: -10, ctrlKey: true, clientX, clientY });
+
+    const after = worldAt(clientX, clientY);
+
+    // The actual promise of zoom-about-the-pointer: what was under the cursor
+    // is still under it, not merely that the scale changed by the right amount.
+    expect(after.x).toBeCloseTo(before.x, 1);
+    expect(after.y).toBeCloseTo(before.y, 1);
+  });
+
+  it("keeps a panned camera in place when the framing changes underneath it", () => {
+    render(<EditorPage />);
+    const perPixel = worldPerPixel();
+    const beforePan = camera();
+
+    wheel({ deltaX: 80 });
+
+    const panned = camera();
+    expect(panned.x).toBeCloseTo(beforePan.x + 80 * perPixel, 1);
+
+    // Closing the JSON panel changes `insets.right`, which is exactly the kind
+    // of framing change that re-triggers Fit — the moment a hand-panned camera
+    // has to survive rather than being overwritten by it.
+    fireEvent.click(screen.getByRole("button", { name: /hide json/i }));
+
+    expect(camera().x).toBeCloseTo(panned.x, 1);
   });
 });
