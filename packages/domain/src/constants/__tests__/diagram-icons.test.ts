@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { assertArtReferencesResolve } from "../../tooling/icon-art";
 import { DIAGRAM_COLORS, TILE_VARIANTS } from "../diagram";
 import {
   DIAGRAM_ICON_ALIASES,
@@ -27,8 +28,8 @@ describe("DIAGRAM_ICONS", () => {
       const icon = DIAGRAM_ICONS[key];
       expect(icon, `no icon resolved for "${key}" — check the simple-icons export`).toBeDefined();
       expect(icon.title.length, `"${key}" has an empty title`).toBeGreaterThan(0);
-      expect(icon.hex, `"${key}" has a malformed hex`).toMatch(/^[0-9a-f]{6}$/i);
-      expect(icon.path.length, `"${key}" has an empty path`).toBeGreaterThan(0);
+      expect(icon.mono.hex, `"${key}" has a malformed hex`).toMatch(/^[0-9a-f]{6}$/i);
+      expect(icon.mono.path.length, `"${key}" has an empty path`).toBeGreaterThan(0);
     }
   });
 
@@ -36,7 +37,7 @@ describe("DIAGRAM_ICONS", () => {
     for (const key of DIAGRAM_ICON_KEYS) {
       // Path data opens with a moveto. Either case is valid — a leading `m` is
       // relative to an implicit origin, so it draws identically to `M`.
-      expect(DIAGRAM_ICONS[key].path, `"${key}" is not SVG path data`).toMatch(/^[Mm]/);
+      expect(DIAGRAM_ICONS[key].mono.path, `"${key}" is not SVG path data`).toMatch(/^[Mm]/);
     }
   });
 
@@ -53,6 +54,55 @@ describe("DIAGRAM_ICONS", () => {
     expect(isValidDiagramIconKey(undefined)).toBe(false);
     // Inherited object members must not read as icons.
     expect(isValidDiagramIconKey("toString")).toBe(false);
+  });
+
+  it("prefixes every id inside colour art with the icon's own key", () => {
+    // Art is inlined into one SVG document per diagram, so two icons that both
+    // ship an `id="a"` gradient would silently draw with each other's colours.
+    // The prefix is what makes that impossible; this is the test that keeps it.
+    for (const key of DIAGRAM_ICON_KEYS) {
+      const art = DIAGRAM_ICONS[key].art;
+      if (!art) continue;
+      // Whitespace before the `=` (`id ="a"`) is valid SVG and icon:add's own
+      // collection regex has the same blind spot, so this has to tolerate it
+      // too, or a hand-edited body that slips past the tool would slip past
+      // this test as well.
+      for (const [, id] of art.body.matchAll(/\bid\s*=\s*["']([^"']+)["']/g)) {
+        expect(id, `"${key}" carries an unprefixed id`).toMatch(new RegExp(`^${key}-`));
+      }
+      expect(art.viewBox, `"${key}" has a malformed viewBox`).toMatch(
+        /^-?\d+(\.\d+)? -?\d+(\.\d+)? \d+(\.\d+)? \d+(\.\d+)?$/,
+      );
+    }
+  });
+
+  it("resolves every reference inside colour art to a declared id", () => {
+    // `normaliseIconArt` checks this at curation time, but a body pasted
+    // after a hand-edit never runs through the tool at all — this is what
+    // catches `fill="url(#a)"` shipping beside an id that renumbering left as
+    // "angular-0", which would render as nothing.
+    for (const key of DIAGRAM_ICON_KEYS) {
+      const art = DIAGRAM_ICONS[key].art;
+      if (!art) continue;
+      expect(
+        () => assertArtReferencesResolve(art.body),
+        `"${key}" has a reference to an id it does not declare`,
+      ).not.toThrow();
+    }
+  });
+
+  it("gives the three proving marks colour art that reads on both tiles", () => {
+    // Hono: two flat fills, the inner flame the silhouette had to cut away.
+    // Angular: two gradients, which is what the id rule exists for.
+    // TanStack Query: four flat fills in a box that is not square.
+    for (const key of ["hono", "angular", "reactquery"] as const) {
+      const art = DIAGRAM_ICONS[key].art;
+      expect(art, `"${key}" has no art`).toBeDefined();
+      expect(art?.onDark, `"${key}" was judged not to read on the dark tile`).toBe(true);
+    }
+    expect(DIAGRAM_ICONS.angular.art?.body).toContain("<linearGradient");
+    expect(DIAGRAM_ICONS.angular.art?.body).toContain("url(#angular-");
+    expect(DIAGRAM_ICONS.reactquery.art?.viewBox).toBe("0 0 256 230");
   });
 });
 
@@ -83,7 +133,13 @@ describe("DIAGRAM_ICON_ALIASES", () => {
     // These are the slugs a sketch label cannot be guessed into: nobody draws a
     // box and writes "nodedotjs". Without an alias the model has to invent the
     // key, and an invented key is rejected.
-    for (const key of ["nodedotjs", "postgresql", "githubactions", "cloudflareworkers"]) {
+    for (const key of [
+      "nodedotjs",
+      "postgresql",
+      "githubactions",
+      "cloudflareworkers",
+      "reactquery",
+    ]) {
       expect(aliases[key as DiagramIconKey], `"${key}" has no alias`).toBeTruthy();
     }
   });
@@ -115,7 +171,7 @@ describe("resolveDiagramIconFill", () => {
   it("keeps a brand colour that reads on white", () => {
     // Cloudflare's orange scores 2.65 against the light tile.
     expect(resolveDiagramIconFill(DIAGRAM_ICONS.cloudflare, TILE_VARIANTS.LIGHT)).toBe(
-      `#${DIAGRAM_ICONS.cloudflare.hex}`,
+      `#${DIAGRAM_ICONS.cloudflare.mono.hex}`,
     );
   });
 
@@ -130,6 +186,17 @@ describe("resolveDiagramIconFill", () => {
     for (const key of DIAGRAM_ICON_KEYS) {
       expect(resolveDiagramIconFill(DIAGRAM_ICONS[key], TILE_VARIANTS.DARK)).toBe(
         DIAGRAM_COLORS.TILE_LIGHT_FILL,
+      );
+    }
+  });
+
+  it("draws the monochrome emblems near-black on a light tile", () => {
+    // TanStack's emblem is off-white and Effect's is white: both official marks
+    // are designed to sit on a dark plate, and both vanish on paper. The
+    // silhouette is what identifies them, which is exactly what the fallback keeps.
+    for (const key of ["tanstack", "effect"] as const) {
+      expect(resolveDiagramIconFill(DIAGRAM_ICONS[key], TILE_VARIANTS.LIGHT)).toBe(
+        DIAGRAM_COLORS.TILE_DARK_FILL,
       );
     }
   });

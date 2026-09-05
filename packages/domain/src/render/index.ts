@@ -1,4 +1,9 @@
-import { CANVAS_TONES, CANVAS_TONE_INFO, DIAGRAM_TYPOGRAPHY } from "../constants/diagram";
+import {
+  CANVAS_TONES,
+  CANVAS_TONE_INFO,
+  DIAGRAM_TYPOGRAPHY,
+  ICON_STYLES,
+} from "../constants/diagram";
 import type { ResolvedDiagram, DiagramNode } from "../schemas/diagram";
 import { renderBackground, renderGridPattern } from "./background";
 import { renderEdge, renderEdgeMarkers } from "./edge";
@@ -51,7 +56,9 @@ export const renderSVG = (config: ResolvedDiagram, options: RenderOptions = {}):
   const defs = `<defs>${renderGridPattern()}${renderEdgeMarkers()}</defs>`;
   const boundaries = config.boundaries.map((boundary) => renderBoundary(boundary, paper)).join("");
   const edges = config.edges.map((edge) => renderEdge(edge, nodeById, paper)).join("");
-  const nodes = config.nodes.map(renderNode).join("");
+  // One style for every mark: it is a property of the drawing, not of a tile.
+  const iconStyle = config.iconStyle ?? ICON_STYLES.COLOR;
+  const nodes = config.nodes.map((node) => renderNode(node, iconStyle)).join("");
 
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${num(frame.w)}" height="${num(frame.h)}" ` +
@@ -76,3 +83,5 @@ export type { Bounds } from "./bounds";
 export { resolveDiagram } from "./resolve";
 export { facingSides } from "./anchors";
 export type { EdgeAnchors, Point } from "./anchors";
+export { renderIconMarkup } from "./icon-markup";
+export type { IconPlacement } from "./icon-markup";

@@ -45,6 +45,7 @@
     "dev:fullstack-fn": "turbo run dev -F fullstack-fn-only",
     "db:push": "dotenvx run -f apps/fullstack-fn-only/.env -- turbo run db:push -F @diagram-tool/infra-db",
     "db:studio": "dotenvx run -f apps/fullstack-fn-only/.env -- turbo run db:studio -F @diagram-tool/infra-db",
+    "icon:add": "bun packages/domain/scripts/icon-add.ts",
     "db:generate": "dotenvx run -f apps/fullstack-fn-only/.env -- turbo run db:generate -F @diagram-tool/infra-db",
     "db:migrate": "dotenvx run -f apps/fullstack-fn-only/.env -- turbo run db:migrate -F @diagram-tool/infra-db",
     "format:check": "oxfmt --check ."

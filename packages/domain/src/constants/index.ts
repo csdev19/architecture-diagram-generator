@@ -2,6 +2,7 @@
 export {
   CANVAS_TONES,
   CANVAS_TONE_INFO,
+  ICON_STYLES,
   BOUNDARY_PADDINGS,
   BOUNDARY_PADDING_SIZE,
   BOUNDARY_TONES,
@@ -20,6 +21,7 @@ export {
   isValidEdgeStyle,
   isValidAnchorSide,
   type CanvasTone,
+  type IconStyle,
   type BoundaryPadding,
   type BoundaryTone,
   type BoundaryToneInfo,
@@ -39,5 +41,7 @@ export {
   resolveDiagramIconFill,
   resolveMonogramFill,
   type DiagramIcon,
+  type DiagramIconArt,
+  type DiagramIconMono,
   type DiagramIconKey,
 } from "./diagram-icons";

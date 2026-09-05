@@ -96,54 +96,87 @@ describe("renderSVG", () => {
 
   describe("brand icons", () => {
     it("draws the registry's path when a node names an iconKey", () => {
-      const svg = render(singleNode({ emoji: undefined, iconKey: "hono" }));
+      const svg = render(singleNode({ emoji: undefined, iconKey: "cloudflare" }));
 
-      expect(svg).toContain(DIAGRAM_ICONS.hono.path);
+      expect(svg).toContain(DIAGRAM_ICONS.cloudflare.mono.path);
     });
 
     it("lets an iconKey win over an emoji on the same node", () => {
-      const svg = render(singleNode({ emoji: "🔥", iconKey: "hono" }));
+      const svg = render(singleNode({ emoji: "🔥", iconKey: "cloudflare" }));
 
-      expect(svg).toContain(DIAGRAM_ICONS.hono.path);
+      expect(svg).toContain(DIAGRAM_ICONS.cloudflare.mono.path);
       expect(svg, "the emoji glyph is still drawn behind the mark").not.toContain("🔥");
     });
 
     it("draws a readable brand mark in its brand colour on a light tile", () => {
-      const svg = render(singleNode({ emoji: undefined, iconKey: "hono", tile: "light" }));
+      const svg = render(singleNode({ emoji: undefined, iconKey: "cloudflare", tile: "light" }));
 
-      expect(svg).toContain(`fill="#${DIAGRAM_ICONS.hono.hex}"`);
+      expect(svg).toContain(`fill="#${DIAGRAM_ICONS.cloudflare.mono.hex}"`);
     });
 
     it("drops a brand colour that would vanish on a light tile", () => {
       // React's cyan scores 1.62 against white — legible only as a shape.
       const svg = render(singleNode({ emoji: undefined, iconKey: "react", tile: "light" }));
 
-      expect(svg).toContain(DIAGRAM_ICONS.react.path);
-      expect(svg).not.toContain(`fill="#${DIAGRAM_ICONS.react.hex}"`);
+      expect(svg).toContain(DIAGRAM_ICONS.react.mono.path);
+      expect(svg).not.toContain(`fill="#${DIAGRAM_ICONS.react.mono.hex}"`);
     });
 
     it("draws a mark in the light tile colour on a dark tile", () => {
-      const svg = render(singleNode({ emoji: undefined, iconKey: "hono", tile: "dark" }));
+      // React's cyan is dropped on paper and it has no art, so it stays mono here too.
+      const svg = render(singleNode({ emoji: undefined, iconKey: "react", tile: "dark" }));
 
-      expect(svg).toContain(DIAGRAM_ICONS.hono.path);
-      expect(svg).not.toContain(`fill="#${DIAGRAM_ICONS.hono.hex}"`);
+      expect(svg).toContain(DIAGRAM_ICONS.react.mono.path);
+      expect(svg).toContain(`fill="${DIAGRAM_COLORS.TILE_LIGHT_FILL}"`);
+      expect(svg).not.toContain(`fill="#${DIAGRAM_ICONS.react.mono.hex}"`);
     });
 
-    it("scales the 24px mark to the geometry's icon size and centres it on the tile", () => {
+    it("draws every mark as a silhouette when the document asks for mono", () => {
+      const svg = render({
+        ...singleNode({ emoji: undefined, iconKey: "cloudflare", tile: "light" }),
+        iconStyle: "mono",
+      });
+
+      // Cloudflare's orange reads on paper and is drawn in colour by default;
+      // under `mono` no brand colour survives — the mark falls back to
+      // near-black, the same as any silhouette on a light tile.
+      expect(svg).toContain(DIAGRAM_ICONS.cloudflare.mono.path);
+      expect(svg).toContain(`fill="${DIAGRAM_COLORS.TILE_DARK_FILL}"`);
+      expect(svg).not.toContain(`fill="#${DIAGRAM_ICONS.cloudflare.mono.hex}"`);
+    });
+
+    it("places the mark as a nested svg of the geometry's icon size, centred on the tile", () => {
       const { ICON_SIZE, ICON_VIEWBOX } = DIAGRAM_GEOMETRY;
-      const svg = render(singleNode({ emoji: undefined, iconKey: "hono" }));
+      const svg = render(singleNode({ emoji: undefined, iconKey: "cloudflare" }));
 
       // The node sits at (350, 180), so the mark's top-left is half its size up and left.
-      expect(svg).toContain(`translate(${num(350 - ICON_SIZE / 2)} ${num(180 - ICON_SIZE / 2)})`);
-      expect(svg).toContain(`scale(${num(ICON_SIZE / ICON_VIEWBOX)})`);
+      expect(svg).toContain(
+        `<svg x="${num(350 - ICON_SIZE / 2)}" y="${num(180 - ICON_SIZE / 2)}" ` +
+          `width="${ICON_SIZE}" height="${ICON_SIZE}" viewBox="0 0 ${ICON_VIEWBOX} ${ICON_VIEWBOX}">`,
+      );
     });
 
     it("leaves an emoji-only node exactly as it was", () => {
       const svg = render(singleNode({ emoji: "🔥" }));
 
       expect(svg).toContain("🔥");
-      expect(svg, "an emoji node must not carry an icon boundary").not.toContain("scale(");
+      expect(svg, "an emoji node must not carry an icon boundary").not.toContain(
+        `height="${DIAGRAM_GEOMETRY.ICON_SIZE}" viewBox=`,
+      );
       expect(svg).toContain(`font-size="${DIAGRAM_TYPOGRAPHY.EMOJI_SIZE}"`);
+    });
+
+    it("draws colour art instead of the silhouette when a mark has some", () => {
+      const svg = render(singleNode({ emoji: undefined, iconKey: "hono", tile: "light" }));
+
+      expect(svg).toContain(DIAGRAM_ICONS.hono.art?.body);
+      expect(svg).not.toContain(DIAGRAM_ICONS.hono.mono.path);
+    });
+
+    it("keeps the art on a dark tile when it was judged to read there", () => {
+      const svg = render(singleNode({ emoji: undefined, iconKey: "angular", tile: "dark" }));
+
+      expect(svg).toContain(DIAGRAM_ICONS.angular.art?.body);
     });
   });
 
@@ -167,10 +200,10 @@ describe("renderSVG", () => {
     });
 
     it("lets an iconKey win over initials on the same node", () => {
-      const svg = render(singleNode({ emoji: undefined, initials: "HO", iconKey: "hono" }));
+      const svg = render(singleNode({ emoji: undefined, initials: "CF", iconKey: "cloudflare" }));
 
-      expect(svg).toContain(DIAGRAM_ICONS.hono.path);
-      expect(svg, "the monogram is still drawn behind the mark").not.toContain(">HO</text>");
+      expect(svg).toContain(DIAGRAM_ICONS.cloudflare.mono.path);
+      expect(svg, "the monogram is still drawn behind the mark").not.toContain(">CF</text>");
     });
 
     it("lets initials win over an emoji on the same node", () => {

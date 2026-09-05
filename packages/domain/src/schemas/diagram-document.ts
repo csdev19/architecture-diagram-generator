@@ -5,6 +5,7 @@ import {
   BOUNDARY_TONES,
   CANVAS_TONES,
   DIAGRAM_LIMITS,
+  ICON_STYLES,
   TILE_VARIANTS,
 } from "../constants/diagram";
 import {
@@ -76,6 +77,12 @@ export const diagramContentSchema = z.object({
    * boundary's tone, and arranging a diagram must never be able to lose it.
    */
   background: z.enum(CANVAS_TONES).optional(),
+  /**
+   * Whether marks are drawn in colour or as silhouettes. Content for the same
+   * reason the paper tone is: it exports with the drawing, and arranging must
+   * never lose it.
+   */
+  iconStyle: z.enum(ICON_STYLES).optional(),
   nodes: z
     .array(contentNodeSchema)
     .min(DIAGRAM_LIMITS.MIN_NODES, "A diagram needs at least one node")

@@ -5,6 +5,7 @@ import {
   CANVAS_TONES,
   DIAGRAM_LIMITS,
   EDGE_STYLES,
+  ICON_STYLES,
   TILE_VARIANTS,
 } from "../constants/diagram";
 import { DIAGRAM_ICON_KEYS } from "../constants/diagram-icons";
@@ -225,6 +226,7 @@ const resolvedDiagramShape = z.object({
    * the format: the author picks a tint, the renderer owns the value.
    */
   background: z.enum(CANVAS_TONES).optional(),
+  iconStyle: z.enum(ICON_STYLES).optional(),
   boundaries: z
     .array(diagramBoundarySchema)
     .max(DIAGRAM_LIMITS.MAX_BOUNDARIES, `At most ${DIAGRAM_LIMITS.MAX_BOUNDARIES} boundaries`),

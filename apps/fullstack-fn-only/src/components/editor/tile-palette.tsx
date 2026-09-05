@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { cn } from "@diagram-tool/web-ui";
+import { DIAGRAM_ICONS, TILE_VARIANTS } from "@diagram-tool/domain/constants";
+import type { IconStyle } from "@diagram-tool/domain/constants";
+import { renderIconMarkup } from "@diagram-tool/domain/render";
 import { EditorInput, MicroLabel } from "@/components/editor/editor-chrome";
 import {
   BRAND_TILE_COUNT,
@@ -26,6 +29,8 @@ import {
 interface TilePaletteProps {
   selectedKey: string;
   onSelect: (key: string) => void;
+  /** The diagram's own setting, so the palette previews what will be placed. */
+  iconStyle: IconStyle;
 }
 
 /** Floating card, so the stage runs underneath it rather than beside it. */
@@ -34,7 +39,10 @@ export const TILE_PALETTE_WIDTH = 272;
 /** Literals, not `--ed-*`: this is the diagram's light tile, drawn small. */
 const THUMBNAIL_STYLE = { backgroundColor: "#ffffff", borderColor: "#e2e8f0" };
 
-function TileThumbnail({ tile }: { tile: PaletteTile }) {
+/** The mark's side inside the 40px thumbnail; the same ratio the tile keeps. */
+const THUMBNAIL_MARK = 22;
+
+function TileThumbnail({ tile, iconStyle }: { tile: PaletteTile; iconStyle: IconStyle }) {
   return (
     <span
       aria-hidden
@@ -42,9 +50,18 @@ function TileThumbnail({ tile }: { tile: PaletteTile }) {
       style={THUMBNAIL_STYLE}
     >
       {tile.kind === "icon" ? (
-        <svg viewBox="0 0 24 24" className="size-[22px]" role="presentation">
-          <path d={tile.path} fill={tile.fill} />
-        </svg>
+        // The renderer's own markup, so the card and the canvas cannot disagree
+        // about a mark — including which of its two halves the style picks.
+        <span
+          className="flex"
+          dangerouslySetInnerHTML={{
+            __html: renderIconMarkup(DIAGRAM_ICONS[tile.iconKey], TILE_VARIANTS.LIGHT, iconStyle, {
+              x: 0,
+              y: 0,
+              size: THUMBNAIL_MARK,
+            }),
+          }}
+        />
       ) : tile.kind === "initials" ? (
         <span className="text-[15px] leading-none font-bold" style={{ color: tile.fill }}>
           {tile.initials}
@@ -60,10 +77,12 @@ function TileCard({
   tile,
   selected,
   onSelect,
+  iconStyle,
 }: {
   tile: PaletteTile;
   selected: boolean;
   onSelect: () => void;
+  iconStyle: IconStyle;
 }) {
   return (
     <button
@@ -87,7 +106,7 @@ function TileCard({
           : "border-ed-border hover:bg-ed-surface-hover",
       )}
     >
-      <TileThumbnail tile={tile} />
+      <TileThumbnail tile={tile} iconStyle={iconStyle} />
       <span className="min-w-0">
         <span className="block truncate text-[13px] font-medium text-ed-text">{tile.label}</span>
         <span className="block truncate font-mono text-[10.5px] text-ed-text-3">
@@ -98,7 +117,7 @@ function TileCard({
   );
 }
 
-export function TilePalette({ selectedKey, onSelect }: TilePaletteProps) {
+export function TilePalette({ selectedKey, onSelect, iconStyle }: TilePaletteProps) {
   const [query, setQuery] = useState("");
 
   const { brands, emojis, customs, total } = useMemo(() => {
@@ -168,6 +187,7 @@ export function TilePalette({ selectedKey, onSelect }: TilePaletteProps) {
             tile={tile}
             selected={tile.key === selectedKey}
             onSelect={() => onSelect(tile.key)}
+            iconStyle={iconStyle}
           />
         ))}
 
@@ -184,6 +204,7 @@ export function TilePalette({ selectedKey, onSelect }: TilePaletteProps) {
             tile={tile}
             selected={tile.key === selectedKey}
             onSelect={() => onSelect(tile.key)}
+            iconStyle={iconStyle}
           />
         ))}
 
@@ -200,6 +221,7 @@ export function TilePalette({ selectedKey, onSelect }: TilePaletteProps) {
             tile={tile}
             selected={tile.key === selectedKey}
             onSelect={() => onSelect(tile.key)}
+            iconStyle={iconStyle}
           />
         ))}
       </div>
