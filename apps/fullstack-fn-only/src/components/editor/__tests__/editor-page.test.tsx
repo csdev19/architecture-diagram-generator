@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EditorPage } from "../editor-page";
 
 /**
@@ -42,7 +42,7 @@ describe("EditorPage", () => {
     const textarea = screen.getByLabelText<HTMLTextAreaElement>(/diagram document/i);
 
     expect(textarea.value).toContain('"version": 2');
-    expect(textarea.value).toContain('"title": "payments"');
+    expect(textarea.value).toContain('"title": "diagram"');
     expect(textarea.value, "the seed lost its brand icons").toContain('"iconKey": "hono"');
     expect(textarea.value, "the seed should demonstrate a content-only document").not.toContain(
       '"layout"',
@@ -62,7 +62,7 @@ describe("EditorPage", () => {
     // The header used to carry the diagram's name and its counts, and a pill
     // that grows with its document reaches the centred toolbar and covers the
     // tools. The name lives in the inspector, where it can also be edited.
-    expect(screen.queryByText(/payments · 4 nodes · 3 edges/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/diagram · 4 nodes · 3 edges/)).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Diagram editor" })).toBeInTheDocument();
   });
 
@@ -88,6 +88,16 @@ describe("EditorPage", () => {
   describe("exporting a PNG", () => {
     beforeEach(() => {
       exported.length = 0;
+      // A fixed clock, because a filename that carries the time is otherwise a
+      // different string on every run.
+      // Only `Date` is faked: freezing every timer would also freeze the ones
+      // `waitFor` polls on, and the assertion would time out instead of running.
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-09-05T14:23:45"));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
     });
 
     it("paints the paper and the grid into the ordinary export", () => {
@@ -97,7 +107,8 @@ describe("EditorPage", () => {
 
       return waitFor(() => {
         expect(exported).toHaveLength(1);
-        expect(exported[0]?.filename).toBe("payments@2x.png");
+        // Title, then when it was taken: two exports of the same diagram keep both.
+        expect(exported[0]?.filename).toBe("diagram-2026-09-05-1423@2x.png");
         // The grid is painted by a rect filled with the pattern, so its
         // reference is the tell that the background layer was drawn at all.
         expect(exported[0]?.svg).toContain("url(#diagram-grid)");
@@ -112,7 +123,7 @@ describe("EditorPage", () => {
       return waitFor(() => {
         expect(exported).toHaveLength(1);
         // A different name, so exporting both does not overwrite one with the other.
-        expect(exported[0]?.filename).toBe("payments@2x-transparent.png");
+        expect(exported[0]?.filename).toBe("diagram-2026-09-05-1423@2x-transparent.png");
         // Paper and grid are one layer in the renderer, so dropping it drops both.
         expect(exported[0]?.svg).not.toContain("url(#diagram-grid)");
         // The drawing itself is untouched — this is a background switch, not a redraw.
@@ -127,5 +138,68 @@ describe("EditorPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /hide json/i }));
 
     expect(screen.getByRole("button", { name: /show json/i })).toBeInTheDocument();
+  });
+
+  describe("the diagram's title", () => {
+    /** The field the panel offers, once nothing is selected. */
+    const titleField = () => screen.getByLabelText<HTMLInputElement>(/^title$/i);
+
+    it("writes what is typed into the document's content half", () => {
+      render(<EditorPage />);
+      fireEvent.click(screen.getByRole("tab", { name: /inspector/i }));
+
+      fireEvent.change(titleField(), { target: { value: "checkout-flow" } });
+
+      const text = screen.getByLabelText<HTMLTextAreaElement>(/diagram document/i).value;
+      expect(JSON.parse(text).content.title).toBe("checkout-flow");
+    });
+
+    it("keeps the title to characters every filesystem accepts", () => {
+      render(<EditorPage />);
+      fireEvent.click(screen.getByRole("tab", { name: /inspector/i }));
+
+      // A slash would make a path, a colon breaks on Windows, and a space is
+      // what someone means by a hyphen when they are naming a file.
+      fireEvent.change(titleField(), { target: { value: "API / DB: my flow!" } });
+
+      expect(titleField().value).toBe("API-DB-my-flow");
+    });
+
+    it("trims a hyphen the field had to allow while it was being typed", () => {
+      exported.length = 0;
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-09-05T14:23:45"));
+      render(<EditorPage />);
+      fireEvent.click(screen.getByRole("tab", { name: /inspector/i }));
+
+      // Typing " my flow " leaves hyphens on both ends. The field cannot strip
+      // them — it would eat the hyphen in "my-flow" on the way through — so the
+      // filename does.
+      fireEvent.change(screen.getByLabelText(/^title$/i), { target: { value: " my flow " } });
+      chooseFileItem("Export PNG 2\u00d7");
+
+      return waitFor(() => {
+        expect(exported[0]?.filename).toBe("my-flow-2026-09-05-1423@2x.png");
+        vi.useRealTimers();
+      });
+    });
+
+    it("names the export after the title the author chose", () => {
+      exported.length = 0;
+      // Only `Date` is faked: freezing every timer would also freeze the ones
+      // `waitFor` polls on, and the assertion would time out instead of running.
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-09-05T14:23:45"));
+      render(<EditorPage />);
+      fireEvent.click(screen.getByRole("tab", { name: /inspector/i }));
+
+      fireEvent.change(titleField(), { target: { value: "checkout-flow" } });
+      chooseFileItem("Export PNG 2\u00d7");
+
+      return waitFor(() => {
+        expect(exported[0]?.filename).toBe("checkout-flow-2026-09-05-1423@2x.png");
+        vi.useRealTimers();
+      });
+    });
   });
 });

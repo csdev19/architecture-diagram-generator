@@ -263,6 +263,12 @@ export const DIAGRAM_LIMITS = {
    * An edge label sits on a line whose length nothing guarantees, so it stays
    * the tightest of the three.
    */
+  /**
+   * A title is not drawn, so nothing about the picture bounds it. What bounds
+   * it is the file it becomes: every download is named after it, and a name
+   * long enough to trip a filesystem is a failure the author cannot see coming.
+   */
+  TITLE_MAX: 48,
   NODE_NAME_MAX: 26,
   NODE_SUB_MAX: 28,
   BOUNDARY_LABEL_MAX: 48,
