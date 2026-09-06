@@ -91,6 +91,8 @@ every model on the next build with no edit here.
 - ⚠️ Every repository prompt **contains** `DIAGRAM_GUIDELINES` too, and its checks are appended after the contract's own. Shape-specific rules — what is a node, which edges may be solid — belong in the shape's preamble, never in the guidelines, or every sketch prompt inherits them.
 - ⚠️ The repository prompts are wrapped at 80 columns, so a phrase can straddle a newline. Tests that look for one match with `\s+` between words rather than a literal space.
 - ⚠️ Only unguessable keys get an alias. `react` needs none — a box labelled "React" already spells its key — and an alias belongs to exactly one key, because an ambiguous one turns the mapping into a coin flip nobody can see being tossed.
+- ⚠️ Two keys may share one mark on purpose: `reactnative` draws React's atom and `wrangler` draws the Workers mark, because that is the branding those products actually use. The tile's `name` is what tells them apart; a borrowed-looking logo is not a bug when it is the product's own.
+- ⚠️ A platform the code runs on is a boundary, never also a node. The first full-stack run drew a "Cloudflare Workers" tile in front of the app and a "Cloudflare Workers" boundary around it; the repository prompts now say so explicitly.
 - ⚠️ A drift test asserts every key in `DIAGRAM_ICON_KEYS` appears in the text. Adding an icon without rebuilding the guidelines fails that test rather than silently shipping a key no model knows about.
 
 ## Dependencies
