@@ -1,4 +1,4 @@
-import type { KeyboardEvent, ReactNode } from "react";
+import type { HTMLAttributes, KeyboardEvent, ReactNode } from "react";
 import { cn } from "@diagram-tool/web-ui";
 import type { ObjectProperties } from "@diagram-tool/domain/types";
 
@@ -58,30 +58,42 @@ const TAB_ORDER: SidePanelTab[] = [
  * beaten by a layout utility on the same element — a `flex` class outranks the
  * user agent's rule for `[hidden]`, which is exactly the bug where a "hidden"
  * panel keeps taking up the panel.
+ *
+ * Shared with the Prompt tab, which nests a tablist of its own.
  */
-function TabBody({
+export function TabBody({
   active,
   className,
   children,
+  ...props
 }: {
   active: boolean;
   className?: string;
   children: ReactNode;
-}) {
+} & Omit<HTMLAttributes<HTMLDivElement>, "hidden" | "style" | "className" | "children">) {
   return (
-    <div hidden={!active} style={{ display: active ? "flex" : "none" }} className={className}>
+    <div
+      hidden={!active}
+      style={{ display: active ? "flex" : "none" }}
+      className={className}
+      {...props}
+    >
       {children}
     </div>
   );
 }
 
 /**
- * Arrow-key movement across the tabs.
+ * Arrow-key movement across a tablist.
  *
- * The tablist uses roving tabindex — one tab is reachable with Tab and the rest
- * carry `tabIndex={-1}` — which is the correct pattern and is only half of it.
+ * A tablist with roving tabindex — one tab reachable with Tab and the rest
+ * carrying `tabIndex={-1}` — is the correct pattern and is only half of it.
  * Without arrow handling the inactive tabs are reachable by no key at all, so
- * every panel but the open one was mouse-only.
+ * every panel but the open one is mouse-only.
+ *
+ * Returns the tab the key moves to, or nothing for a key that is not
+ * navigation. Wraps, so the last tab's right arrow reaches the first rather
+ * than dying. Shared by every tablist in the editor so they all move alike.
  */
 const TAB_STEP: Record<string, number> = {
   ArrowRight: 1,
@@ -89,6 +101,17 @@ const TAB_STEP: Record<string, number> = {
   ArrowLeft: -1,
   ArrowUp: -1,
 };
+
+export function tabForKey<T>(order: readonly T[], current: T, key: string): T | undefined {
+  if (key === "Home") return order[0];
+  if (key === "End") return order[order.length - 1];
+
+  const step = TAB_STEP[key];
+  if (step === undefined) return undefined;
+
+  const from = order.indexOf(current);
+  return order[(from + step + order.length) % order.length];
+}
 
 export function SidePanel({
   open,
@@ -101,21 +124,10 @@ export function SidePanel({
   edges,
 }: SidePanelProps) {
   const handleTabKey = (event: KeyboardEvent<HTMLButtonElement>) => {
-    if (event.key === "Home" || event.key === "End") {
-      event.preventDefault();
-      const target = event.key === "Home" ? TAB_ORDER[0] : TAB_ORDER[TAB_ORDER.length - 1];
-      if (target) onTabChange(target);
-      return;
-    }
-
-    const step = TAB_STEP[event.key];
-    if (step === undefined) return;
-
+    const next = tabForKey(TAB_ORDER, tab, event.key);
+    if (next === undefined) return;
     event.preventDefault();
-    const from = TAB_ORDER.indexOf(tab);
-    // Wraps, so the last tab's right arrow reaches the first rather than dying.
-    const next = TAB_ORDER[(from + step + TAB_ORDER.length) % TAB_ORDER.length];
-    if (next) onTabChange(next);
+    onTabChange(next);
   };
 
   return (

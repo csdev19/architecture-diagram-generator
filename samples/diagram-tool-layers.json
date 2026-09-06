@@ -1,0 +1,189 @@
+{
+  "version": 2,
+  "content": {
+    "title": "diagram tool stack",
+    "nodes": [
+      {
+        "id": "diagram-tool",
+        "name": "Diagram Tool",
+        "sub": "web app",
+        "initials": "DT"
+      },
+      {
+        "id": "react",
+        "name": "React",
+        "sub": "ui library",
+        "iconKey": "react"
+      },
+      {
+        "id": "tailwind",
+        "name": "Tailwind CSS",
+        "sub": "css framework",
+        "iconKey": "tailwindcss"
+      },
+      {
+        "id": "vite",
+        "name": "Vite",
+        "sub": "build tool",
+        "iconKey": "vite"
+      },
+      {
+        "id": "zod",
+        "name": "Zod",
+        "sub": "schema validation",
+        "iconKey": "zod"
+      },
+      {
+        "id": "astro",
+        "name": "Astro",
+        "sub": "documentation framework",
+        "iconKey": "astro"
+      },
+      {
+        "id": "starlight",
+        "name": "Starlight",
+        "sub": "documentation theme",
+        "initials": "ST"
+      },
+      {
+        "id": "tanstack-start",
+        "name": "TanStack Start",
+        "sub": "app framework",
+        "iconKey": "tanstack"
+      },
+      {
+        "id": "resvg",
+        "name": "Resvg",
+        "sub": "png renderer",
+        "initials": "RV"
+      },
+      {
+        "id": "cloudflare-workers",
+        "name": "Cloudflare Workers",
+        "sub": "edge runtime",
+        "iconKey": "cloudflareworkers"
+      },
+      {
+        "id": "github-actions",
+        "name": "GitHub Actions",
+        "sub": "ci cd",
+        "iconKey": "githubactions"
+      },
+      {
+        "id": "bun",
+        "name": "Bun",
+        "sub": "package runtime",
+        "iconKey": "bun"
+      },
+      {
+        "id": "turborepo",
+        "name": "Turborepo",
+        "sub": "task runner",
+        "iconKey": "turborepo"
+      },
+      {
+        "id": "typescript",
+        "name": "TypeScript",
+        "sub": "language",
+        "iconKey": "typescript"
+      },
+      {
+        "id": "vitest",
+        "name": "Vitest",
+        "sub": "test runner",
+        "iconKey": "vitest"
+      },
+      {
+        "id": "oxlint",
+        "name": "OXLint",
+        "sub": "linter formatter",
+        "iconKey": "oxlint"
+      },
+      {
+        "id": "wrangler",
+        "name": "Wrangler",
+        "sub": "workers cli",
+        "iconKey": "wrangler"
+      }
+    ],
+    "boundaries": [
+      {
+        "id": "frontend-boundary",
+        "label": "Frontend - React and Tailwind CSS",
+        "tone": "neutral"
+      },
+      {
+        "id": "backend-boundary",
+        "label": "Backend - TanStack Start",
+        "tone": "neutral"
+      },
+      {
+        "id": "infra-boundary",
+        "label": "Infra - Cloudflare Workers",
+        "tone": "orange"
+      },
+      {
+        "id": "tooling-boundary",
+        "label": "Tooling - Bun and Turborepo",
+        "tone": "blue"
+      }
+    ],
+    "groups": [
+      {
+        "id": "frontend-group",
+        "members": [
+          "frontend-boundary",
+          "diagram-tool",
+          "react",
+          "tailwind",
+          "zod",
+          "astro",
+          "starlight"
+        ]
+      },
+      {
+        "id": "backend-group",
+        "members": [
+          "backend-boundary",
+          "tanstack-start",
+          "resvg"
+        ]
+      },
+      {
+        "id": "infra-group",
+        "members": [
+          "infra-boundary",
+          "cloudflare-workers",
+          "github-actions"
+        ]
+      },
+      {
+        "id": "tooling-group",
+        "members": [
+          "tooling-boundary",
+          "bun",
+          "turborepo",
+          "typescript",
+          "vite",
+          "vitest",
+          "oxlint",
+          "wrangler"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": "diagram-tool",
+        "to": "tanstack-start",
+        "label": "HTTPS",
+        "style": "solid"
+      },
+      {
+        "from": "wrangler",
+        "to": "cloudflare-workers",
+        "label": "deploy",
+        "style": "dashed"
+      }
+    ]
+  }
+}

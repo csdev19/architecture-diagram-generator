@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BOUNDARY_PADDINGS, BOUNDARY_TONES, DIAGRAM_LIMITS } from "../../constants/diagram";
 import { DIAGRAM_ICON_KEYS } from "../../constants/diagram-icons";
-import { DIAGRAM_GUIDELINES, DIAGRAM_SKETCH_PROMPT } from "../guidelines";
+import { DIAGRAM_GUIDELINES, DIAGRAM_SKETCH_PROMPT, JSON_TRANSPORT_RULE } from "../guidelines";
 
 /**
  * The guidelines are what a model reads before writing a document, so they must
@@ -88,6 +88,17 @@ describe("DIAGRAM_GUIDELINES", () => {
     expect(DIAGRAM_GUIDELINES).toContain("Check before answering");
   });
 
+  it("requires parsing the exact payload and paste-safe line breaks", () => {
+    // "Return JSON" alone was not enough: an agent can believe a hand-written
+    // response is JSON while a literal newline has landed inside a string.
+    // The document is pasted straight into JSON.parse, so the prompt must ask
+    // for the same parser check on the exact bytes that will be returned.
+    expect(DIAGRAM_GUIDELINES).toContain(JSON_TRANSPORT_RULE);
+    expect(DIAGRAM_GUIDELINES).toContain("no longer than 60 characters");
+    expect(DIAGRAM_GUIDELINES).toMatch(/never\s+inside a quoted string/);
+    expect(DIAGRAM_GUIDELINES).toMatch(/one long compact line/);
+  });
+
   it("frames the dark tile as rare emphasis, not a quota to fill", () => {
     // "for only 2-3 key nodes" reads as a target count. Handed a three-node
     // sketch, a model made two of them dark — which emphasises nothing, and is
@@ -118,6 +129,14 @@ describe("DIAGRAM_GUIDELINES", () => {
  * contract.
  */
 describe("DIAGRAM_SKETCH_PROMPT", () => {
+  it("repeats the safe transport rule before the image instructions", () => {
+    const transport = DIAGRAM_SKETCH_PROMPT.indexOf(JSON_TRANSPORT_RULE);
+    const image = DIAGRAM_SKETCH_PROMPT.indexOf("You are reading an attached image");
+
+    expect(transport).toBeGreaterThan(-1);
+    expect(transport).toBeLessThan(image);
+  });
+
   it("carries the authoring guidelines verbatim", () => {
     expect(DIAGRAM_SKETCH_PROMPT).toContain(DIAGRAM_GUIDELINES);
   });

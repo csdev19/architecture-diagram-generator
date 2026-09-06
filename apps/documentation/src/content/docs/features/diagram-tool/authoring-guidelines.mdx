@@ -29,6 +29,17 @@ paste into a chat alongside a photograph of a whiteboard, and it is composed
 from the guidelines rather than written beside them — so a pasted prompt can
 never describe a format the validator has stopped accepting.
 
+A third export, `DIAGRAM_REPOSITORY_PROMPTS`, does the same for a codebase: three
+prompts a person pastes into a coding agent that already has their repository
+open — Claude Code, Codex, Cursor. Each is the guidelines with a preamble on how
+to read a repository for its stack (README and manifests first, deploy config and
+entrypoints next, never the business logic, never `.env`) and a rule for what
+counts as a node. The three shapes differ only in that rule: **runtime flow**
+draws what moves data and nothing else, **full stack** adds the tooling in
+boundaries off the spine, **layers** sorts every technology into frontend,
+backend, data, infra and tooling. Every shape says the repository stays on the
+person's machine and only the JSON leaves.
+
 The canonical text lives in `packages/domain/src/render/guidelines.ts` and is
 deliberately not restated here — one source, or it drifts.
 
@@ -36,11 +47,12 @@ deliberately not restated here — one source, or it drifts.
 
 ### Files Changed
 
-| Path                                             | Purpose                                                                        |
-| ------------------------------------------------ | ------------------------------------------------------------------------------ |
-| `packages/domain/src/render/guidelines.ts`       | The guidelines text, with every limit interpolated from the schema's constants |
-| `packages/domain/src/render/index.ts`            | Exports it alongside the renderer                                              |
-| `packages/domain/src/constants/diagram-icons.ts` | `DIAGRAM_ICON_ALIASES` — the written words that map to an unguessable key      |
+| Path                                              | Purpose                                                                                   |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `packages/domain/src/render/guidelines.ts`        | The guidelines text, with every limit interpolated from the schema's constants            |
+| `packages/domain/src/render/repository-prompt.ts` | The three repository prompts, composed from the guidelines plus a shared reading preamble |
+| `packages/domain/src/render/index.ts`             | Exports them alongside the renderer                                                       |
+| `packages/domain/src/constants/diagram-icons.ts`  | `DIAGRAM_ICON_ALIASES` — the written words that map to an unguessable key                 |
 
 ### Domain Model
 
@@ -61,13 +73,14 @@ every model on the next build with no edit here.
 
 ## Decisions
 
-| Decision                                               | Why                                                                                                                                                | Alternatives Considered                                             |
-| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| A TypeScript string, not a `.md` file                  | A Worker can return a string with zero bundler configuration; markdown needs a raw-text loader that is not portable                                | A `.md` asset exported through tsdown's `customExports`             |
-| Limits are interpolated, not typed out                 | Guidance that contradicts validation is worse than no guidance. Interpolation makes drift impossible                                               | Writing the numbers as prose, guarded by a test                     |
-| Not duplicated into this docs page                     | Two copies of a rule set is exactly the drift the design avoids everywhere else                                                                    | Rendering the full text here for convenience                        |
-| The guidelines tell a model **not** to emit a `canvas` | The frame is derived from the drawing. A model that keeps declaring one re-imposes the fixed sheet that was removed, and crops anything outside it | Leaving the old canvas-sizing advice in place                       |
-| The full icon key list is interpolated, not summarised | A model cannot guess which brands are curated. Listing all of them costs a few dozen tokens and removes the entire class of invented-key retries   | Naming a handful of examples and letting validation reject the rest |
+| Decision                                               | Why                                                                                                                                                                                                                                                             | Alternatives Considered                                                                          |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| A TypeScript string, not a `.md` file                  | A Worker can return a string with zero bundler configuration; markdown needs a raw-text loader that is not portable                                                                                                                                             | A `.md` asset exported through tsdown's `customExports`                                          |
+| Limits are interpolated, not typed out                 | Guidance that contradicts validation is worse than no guidance. Interpolation makes drift impossible                                                                                                                                                            | Writing the numbers as prose, guarded by a test                                                  |
+| Not duplicated into this docs page                     | Two copies of a rule set is exactly the drift the design avoids everywhere else                                                                                                                                                                                 | Rendering the full text here for convenience                                                     |
+| The guidelines tell a model **not** to emit a `canvas` | The frame is derived from the drawing. A model that keeps declaring one re-imposes the fixed sheet that was removed, and crops anything outside it                                                                                                              | Leaving the old canvas-sizing advice in place                                                    |
+| Three repository shapes, not one prompt that adapts    | "The architecture of this repo" is three different drawings, and a model asked for all at once wires the test runner into the request path. A shape settles what a node is before anything else, and a one-line blurb per shape lets a person choose by reading | One hybrid prompt leaving the shape to the model; asking for several JSON documents in one reply |
+| The full icon key list is interpolated, not summarised | A model cannot guess which brands are curated. Listing all of them costs a few dozen tokens and removes the entire class of invented-key retries                                                                                                                | Naming a handful of examples and letting validation reject the rest                              |
 
 ## Gotchas & Warnings
 
@@ -75,6 +88,8 @@ every model on the next build with no edit here.
 - ⚠️ The interpolation is guarded by a test asserting there is no unresolved `${` and no `undefined` in the output. Removing that test makes a broken template silently shippable.
 - ⚠️ This text is consumed by a model, not a human reader. Prefer imperative, checkable rules over explanation.
 - ⚠️ `DIAGRAM_SKETCH_PROMPT` **contains** `DIAGRAM_GUIDELINES`; it is not a variant of it. A test asserts the containment. Writing sketch-specific format rules into the preamble instead of the guidelines is how the two start disagreeing.
+- ⚠️ Every repository prompt **contains** `DIAGRAM_GUIDELINES` too, and its checks are appended after the contract's own. Shape-specific rules — what is a node, which edges may be solid — belong in the shape's preamble, never in the guidelines, or every sketch prompt inherits them.
+- ⚠️ The repository prompts are wrapped at 80 columns, so a phrase can straddle a newline. Tests that look for one match with `\s+` between words rather than a literal space.
 - ⚠️ Only unguessable keys get an alias. `react` needs none — a box labelled "React" already spells its key — and an alias belongs to exactly one key, because an ambiguous one turns the mapping into a coin flip nobody can see being tossed.
 - ⚠️ A drift test asserts every key in `DIAGRAM_ICON_KEYS` appears in the text. Adding an icon without rebuilding the guidelines fails that test rather than silently shipping a key no model knows about.
 

@@ -7,6 +7,17 @@ import {
 import { DIAGRAM_ICON_ALIASES, DIAGRAM_ICON_KEYS } from "../constants/diagram-icons";
 
 /**
+ * A chat client may turn a visually wrapped long line into literal newlines
+ * when it is copied. Keep this rule in the shared guide and at the opening of
+ * every copyable prompt so the output survives that transport intact.
+ */
+export const JSON_TRANSPORT_RULE = `Before replying, parse the exact final payload with a real JSON parser
+(for example, \`JSON.parse\`). Return pretty-printed JSON with physical lines
+no longer than 60 characters. Put a newline only between JSON tokens, never
+inside a quoted string; do not return one long compact line that a chat client
+could wrap.`;
+
+/**
  * The alias map as one line per key, for a model that has a label and needs a
  * key. Derived, so an alias added to the registry advertises itself.
  */
@@ -34,6 +45,8 @@ export const DIAGRAM_GUIDELINES = `# Diagram Document v2 — authoring guideline
 
 You are generating a \`DiagramDocument\` for an architecture diagram.
 Return ONLY the JSON object — no markdown fence, no commentary.
+
+${JSON_TRANSPORT_RULE}
 
 ## The shape
 
@@ -69,6 +82,13 @@ without drawing a box around them.
    \`dashed\` edge, and lands in a band below the flow.
 4. Group what genuinely belongs together, and give the group a boundary if the
    perimeter has a name worth printing.
+
+When a repository contains more than one deployable application, represent each
+one separately. A web app, mobile app and desktop app are distinct nodes, not
+one generic "frontend" tile. Put each app beside the framework and libraries it
+uses inside its own nested group, with a boundary labelled as the app name plus
+its stack. Likewise, give each separately deployed worker, API or service its
+own node; never merge multiple deployables into one technology tile.
 
 ## Nodes
 
@@ -170,6 +190,7 @@ edge connects tiles, never boundaries or groups.
 
 ## Check before answering
 
+- Re-run the safe JSON transport check above immediately before replying.
 - Is there any \`x\`, \`y\`, \`w\`, \`h\`, \`out\`, \`inn\` or \`layout\` in your answer?
   Delete it.
 - Does every \`edge.from\` and \`edge.to\` name a node that exists?
@@ -207,6 +228,8 @@ Your entire reply is one JSON document, described below. Nothing else.
 **Do not draw, render or generate an image.** You are not making a picture:
 another program draws it from the JSON you return. A reply containing an image,
 a rendered diagram or any prose is a failed reply, however good the picture is.
+
+${JSON_TRANSPORT_RULE}
 
 You are reading an attached image — a hand drawing, a photograph of a
 whiteboard, a drawing on paper, or a screenshot of a diagram. That image is the
