@@ -117,6 +117,15 @@ because the app "probably has one", no load balancer because most deployments
 do, no queue because the framework supports it. A smaller diagram that matches
 the repository beats a fuller one that does not.
 
+## Where something runs is a boundary, not a node
+
+A platform the code is deployed to — Cloudflare Workers, Vercel, a Kubernetes
+cluster, AWS — is the box drawn around the pieces that run there. It is not a node
+in front of them, and it is never both: a "Cloudflare Workers" tile with a
+"Cloudflare Workers" boundary behind it draws the platform twice and sends the
+request through a hop it never makes. The client talks to the app; the boundary
+says where the app runs.
+
 ## Names and roles
 
 Write each technology the way its own product writes it — Postgres, NestJS,

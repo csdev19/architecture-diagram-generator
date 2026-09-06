@@ -118,6 +118,15 @@ describe("DIAGRAM_REPOSITORY_PROMPTS", () => {
       expect(preamble).toMatch(/evidence/i);
     });
 
+    it("says a perimeter is a boundary, not also a node", () => {
+      // The first full-stack run of this repository drew a "Cloudflare Workers"
+      // tile in front of the app and then a "Cloudflare Workers" boundary
+      // around it: the platform twice, and a spine that ran through a tile the
+      // request never reaches. Where something runs is the box, not a hop.
+      expect(preamble).toMatch(/not (also )?a node|never (also )?a node/i);
+      expect(preamble).toMatch(/where (it|something|the app) runs/i);
+    });
+
     it("asks for the product's own casing and a role in sub", () => {
       expect(preamble).toContain("`sub`");
       expect(preamble).toMatch(/the way its own product writes it|product's own (name|casing)/i);

@@ -1,0 +1,12 @@
+---
+title: "September 06, 2026 - A platform is a boundary, not a node"
+description: The repository prompts stop drawing a platform as both a tile and a box, and the pre-commit hook accepts a commit made only of ignored files.
+date: 2026-09-06
+tags:
+  - changelog
+  - bugfix
+---
+
+🐛 **Fix** — The first full-stack run of this repository drew Cloudflare Workers twice: a tile in front of the app and a box around it, with the request routed through a hop it never makes. The repository prompts now say where something runs is the boundary, not a node. The pre-commit hook also no longer rejects a commit whose only formatted files are ones oxfmt ignores, such as `samples/*.json`.
+
+**Docs:** [Authoring Guidelines](/features/diagram-tool/authoring-guidelines)
