@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.1](https://github.com/csdev19/architecture-diagram-generator/compare/v0.4.0...v0.4.1) (2026-09-06)
+
+
+### Bug Fixes
+
+* **domain:** a platform is a boundary, not a node — and let the hook commit ignored files ([70f3c1f](https://github.com/csdev19/architecture-diagram-generator/commit/70f3c1f14e7f6f8801c9f755325fb553b6bcb608))
+* **domain:** tell the repository prompts a platform is a boundary, not a node ([9cb570b](https://github.com/csdev19/architecture-diagram-generator/commit/9cb570be1b13a1c8bef205360293457220734385))
+
 ## [0.4.0](https://github.com/csdev19/architecture-diagram-generator/compare/v0.3.0...v0.4.0) (2026-09-06)
 
 
