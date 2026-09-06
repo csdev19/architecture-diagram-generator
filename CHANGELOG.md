@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.0](https://github.com/csdev19/architecture-diagram-generator/compare/v0.3.0...v0.4.0) (2026-09-06)
+
+
+### Features
+
+* **domain:** compose three repository prompts from the guidelines ([cd15404](https://github.com/csdev19/architecture-diagram-generator/commit/cd1540491f54d43e46090360bfdc3183d8c6d185))
+* **editor:** put a Project prompt beside the Image one, with a shape selector ([1893b12](https://github.com/csdev19/architecture-diagram-generator/commit/1893b12d7658f7bbba4f2b81c7bca6365151f188))
+* improve repository diagram prompts ([19fd237](https://github.com/csdev19/architecture-diagram-generator/commit/19fd2374badf749c88e4addec09008303e48890c))
+* make repository diagram prompts paste-safe ([b53fef8](https://github.com/csdev19/architecture-diagram-generator/commit/b53fef85bf4fe43925530360f072b54920e59b7e))
+
 ## [0.3.0](https://github.com/csdev19/architecture-diagram-generator/compare/v0.2.1...v0.3.0) (2026-09-05)
 
 
