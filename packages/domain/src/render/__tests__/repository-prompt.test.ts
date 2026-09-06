@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DIAGRAM_GUIDELINES } from "../guidelines";
+import { DIAGRAM_GUIDELINES, JSON_TRANSPORT_RULE } from "../guidelines";
 import {
   DIAGRAM_REPOSITORY_PROMPTS,
   REPOSITORY_PROMPT_ORDER,
@@ -57,6 +57,14 @@ describe("DIAGRAM_REPOSITORY_PROMPTS", () => {
       // The title is the strongest instruction in the prompt. It must name
       // the output, not the artefact someone wants.
       expect(preamble).not.toMatch(/^# .*\bdiagram\b/im);
+    });
+
+    it("repeats the safe transport rule before repository instructions", () => {
+      const transport = prompt.indexOf(JSON_TRANSPORT_RULE);
+      const reading = prompt.indexOf("repository open in your workspace");
+
+      expect(transport).toBeGreaterThan(-1);
+      expect(transport).toBeLessThan(reading);
     });
 
     it("forbids drawing, rendering or generating an image", () => {
@@ -160,9 +168,11 @@ describe("DIAGRAM_REPOSITORY_PROMPTS", () => {
           new RegExp(layer, "i"),
         );
       }
-      expect(preamble).toMatch(/one\s+boundary per layer|a boundary for each layer/i);
+      expect(preamble).toMatch(/one outer\s+boundary per layer/i);
       expect(preamble).toMatch(/between\s+layers|across\s+layers/i);
       expect(preamble).toMatch(/not (inside|within) a layer|never\s+inside a layer/i);
+      expect(preamble).toMatch(/web, mobile or desktop application/i);
+      expect(preamble).toMatch(/separately deployed Worker/i);
     });
   });
 });

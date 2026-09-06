@@ -1,6 +1,6 @@
 import { DIAGRAM_LIMITS } from "../constants/diagram";
 import type { ObjectProperties } from "../types";
-import { DIAGRAM_GUIDELINES } from "./guidelines";
+import { DIAGRAM_GUIDELINES, JSON_TRANSPORT_RULE } from "./guidelines";
 
 /**
  * The prompts a person copies out of the editor and pastes into a coding agent
@@ -157,6 +157,8 @@ Your entire reply is one JSON document, described below. Nothing else.
 another program draws it from the JSON you return. A reply containing an image,
 a rendered diagram or any prose is a failed reply, however good the picture is.
 
+${JSON_TRANSPORT_RULE}
+
 ${REPOSITORY_READING}
 
 ${whatIsANode}
@@ -246,9 +248,8 @@ const LAYERS: RepositoryPrompt = {
   prompt: composeRepositoryPrompt({
     whatIsANode: `## What is a node: every technology, sorted into its layer
 
-This diagram is a photograph of the stack, not of a request. Draw **one
-boundary per layer**, and put each technology inside the layer it belongs to,
-one node each:
+This diagram is a photograph of the stack, not of a request. Draw one outer
+boundary per layer, and put each technology inside the layer it belongs to:
 
 - **Frontend** — UI frameworks, rendering frameworks, styling, client state,
   the client bundler when it belongs to the app.
@@ -260,12 +261,25 @@ one node each:
 - **Tooling** — the language, runtime, package manager, monorepo tool, test
   runner, linter, formatter.
 
-A layer with nothing in it is not drawn. Each layer is a group with a boundary
-whose label is the layer's name plus what characterises it — "Data — Postgres
-via Drizzle" — and whose tone follows the contract's meanings: the primary
-platform tone for Infra, the tooling tone for Tooling, the data tone for Data,
-neutral for the rest. List the layers frontend, backend, data, so the stack
-reads left to right, with infra and tooling as the bands below.
+A layer with nothing in it is not drawn. Each layer is a group with an outer
+boundary whose label is the layer's name plus what characterises it — "Data —
+Postgres via Drizzle" — and whose tone follows the contract's meanings: the
+primary platform tone for Infra, the tooling tone for Tooling, the data tone
+for Data, neutral for the rest. List the layers frontend, backend, data, so the
+stack reads left to right, with infra and tooling as the bands below.
+
+Applications are not a generic framework row. For each separately deployable
+web, mobile or desktop application, make a nested group inside its layer: its
+boundary is labelled with the application name and its stack, and it contains
+an application node plus the framework and libraries that app uses. Do not put
+a mobile app beside a web app merely because both use React. The app node is the
+reader's answer to "what is this?"; the neighbouring tiles are its stack.
+
+Likewise, every separately deployed Worker, API or background service is its
+own node inside Infra or Backend. A platform node such as Cloudflare Workers is
+not a substitute for distinct web and API Workers; name both when the
+repository deploys both. Use dashed deployment edges from tooling when the
+evidence names that relationship.
 
 Edges run **only between layers, never inside a layer**: one \`solid\` edge from
 the frontend's framework to the backend's, one from the backend's framework to
@@ -274,8 +288,8 @@ is wired to anything else inside it — Tailwind does not call React. Infra and
 Tooling usually get no edges at all; where one is worth drawing (Wrangler
 deploys the backend), it is \`dashed\`.`,
     lastChecks: `- Is any edge joining two nodes in the same layer? Remove it.
-- Is every drawn layer a group with exactly one boundary, and is every
-  technology in exactly one layer?`,
+- Does every drawn layer have one outer boundary, and is every technology in
+  exactly one layer? Are distinct apps and deployables visibly separate?`,
   }),
 };
 

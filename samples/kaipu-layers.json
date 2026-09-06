@@ -1,0 +1,320 @@
+{
+  "version": 2,
+  "content": {
+    "title": "kaipu layers",
+    "nodes": [
+      {
+        "id": "kaipu-web",
+        "name": "Kaipu Web",
+        "sub": "web app",
+        "initials": "KW"
+      },
+      {
+        "id": "kaipu-record",
+        "name": "Kaipu Record",
+        "sub": "desktop app",
+        "initials": "KR"
+      },
+      {
+        "id": "react",
+        "name": "React",
+        "sub": "ui library",
+        "iconKey": "react"
+      },
+      {
+        "id": "tanstack-start",
+        "name": "TanStack Start",
+        "sub": "web framework",
+        "iconKey": "tanstack"
+      },
+      {
+        "id": "tailwind",
+        "name": "Tailwind CSS",
+        "sub": "css framework",
+        "iconKey": "tailwindcss"
+      },
+      {
+        "id": "electron",
+        "name": "Electron",
+        "sub": "desktop runtime",
+        "iconKey": "electron"
+      },
+      {
+        "id": "hono",
+        "name": "Hono",
+        "sub": "api framework",
+        "iconKey": "hono"
+      },
+      {
+        "id": "orpc",
+        "name": "oRPC",
+        "sub": "api contract",
+        "initials": "OR"
+      },
+      {
+        "id": "better-auth",
+        "name": "Better Auth",
+        "sub": "auth service",
+        "iconKey": "betterauth"
+      },
+      {
+        "id": "neon",
+        "name": "Neon",
+        "sub": "database",
+        "iconKey": "neon"
+      },
+      {
+        "id": "drizzle",
+        "name": "Drizzle ORM",
+        "sub": "orm migrations",
+        "iconKey": "drizzle"
+      },
+      {
+        "id": "cloudflare-r2",
+        "name": "Cloudflare R2",
+        "sub": "object storage",
+        "initials": "R2"
+      },
+      {
+        "id": "cloudflare-workers",
+        "name": "Kaipu Web Worker",
+        "sub": "web worker",
+        "iconKey": "cloudflareworkers"
+      },
+      {
+        "id": "kaipu-api-worker",
+        "name": "Kaipu API Worker",
+        "sub": "api worker",
+        "iconKey": "cloudflareworkers"
+      },
+      {
+        "id": "github-actions",
+        "name": "GitHub Actions",
+        "sub": "ci cd",
+        "iconKey": "githubactions"
+      },
+      {
+        "id": "alchemy",
+        "name": "Alchemy",
+        "sub": "deployment tool",
+        "iconKey": "alchemy"
+      },
+      {
+        "id": "bun",
+        "name": "Bun",
+        "sub": "package runtime",
+        "iconKey": "bun"
+      },
+      {
+        "id": "turborepo",
+        "name": "Turborepo",
+        "sub": "task runner",
+        "iconKey": "turborepo"
+      },
+      {
+        "id": "typescript",
+        "name": "TypeScript",
+        "sub": "language",
+        "iconKey": "typescript"
+      },
+      {
+        "id": "vite",
+        "name": "Vite",
+        "sub": "build tool",
+        "iconKey": "vite"
+      },
+      {
+        "id": "vitest",
+        "name": "Vitest",
+        "sub": "test runner",
+        "iconKey": "vitest"
+      },
+      {
+        "id": "oxlint",
+        "name": "OXLint",
+        "sub": "linter formatter",
+        "iconKey": "oxlint"
+      },
+      {
+        "id": "wrangler",
+        "name": "Wrangler",
+        "sub": "workers cli",
+        "iconKey": "wrangler"
+      }
+    ],
+    "boundaries": [
+      {
+        "id": "frontend-boundary",
+        "label": "Frontend applications",
+        "tone": "neutral"
+      },
+      {
+        "id": "web-app-boundary",
+        "label": "Kaipu Web - React and TanStack Start",
+        "tone": "neutral",
+        "filled": false,
+        "dashed": true
+      },
+      {
+        "id": "desktop-app-boundary",
+        "label": "Kaipu Record - Electron",
+        "tone": "neutral"
+      },
+      {
+        "id": "backend-boundary",
+        "label": "Backend - Hono and Better Auth",
+        "tone": "neutral"
+      },
+      {
+        "id": "data-boundary",
+        "label": "Data - Neon and Cloudflare R2",
+        "tone": "green"
+      },
+      {
+        "id": "infra-boundary",
+        "label": "Infra - Cloudflare Workers",
+        "tone": "orange"
+      },
+      {
+        "id": "web-worker-boundary",
+        "label": "Kaipu Web Worker",
+        "tone": "orange",
+        "filled": false,
+        "dashed": true
+      },
+      {
+        "id": "api-worker-boundary",
+        "label": "Kaipu API Worker",
+        "tone": "orange",
+        "filled": false,
+        "dashed": true
+      },
+      {
+        "id": "tooling-boundary",
+        "label": "Tooling - Bun and Turborepo",
+        "tone": "blue"
+      }
+    ],
+    "groups": [
+      {
+        "id": "frontend-group",
+        "members": [
+          "frontend-boundary",
+          "web-app-group",
+          "desktop-app-group"
+        ]
+      },
+      {
+        "id": "web-app-group",
+        "members": [
+          "web-app-boundary",
+          "kaipu-web",
+          "react",
+          "tanstack-start",
+          "tailwind"
+        ]
+      },
+      {
+        "id": "desktop-app-group",
+        "members": [
+          "desktop-app-boundary",
+          "kaipu-record",
+          "electron"
+        ]
+      },
+      {
+        "id": "backend-group",
+        "members": [
+          "backend-boundary",
+          "hono",
+          "orpc",
+          "better-auth"
+        ]
+      },
+      {
+        "id": "data-group",
+        "members": [
+          "data-boundary",
+          "neon",
+          "drizzle",
+          "cloudflare-r2"
+        ]
+      },
+      {
+        "id": "infra-group",
+        "members": [
+          "infra-boundary",
+          "github-actions",
+          "alchemy",
+          "web-worker-group",
+          "api-worker-group"
+        ]
+      },
+      {
+        "id": "web-worker-group",
+        "members": [
+          "web-worker-boundary",
+          "cloudflare-workers"
+        ]
+      },
+      {
+        "id": "api-worker-group",
+        "members": [
+          "api-worker-boundary",
+          "kaipu-api-worker"
+        ]
+      },
+      {
+        "id": "tooling-group",
+        "members": [
+          "tooling-boundary",
+          "bun",
+          "turborepo",
+          "typescript",
+          "vite",
+          "vitest",
+          "oxlint",
+          "wrangler"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": "kaipu-web",
+        "to": "hono",
+        "label": "HTTPS",
+        "style": "solid"
+      },
+      {
+        "from": "kaipu-record",
+        "to": "hono",
+        "label": "HTTPS",
+        "style": "solid"
+      },
+      {
+        "from": "hono",
+        "to": "neon",
+        "label": "SQL",
+        "style": "solid"
+      },
+      {
+        "from": "hono",
+        "to": "cloudflare-r2",
+        "label": "S3 API",
+        "style": "solid"
+      },
+      {
+        "from": "wrangler",
+        "to": "cloudflare-workers",
+        "label": "deploy",
+        "style": "dashed"
+      },
+      {
+        "from": "wrangler",
+        "to": "kaipu-api-worker",
+        "label": "deploy",
+        "style": "dashed"
+      }
+    ]
+  }
+}
